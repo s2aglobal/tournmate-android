@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Matches iOS sportscourt SF Symbol - rectangular court with lines -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <!-- Court outer boundary -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M2,4h20v16H2V4zM3.5,5.5v13h17v-13H3.5z" />
+    <!-- Center vertical line -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M11.25,5.5h1.5v13h-1.5z" />
+    <!-- Center circle -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,12m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0M12,12m-1.8,0a1.8,1.8 0,1 0,3.6 0a1.8,1.8 0,1 0,-3.6 0" />
+</vector>

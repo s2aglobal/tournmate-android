@@ -1,0 +1,124 @@
+package com.s2aglobal.tournmate.service.auth
+
+import android.content.Context
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class FirebaseAuthService @Inject constructor(
+    private val auth: FirebaseAuth,
+) : AuthService {
+
+    private val listeners = mutableListOf<(FirebaseUser?) -> Unit>()
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
+
+    override val currentUser: FirebaseUser?
+        get() = auth.currentUser
+
+    override val isSignedIn: Boolean
+        get() = auth.currentUser != null
+
+    override suspend fun signInWithGoogle(activityContext: Context): AuthResult {
+        return try {
+            val credentialManager = CredentialManager.create(activityContext)
+
+            val googleIdOption = GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(false)
+                .setServerClientId(getWebClientId(activityContext))
+                .build()
+
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
+
+            val result = credentialManager.getCredential(activityContext, request)
+            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+            val firebaseCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
+            val authResult = auth.signInWithCredential(firebaseCredential).await()
+
+            authResult.user?.let { AuthResult.Success(it) }
+                ?: AuthResult.Error("Sign-in succeeded but no user returned")
+        } catch (e: Exception) {
+            AuthResult.Error(e.localizedMessage ?: "Google sign-in failed")
+        }
+    }
+
+    override suspend fun signInWithEmail(email: String, password: String): AuthResult {
+        return try {
+            val result = auth.signInWithEmailAndPassword(email, password).await()
+            result.user?.let { AuthResult.Success(it) }
+                ?: AuthResult.Error("Sign-in succeeded but no user returned")
+        } catch (e: Exception) {
+            AuthResult.Error(e.localizedMessage ?: "Email sign-in failed")
+        }
+    }
+
+    override suspend fun createAccount(email: String, password: String): AuthResult {
+        return try {
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            result.user?.let { AuthResult.Success(it) }
+                ?: AuthResult.Error("Account creation succeeded but no user returned")
+        } catch (e: Exception) {
+            AuthResult.Error(e.localizedMessage ?: "Account creation failed")
+        }
+    }
+
+    override suspend fun resetPassword(email: String): Result<Unit> = runCatching {
+        auth.sendPasswordResetEmail(email).await()
+    }
+
+    override suspend fun sendEmailVerification(): Result<Unit> = runCatching {
+        auth.currentUser?.sendEmailVerification()?.await()
+            ?: throw IllegalStateException("No user signed in")
+    }
+
+    override suspend fun reloadCurrentUser(): Result<Unit> = runCatching {
+        auth.currentUser?.reload()?.await()
+            ?: throw IllegalStateException("No user signed in")
+    }
+
+    override suspend fun signOut() {
+        auth.signOut()
+    }
+
+    override suspend fun deleteAccount(): Result<Unit> = runCatching {
+        auth.currentUser?.delete()?.await()
+            ?: throw IllegalStateException("No user signed in")
+    }
+
+    override fun addAuthStateListener(listener: (FirebaseUser?) -> Unit) {
+        listeners.add(listener)
+        if (authStateListener == null) {
+            authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+                listeners.forEach { it(firebaseAuth.currentUser) }
+            }
+            auth.addAuthStateListener(authStateListener!!)
+        }
+    }
+
+    override fun removeAuthStateListener(listener: (FirebaseUser?) -> Unit) {
+        listeners.remove(listener)
+        if (listeners.isEmpty()) {
+            authStateListener?.let { auth.removeAuthStateListener(it) }
+            authStateListener = null
+        }
+    }
+
+    private fun getWebClientId(context: Context): String {
+        val resId = context.resources.getIdentifier(
+            "default_web_client_id", "string", context.packageName
+        )
+        return if (resId != 0) context.getString(resId)
+        else throw IllegalStateException(
+            "default_web_client_id not found. Ensure google-services.json is properly configured."
+        )
+    }
+}

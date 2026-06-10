@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- Head -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M330,95 a40,40 0,1 0,0.1 0z" />
+    <!-- Body - dynamic badminton pose with arm reaching up for overhead smash -->
+    <!-- Torso -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M310,140 C290,160 260,200 250,240 L280,250 C290,215 305,175 320,155 Z" />
+    <!-- Left leg (front, lunging forward) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M250,240 L160,370 C155,380 160,390 170,390 L190,390 C200,390 205,380 200,370 L270,260 Z" />
+    <!-- Right leg (back, extended) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M265,245 L340,380 C345,390 355,395 365,390 L375,385 C385,380 385,370 380,360 L300,240 Z" />
+    <!-- Racket arm (reaching up and back for smash) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M320,150 C335,135 355,115 375,100 L395,80 L410,95 L390,115 C370,130 350,145 335,160 Z" />
+    <!-- Racket head (oval at end of arm) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M395,55 a30,22 -30,1 0,0.1 0z" />
+    <path
+        android:fillColor="#630893"
+        android:pathData="M398,58 a22,15 -30,1 0,0.1 0z" />
+    <!-- Non-racket arm (balancing, extending forward-down) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M295,165 C275,185 255,195 230,200 L220,185 C245,180 265,170 285,150 Z" />
+</vector>

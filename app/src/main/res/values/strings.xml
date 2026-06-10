@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App name is set by build flavor resValue in build.gradle.kts -->
+
+    <!-- Auth -->
+    <string name="welcome_tagline">Organize. Play. Compete.</string>
+    <string name="start_journey">START YOUR JOURNEY</string>
+    <string name="log_in">LOG IN</string>
+    <string name="continue_as_guest">Continue as Guest</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="sign_in_with_email">Sign in with Email</string>
+    <string name="create_account">Create Account</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="delete_account">Delete Account</string>
+
+    <!-- Tabs -->
+    <string name="tab_play">Play</string>
+    <string name="tab_courts">Courts</string>
+    <string name="tab_discover">Discover</string>
+    <string name="tab_profile">Profile</string>
+
+    <!-- Play segments -->
+    <string name="tournaments">Tournaments</string>
+    <string name="open_play">Open Play</string>
+
+    <!-- Common -->
+    <string name="loading">Loading…</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="done">Done</string>
+    <string name="next">Next</string>
+    <string name="back">Back</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="confirm">Confirm</string>
+    <string name="search">Search</string>
+    <string name="no_results">No results found</string>
+
+    <!-- Profile Setup -->
+    <string name="profile_setup_title">Set Up Your Profile</string>
+    <string name="enter_name">Enter your name</string>
+    <string name="select_gender">Select gender</string>
+    <string name="choose_avatar">Choose an avatar</string>
+    <string name="home_region">Home Region</string>
+    <string name="country">Country</string>
+    <string name="postal_code">Postal Code</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title_1">Find Tournaments</string>
+    <string name="onboarding_desc_1">Discover and join tournaments in your area</string>
+    <string name="onboarding_title_2">Open Play Sessions</string>
+    <string name="onboarding_desc_2">Find casual games and meet other players</string>
+    <string name="onboarding_title_3">Track Your Progress</string>
+    <string name="onboarding_desc_3">Monitor your ELO rating, stats, and calories</string>
+    <string name="get_started">Get Started</string>
+</resources>
