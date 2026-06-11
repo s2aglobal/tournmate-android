@@ -21,5 +21,6 @@ interface PlayerRepository {
     suspend fun findPlayerByPhone(phone: String): Player?
     suspend fun findPlayerByFirebaseUid(uid: String): Player?
     suspend fun updatePlayer(player: Player)
+    suspend fun updatePlayerFields(playerId: UUID, fields: Map<String, Any?>)
     suspend fun deletePlayer(id: UUID)
 }
