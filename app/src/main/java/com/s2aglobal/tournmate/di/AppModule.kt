@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.di
 
+import com.s2aglobal.tournmate.data.repository.CalorieRecordRepository
+import com.s2aglobal.tournmate.data.repository.FirestoreCalorieRecordRepository
 import com.s2aglobal.tournmate.data.repository.FirestorePlayerRepository
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.service.auth.AuthService
@@ -17,6 +19,10 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindPlayerRepository(impl: FirestorePlayerRepository): PlayerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCalorieRecordRepository(impl: FirestoreCalorieRecordRepository): CalorieRecordRepository
 
     @Binds
     @Singleton

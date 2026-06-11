@@ -25,6 +25,7 @@ import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.ui.screen.court.CourtFinderPlaceholder
 import com.s2aglobal.tournmate.ui.screen.discover.DiscoverPlaceholder
 import com.s2aglobal.tournmate.ui.screen.profile.ProfilePlaceholder
+// ProfilePlaceholder now lives in ProfileScreen.kt
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
 
 private data class TabItem(

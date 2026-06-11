@@ -98,8 +98,27 @@ class FirestorePlayerRepository @Inject constructor(
             ?.toPlayer()
 
     override suspend fun updatePlayer(player: Player) {
+        val allowedFields = mutableMapOf<String, Any>(
+            "name" to player.name,
+            "phone" to player.phone,
+            "genderRaw" to player.genderRaw,
+            "avatarId" to player.avatarId,
+        )
+        player.homeCountryCode?.let { allowedFields["homeCountryCode"] = it }
+        player.homePostalCode?.let { allowedFields["homePostalCode"] = it }
+        player.weightKg?.let { allowedFields["weightKg"] = it }
+        player.dateOfBirth?.let { allowedFields["dateOfBirth"] = com.google.firebase.Timestamp(it) }
+        player.fcmToken?.let { allowedFields["fcmToken"] = it }
+
         collection.document(player.id.toString().uppercase())
-            .set(player.toFirestoreMap(), SetOptions.merge())
+            .update(allowedFields as Map<String, Any>)
+            .await()
+    }
+
+    override suspend fun updatePlayerFields(playerId: UUID, fields: Map<String, Any?>) {
+        val filtered = fields.filterValues { it != null }
+        collection.document(playerId.toString().uppercase())
+            .update(filtered)
             .await()
     }
 
