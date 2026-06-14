@@ -3,7 +3,11 @@ package com.s2aglobal.tournmate.di
 import com.s2aglobal.tournmate.data.repository.CalorieRecordRepository
 import com.s2aglobal.tournmate.data.repository.FirestoreCalorieRecordRepository
 import com.s2aglobal.tournmate.data.repository.FirestorePlayerRepository
+import com.s2aglobal.tournmate.data.repository.FirestoreRegistrationRepository
+import com.s2aglobal.tournmate.data.repository.FirestoreTournamentRepository
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
+import com.s2aglobal.tournmate.data.repository.RegistrationRepository
+import com.s2aglobal.tournmate.data.repository.TournamentRepository
 import com.s2aglobal.tournmate.service.auth.AuthService
 import com.s2aglobal.tournmate.service.auth.FirebaseAuthService
 import dagger.Binds
@@ -19,6 +23,14 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindPlayerRepository(impl: FirestorePlayerRepository): PlayerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTournamentRepository(impl: FirestoreTournamentRepository): TournamentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRegistrationRepository(impl: FirestoreRegistrationRepository): RegistrationRepository
 
     @Binds
     @Singleton

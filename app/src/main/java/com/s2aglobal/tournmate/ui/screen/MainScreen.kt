@@ -36,6 +36,7 @@ private data class TabItem(
 @Composable
 fun MainScreen(
     onSignOut: () -> Unit,
+    onNavigateToTournamentDetail: (String) -> Unit = {},
 ) {
     val tabs = remember {
         listOf(
@@ -85,7 +86,10 @@ fun MainScreen(
         },
     ) { padding ->
         when (selectedTab) {
-            0 -> PlayTabScreen(modifier = Modifier.padding(padding))
+            0 -> PlayTabScreen(
+                modifier = Modifier.padding(padding),
+                onNavigateToTournamentDetail = onNavigateToTournamentDetail,
+            )
             1 -> CourtFinderPlaceholder(modifier = Modifier.padding(padding))
             2 -> DiscoverPlaceholder(modifier = Modifier.padding(padding))
             3 -> ProfilePlaceholder(modifier = Modifier.padding(padding), onSignOut = onSignOut)

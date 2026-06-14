@@ -30,8 +30,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,37 +45,78 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayListPlaceholder
-import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListPlaceholder
+import com.s2aglobal.tournmate.ui.screen.tournament.PublishTournamentScreen
+import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListScreen
+import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListViewModel
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
 import java.util.Calendar
 
 @Composable
-fun PlayTabScreen(modifier: Modifier = Modifier) {
+fun PlayTabScreen(
+    modifier: Modifier = Modifier,
+    onNavigateToTournamentDetail: (String) -> Unit = {},
+) {
     var selectedSegment by remember { mutableIntStateOf(0) }
+    var showPublish by remember { mutableStateOf(false) }
+    val tournamentListVM: TournamentListViewModel = hiltViewModel()
+    val uiState by tournamentListVM.uiState.collectAsState()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFFF2F2F7)),
-    ) {
-        // Header matching iOS PlayTabView
-        PlayHeader(
-            selectedSegment = selectedSegment,
-            onHostClick = { /* TODO: Phase 2 */ },
-            onNotificationClick = { /* TODO: Phase 7 */ },
-        )
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF2F2F7)),
+        ) {
+            PlayHeader(
+                selectedSegment = selectedSegment,
+                onHostClick = { showPublish = true },
+                onNotificationClick = { },
+            )
 
-        // Custom pill tab switcher
-        PillTabSwitcher(
-            selectedIndex = selectedSegment,
-            onTabSelected = { selectedSegment = it },
-        )
+            PillTabSwitcher(
+                selectedIndex = selectedSegment,
+                onTabSelected = { selectedSegment = it },
+            )
 
-        // Content
-        when (selectedSegment) {
-            0 -> TournamentListPlaceholder()
-            1 -> OpenPlayListPlaceholder()
+            when (selectedSegment) {
+                0 -> TournamentListScreen(
+                    isGuest = false,
+                    onTournamentClick = { tournament ->
+                        onNavigateToTournamentDetail(tournament.id.toString().uppercase())
+                    },
+                    onHostClick = { showPublish = true },
+                    viewModel = tournamentListVM,
+                )
+                1 -> OpenPlayListPlaceholder()
+            }
+        }
+
+        if (showPublish) {
+            PublishTournamentScreen(
+                firebaseUid = uiState.firebaseUid,
+                preferredSport = uiState.preferredSport,
+                onPublish = { title, date, location, locationAddress,
+                              locationLatitude, locationLongitude,
+                              format, matchFormat, formatConfig,
+                              randomPairing, registrationDeadline, createdBy,
+                              entryFee, currency, paymentInfo, prizeInfo,
+                              durationMinutes, ageGroup, sportType ->
+                    tournamentListVM.create(
+                        title = title, date = date,
+                        location = location, locationAddress = locationAddress,
+                        locationLatitude = locationLatitude, locationLongitude = locationLongitude,
+                        format = format, matchFormat = matchFormat, formatConfig = formatConfig,
+                        randomPairing = randomPairing, registrationDeadline = registrationDeadline,
+                        createdBy = createdBy, entryFee = entryFee, currency = currency,
+                        paymentInfo = paymentInfo, prizeInfo = prizeInfo,
+                        durationMinutes = durationMinutes, ageGroup = ageGroup, sportType = sportType,
+                    )
+                },
+                onDismiss = { showPublish = false },
+            )
         }
     }
 }
@@ -110,7 +153,6 @@ private fun PlayHeader(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Notification bell
         IconButton(onClick = onNotificationClick) {
             Icon(
                 imageVector = Icons.Outlined.Notifications,
@@ -122,7 +164,6 @@ private fun PlayHeader(
 
         Spacer(modifier = Modifier.width(6.dp))
 
-        // HOST button
         Surface(
             onClick = onHostClick,
             shape = RoundedCornerShape(50),
@@ -184,7 +225,6 @@ private fun PillTabSwitcher(
             label = "pillSlide",
         )
 
-        // Outer track
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -193,7 +233,6 @@ private fun PillTabSwitcher(
             color = Color(0xFFE5E5EA).copy(alpha = 0.55f),
         ) {
             Box {
-                // Sliding white pill
                 Surface(
                     modifier = Modifier
                         .offset(x = pillOffset)
@@ -205,7 +244,6 @@ private fun PillTabSwitcher(
                     color = Color.White,
                 ) {}
 
-                // Tab labels
                 Row(modifier = Modifier.fillMaxSize()) {
                     tabs.forEachIndexed { index, tab ->
                         Box(
