@@ -21,7 +21,7 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["MAPS_API_KEY"] = ""
+        manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") as? String ?: ""
     }
 
     flavorDimensions += "environment"
@@ -123,10 +123,11 @@ dependencies {
     // Health Connect
     implementation(libs.health.connect)
 
-    // Google Maps
+    // Google Maps + Places
     implementation(libs.maps.compose)
     implementation(libs.play.services.location)
     implementation(libs.play.services.maps)
+    implementation(libs.places)
 
     // Coroutines
     implementation(libs.coroutines.core)

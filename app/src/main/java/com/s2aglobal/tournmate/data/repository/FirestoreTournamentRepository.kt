@@ -1,0 +1,182 @@
+package com.s2aglobal.tournmate.data.repository
+
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.s2aglobal.tournmate.data.mapper.toFirestoreMap
+import com.s2aglobal.tournmate.data.mapper.toTournament
+import com.s2aglobal.tournmate.domain.model.*
+import kotlinx.coroutines.tasks.await
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.util.Calendar
+import java.util.Date
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class FirestoreTournamentRepository @Inject constructor(
+    private val db: FirebaseFirestore,
+) : TournamentRepository {
+
+    private val collection get() = db.collection("tournaments")
+
+    override suspend fun findTournament(id: UUID): Tournament? {
+        val doc = collection.document(id.toString().uppercase()).get().await()
+        return doc.toTournament()
+    }
+
+    override suspend fun listTournaments(): List<Tournament> {
+        val today = startOfToday()
+
+        return collection
+            .whereGreaterThanOrEqualTo("date", Timestamp(today))
+            .orderBy("date")
+            .get()
+            .await()
+            .documents
+            .mapNotNull { it.toTournament() }
+    }
+
+    override suspend fun listPastTournaments(): List<Tournament> {
+        val today = startOfToday()
+
+        return collection
+            .whereLessThan("date", Timestamp(today))
+            .orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .get()
+            .await()
+            .documents
+            .mapNotNull { it.toTournament() }
+    }
+
+    private fun startOfToday(): Date {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.time
+    }
+
+    override suspend fun createTournament(
+        title: String,
+        date: Date,
+        location: String,
+        locationAddress: String,
+        locationLatitude: Double?,
+        locationLongitude: Double?,
+        countryCode: String?,
+        postalCode: String?,
+        format: TournamentFormat,
+        matchFormat: MatchFormat,
+        formatConfig: FormatConfig?,
+        randomPairing: Boolean,
+        registrationDeadline: Date?,
+        createdBy: String?,
+        entryFee: Double?,
+        currency: String,
+        paymentInfo: String?,
+        prizeInfo: String?,
+        durationMinutes: Int?,
+        ageGroup: AgeGroup,
+        sportType: SportType,
+    ) {
+        val configJson = formatConfig?.let { Json.encodeToString(it) }
+        val deadline = registrationDeadline ?: Tournament.defaultDeadline(date)
+
+        val tournament = Tournament(
+            id = UUID.randomUUID(),
+            title = title,
+            date = date,
+            location = location,
+            locationAddress = locationAddress,
+            locationLatitude = locationLatitude,
+            locationLongitude = locationLongitude,
+            statusRaw = TournamentStatus.SCHEDULED.rawValue,
+            formatRaw = format.rawValue,
+            matchFormatRaw = matchFormat.rawValue,
+            randomPairing = randomPairing,
+            registrationDeadline = deadline,
+            createdAt = Date(),
+            createdBy = createdBy,
+            entryFee = entryFee,
+            currency = currency,
+            paymentInfo = paymentInfo,
+            prizeInfo = prizeInfo,
+            ageGroupRaw = ageGroup.rawValue,
+            durationMinutes = durationMinutes,
+            formatConfigData = configJson,
+            countryCode = countryCode,
+            postalCode = postalCode,
+            sportType = sportType,
+        )
+
+        collection.document(tournament.id.toString().uppercase())
+            .set(tournament.toFirestoreMap())
+            .await()
+    }
+
+    override suspend fun updateTournament(
+        tournament: Tournament,
+        title: String,
+        date: Date,
+        location: String,
+        locationAddress: String,
+        locationLatitude: Double?,
+        locationLongitude: Double?,
+        countryCode: String?,
+        postalCode: String?,
+        format: TournamentFormat,
+        matchFormat: MatchFormat,
+        formatConfig: FormatConfig?,
+        randomPairing: Boolean,
+        registrationDeadline: Date,
+        entryFee: Double?,
+        currency: String,
+        paymentInfo: String?,
+        prizeInfo: String?,
+        durationMinutes: Int?,
+        ageGroup: AgeGroup,
+    ) {
+        val configJson = formatConfig?.let { Json.encodeToString(it) }
+
+        val updated = tournament.copy(
+            title = title,
+            date = date,
+            location = location,
+            locationAddress = locationAddress,
+            locationLatitude = locationLatitude,
+            locationLongitude = locationLongitude,
+            countryCode = countryCode,
+            postalCode = postalCode,
+            formatRaw = format.rawValue,
+            matchFormatRaw = matchFormat.rawValue,
+            randomPairing = randomPairing,
+            registrationDeadline = registrationDeadline,
+            entryFee = entryFee,
+            currency = currency,
+            paymentInfo = paymentInfo,
+            prizeInfo = prizeInfo,
+            durationMinutes = durationMinutes,
+            ageGroupRaw = ageGroup.rawValue,
+            formatConfigData = configJson,
+        )
+
+        collection.document(tournament.id.toString().uppercase())
+            .set(updated.toFirestoreMap(), com.google.firebase.firestore.SetOptions.merge())
+            .await()
+    }
+
+    override suspend fun cancelTournament(tournament: Tournament) {
+        collection.document(tournament.id.toString().uppercase())
+            .update("statusRaw", TournamentStatus.CANCELLED.rawValue)
+            .await()
+    }
+
+    override suspend fun deleteTournament(tournament: Tournament) {
+        collection.document(tournament.id.toString().uppercase())
+            .delete()
+            .await()
+    }
+}

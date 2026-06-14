@@ -10,6 +10,7 @@ import com.s2aglobal.tournmate.ui.screen.auth.LoginScreen
 import com.s2aglobal.tournmate.ui.screen.auth.OnboardingScreen
 import com.s2aglobal.tournmate.ui.screen.auth.ProfileSetupScreen
 import com.s2aglobal.tournmate.ui.screen.auth.WelcomeScreen
+import com.s2aglobal.tournmate.ui.screen.tournament.TournamentDetailScreen
 
 @Composable
 fun TournMateNavHost() {
@@ -101,6 +102,18 @@ fun TournMateNavHost() {
                     navController.navigate(Routes.WELCOME) {
                         popUpTo(Routes.MAIN) { inclusive = true }
                     }
+                },
+                onNavigateToTournamentDetail = { tournamentId ->
+                    navController.navigate(Routes.tournamentDetail(tournamentId))
+                },
+            )
+        }
+
+        composable(Routes.TOURNAMENT_DETAIL) {
+            TournamentDetailScreen(
+                onBack = { navController.popBackStack() },
+                onPlayerClick = { playerId ->
+                    navController.navigate(Routes.playerProfile(playerId))
                 },
             )
         }
