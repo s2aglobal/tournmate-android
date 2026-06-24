@@ -111,6 +111,26 @@ fun Tournament.toFirestoreMap(): Map<String, Any?> = buildMap {
     put("sportType", sportType.rawValue)
 }
 
+fun Match.toFirestoreMap(): Map<String, Any?> = buildMap {
+    put("tournamentId", tournamentId)
+    put("teamAId", teamAId)
+    put("teamBId", teamBId)
+    put("statusRaw", statusRaw)
+    put("createdAt", Timestamp(createdAt))
+    round?.let { put("round", it) }
+    bracketPosition?.let { put("bracketPosition", it) }
+    groupLabel?.let { put("groupLabel", it) }
+    put("sportType", sportType.rawValue)
+    scoreA?.let { put("scoreA", it) }
+    scoreB?.let { put("scoreB", it) }
+    winnerRegistrationId?.let { put("winnerRegistrationId", it) }
+    submittedBy?.let { put("submittedBy", it) }
+    confirmedBy?.let { put("confirmedBy", it) }
+    if (setScores.isNotEmpty()) {
+        put("setScores", setScores.map { mapOf("teamAPoints" to it.teamAPoints, "teamBPoints" to it.teamBPoints) })
+    }
+}
+
 fun DocumentSnapshot.toRegistration(): Registration? {
     if (!exists()) return null
     return Registration(

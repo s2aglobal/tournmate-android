@@ -111,7 +111,13 @@ fun TournMateNavHost() {
 
         composable(Routes.TOURNAMENT_DETAIL) {
             TournamentDetailScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(Routes.MAIN) {
+                            popUpTo(Routes.MAIN) { inclusive = true }
+                        }
+                    }
+                },
                 onPlayerClick = { playerId ->
                     navController.navigate(Routes.playerProfile(playerId))
                 },

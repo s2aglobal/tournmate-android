@@ -364,6 +364,7 @@ fun PublishTournamentScreen(
     // Venue picker renders as a fullscreen overlay on top of the wizard
     if (showVenueSheet) {
         VenuePickerScreen(
+            sportType = newSportType,
             onVenueSelected = { name, address, lat, lng ->
                 venueName = name
                 venueAddress = address
@@ -429,7 +430,7 @@ private fun <T> ListBottomSheet(
 private fun WizardTopBar(step: Int, onBack: () -> Unit) {
     val titles = listOf("BASIC INFO", "FORMAT RULES", "RULES & LOGISTICS", "REVIEW & POST")
     Row(
-        modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
@@ -842,7 +843,7 @@ private fun Step4Review(
 @Composable
 private fun SuccessScreen(title: String, onDone: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(24.dp),
+        modifier = Modifier.fillMaxSize().navigationBarsPadding().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Spacer(Modifier.weight(1f))

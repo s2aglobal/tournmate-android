@@ -21,20 +21,26 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") as? String ?: ""
     }
 
     flavorDimensions += "environment"
     productFlavors {
+        val localLines = rootProject.file("local.properties")
+            .takeIf { it.exists() }?.readLines() ?: emptyList()
+        fun localProp(key: String): String =
+            localLines.firstOrNull { it.startsWith("$key=") }?.substringAfter("=")?.trim() ?: ""
+
         create("dev") {
             dimension = "environment"
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "TournMate Dev")
+            manifestPlaceholders["MAPS_API_KEY"] = localProp("MAPS_API_KEY_DEV")
         }
         create("prod") {
             dimension = "environment"
             resValue("string", "app_name", "TournMate")
+            manifestPlaceholders["MAPS_API_KEY"] = localProp("MAPS_API_KEY_PROD")
         }
     }
 
