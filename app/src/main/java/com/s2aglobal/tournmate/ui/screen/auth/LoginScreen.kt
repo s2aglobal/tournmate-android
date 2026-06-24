@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -120,7 +121,8 @@ private fun EliteAccessScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(Color.White)
+            .statusBarsPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -128,7 +130,7 @@ private fun EliteAccessScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text("Elite\nAccess.", fontSize = 48.sp, fontWeight = FontWeight.Black, lineHeight = 52.sp)
             Spacer(modifier = Modifier.height(10.dp))
@@ -207,7 +209,8 @@ private fun WelcomeBackScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(Color.White)
+            .statusBarsPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -215,7 +218,7 @@ private fun WelcomeBackScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text("Welcome\nBack.", fontSize = 38.sp, fontWeight = FontWeight.Black, lineHeight = 42.sp)
             Spacer(modifier = Modifier.height(10.dp))
@@ -321,7 +324,8 @@ private fun EmailCreateAccountScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(Color.White)
+            .statusBarsPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -329,7 +333,7 @@ private fun EmailCreateAccountScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Progress indicator top-right
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

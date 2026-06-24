@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import coil.compose.AsyncImage
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -30,10 +31,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.*
 import com.s2aglobal.tournmate.service.court.CourtResult
+import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.court.CourtSearchService
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
 import kotlinx.coroutines.delay
@@ -41,6 +40,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun VenuePickerScreen(
+    sportType: SportType = SportType.BADMINTON,
     onVenueSelected: (name: String, address: String, latitude: Double, longitude: Double) -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -73,18 +73,19 @@ fun VenuePickerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F8FA))
+            .background(Color.White)
             .statusBarsPadding()
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
                 focusManager.clearFocus()
             },
     ) {
         // ── Navigation Bar ──
-        Surface(color = Color.White, shadowElevation = 0.5.dp) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
                 TextButton(onClick = onCancel) {
                     Text("Cancel", color = BrandPurple, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
@@ -96,12 +97,11 @@ fun VenuePickerScreen(
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.width(72.dp))
-            }
         }
 
         // ── Search Bar ──
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             shape = RoundedCornerShape(12.dp),
             color = Color(0xFFEFEFF4),
         ) {
@@ -147,10 +147,10 @@ fun VenuePickerScreen(
 
         // ── Body ──
         when {
-            isSearching -> SearchingState()
+            isSearching -> SearchingState(sportType)
             results.isNotEmpty() -> ResultsState(results, onVenueSelected)
-            hasSearched -> EmptyResultsState(popularExamples) { query = it; doSearch(it) }
-            else -> WelcomeState(popularExamples) { query = it; doSearch(it) }
+            hasSearched -> EmptyResultsState(sportType, popularExamples) { query = it; doSearch(it) }
+            else -> WelcomeState(sportType, popularExamples) { query = it; doSearch(it) }
         }
     }
 }
@@ -159,8 +159,22 @@ fun VenuePickerScreen(
 // MARK: - Searching Animation (matches iOS radar animation)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+private fun sportIcon(sportType: SportType) = when (sportType) {
+    SportType.BADMINTON -> Icons.Default.SportsTennis
+    SportType.TENNIS -> Icons.Default.SportsTennis
+    SportType.PICKLEBALL -> Icons.Default.SportsTennis
+    else -> Icons.Default.SportsTennis
+}
+
+private fun sportLabel(sportType: SportType) = when (sportType) {
+    SportType.BADMINTON -> "Badminton"
+    SportType.TENNIS -> "Tennis"
+    SportType.PICKLEBALL -> "Pickleball"
+    else -> sportType.displayName
+}
+
 @Composable
-private fun SearchingState() {
+private fun SearchingState(sportType: SportType) {
     val t = rememberInfiniteTransition(label = "radar")
     val ring1 by t.animateFloat(0.6f, 1.2f, infiniteRepeatable(tween(1200, easing = EaseInOut), RepeatMode.Reverse), label = "r1")
     val ring2 by t.animateFloat(0.8f, 1.4f, infiniteRepeatable(tween(1200, delayMillis = 200, easing = EaseInOut), RepeatMode.Reverse), label = "r2")
@@ -177,11 +191,11 @@ private fun SearchingState() {
                         color = BrandPurple.copy(alpha = alpha),
                     ) {}
                 }
-                Icon(Icons.Default.SportsTennis, null, Modifier.size(32.dp), tint = BrandPurple)
+                Icon(sportIcon(sportType), null, Modifier.size(32.dp), tint = BrandPurple)
             }
             Spacer(Modifier.height(24.dp))
             Text("Searching for courts...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            Text("Finding badminton facilities\nnear your location", fontSize = 13.sp, color = Color.Gray, textAlign = TextAlign.Center)
+            Text("Finding ${sportLabel(sportType).lowercase()} facilities\nnear your location", fontSize = 13.sp, color = Color.Gray, textAlign = TextAlign.Center)
             Spacer(Modifier.height(16.dp))
             CircularProgressIndicator(Modifier.size(20.dp), BrandPurple, strokeWidth = 2.dp)
         }
@@ -193,7 +207,7 @@ private fun SearchingState() {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @Composable
-private fun WelcomeState(examples: List<Pair<String, String>>, onSearch: (String) -> Unit) {
+private fun WelcomeState(sportType: SportType, examples: List<Pair<String, String>>, onSearch: (String) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -209,14 +223,14 @@ private fun WelcomeState(examples: List<Pair<String, String>>, onSearch: (String
                     Icon(Icons.Default.LocationOn, null, Modifier.size(20.dp).offset(x = (-45).dp, y = (-25).dp), tint = BrandPurple.copy(alpha = 0.7f))
                     Icon(Icons.Default.LocationOn, null, Modifier.size(16.dp).offset(x = 30.dp, y = 12.dp), tint = BrandPurple.copy(alpha = 0.5f))
                     Icon(Icons.Default.LocationOn, null, Modifier.size(12.dp).offset(x = (-12).dp, y = 35.dp), tint = BrandPurple.copy(alpha = 0.4f))
-                    Icon(Icons.Default.SportsTennis, null, Modifier.size(42.dp), tint = BrandPurple)
+                    Icon(sportIcon(sportType), null, Modifier.size(42.dp), tint = BrandPurple)
                 }
             }
 
             Spacer(Modifier.height(20.dp))
-            Text("Search for a Badminton Court", fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text("Search for a ${sportLabel(sportType)} Court", fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(6.dp))
-            Text("Enter a postal code in United States, or use\ncurrent location when you're there.", fontSize = 13.sp, color = Color.Gray, textAlign = TextAlign.Center, lineHeight = 19.sp, modifier = Modifier.fillMaxWidth())
+            Text("Enter a postal code, city, or venue name\nto find nearby ${sportLabel(sportType).lowercase()} facilities.", fontSize = 13.sp, color = Color.Gray, textAlign = TextAlign.Center, lineHeight = 19.sp, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(24.dp))
 
             // Action cards
@@ -266,25 +280,9 @@ private fun ResultsState(
     results: List<CourtResult>,
     onSelect: (name: String, address: String, latitude: Double, longitude: Double) -> Unit,
 ) {
-    val first = results.first()
-    val cameraState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(first.latitude, first.longitude), 11f)
-    }
+    val context = LocalContext.current
 
     LazyColumn(Modifier.fillMaxSize()) {
-        // Map
-        item {
-            GoogleMap(
-                modifier = Modifier.fillMaxWidth().height(180.dp),
-                cameraPositionState = cameraState,
-                uiSettings = MapUiSettings(zoomControlsEnabled = false, mapToolbarEnabled = false, myLocationButtonEnabled = false),
-            ) {
-                results.forEach {
-                    Marker(state = MarkerState(LatLng(it.latitude, it.longitude)), title = it.name)
-                }
-            }
-        }
-
         // Results header
         item {
             Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -298,29 +296,70 @@ private fun ResultsState(
             }
         }
 
-        // Court cards
+        // Court cards with map preview (like iOS)
         itemsIndexed(results, key = { i, c -> "$i-${c.name}" }) { _, court ->
+            val apiKey = (context as? android.app.Activity)?.let {
+                try {
+                    it.packageManager.getApplicationInfo(it.packageName, android.content.pm.PackageManager.GET_META_DATA)
+                        .metaData?.getString("com.google.android.geo.API_KEY") ?: ""
+                } catch (_: Exception) { "" }
+            } ?: ""
+
             Surface(
                 onClick = { onSelect(court.name, court.address, court.latitude, court.longitude) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                 shape = RoundedCornerShape(14.dp),
                 color = Color.White,
-                shadowElevation = 1.dp,
+                shadowElevation = 2.dp,
             ) {
-                Column(Modifier.padding(14.dp)) {
-                    Text(court.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
-                    if (court.address.isNotEmpty()) {
-                        Spacer(Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Default.LocationOn, null, Modifier.size(14.dp), tint = Color.Red.copy(alpha = 0.7f))
-                            Text(court.address, fontSize = 12.sp, color = Color.Gray, maxLines = 2, lineHeight = 16.sp)
+                Column {
+                    // Map preview image
+                    Box(Modifier.fillMaxWidth().height(130.dp)) {
+                        val mapUrl = "https://maps.googleapis.com/maps/api/staticmap" +
+                            "?center=${court.latitude},${court.longitude}" +
+                            "&zoom=15&size=600x260&scale=2&maptype=roadmap" +
+                            "&markers=color:purple%7C${court.latitude},${court.longitude}" +
+                            "&key=$apiKey"
+                        AsyncImage(
+                            model = mapUrl,
+                            contentDescription = court.name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        )
+
+                        // Distance badge
+                        court.distanceMeters?.let { dist ->
+                            Surface(
+                                modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
+                                shape = RoundedCornerShape(50),
+                                color = Color.White.copy(alpha = 0.9f),
+                                shadowElevation = 2.dp,
+                            ) {
+                                Text(
+                                    CourtSearchService.formatDistance(dist),
+                                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BrandPurple,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                )
+                            }
                         }
                     }
-                    court.distanceMeters?.let {
-                        Spacer(Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Default.NearMe, null, Modifier.size(12.dp), tint = BrandPurple)
-                            Text(CourtSearchService.formatDistance(it), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+
+                    // Details
+                    Column(Modifier.padding(14.dp)) {
+                        Text(court.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                        if (court.address.isNotEmpty()) {
+                            Spacer(Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Default.LocationOn, null, Modifier.size(14.dp), tint = Color.Red.copy(alpha = 0.7f))
+                                Text(court.address, fontSize = 12.sp, color = Color.Gray, maxLines = 2, lineHeight = 16.sp)
+                            }
+                        }
+                        court.distanceMeters?.let { dist ->
+                            Spacer(Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Default.NearMe, null, Modifier.size(12.dp), tint = BrandPurple)
+                                Text(CourtSearchService.formatDistance(dist), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                            }
                         }
                     }
                 }
@@ -336,7 +375,7 @@ private fun ResultsState(
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @Composable
-private fun EmptyResultsState(examples: List<Pair<String, String>>, onSearch: (String) -> Unit) {
+private fun EmptyResultsState(sportType: SportType, examples: List<Pair<String, String>>, onSearch: (String) -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(40.dp)) {
             Icon(Icons.Default.SearchOff, null, Modifier.size(48.dp), tint = Color.Gray.copy(alpha = 0.3f))
