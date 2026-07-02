@@ -507,7 +507,7 @@ private fun Step1BasicInfo(
                 Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         painter = when (sport) {
-                            SportType.BADMINTON -> painterResource(R.drawable.play_icon)
+                            SportType.BADMINTON -> painterResource(R.drawable.ic_badminton)
                             else -> rememberVectorPainter(Icons.Default.SportsTennis)
                         },
                         contentDescription = null,

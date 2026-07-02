@@ -38,7 +38,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -112,59 +111,49 @@ fun CourtFinderScreen(
         }
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(GroupedBg)
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                focusManager.clearFocus()
+            },
+    ) {
+        Text(
+            "Find Courts",
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
+        )
 
-    Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            LargeTopAppBar(
-                title = { Text("Find Courts", fontWeight = FontWeight.Bold) },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.largeTopAppBarColors(
-                    containerColor = GroupedBg,
-                    scrolledContainerColor = GroupedBg,
-                ),
-            )
-        },
-        containerColor = GroupedBg,
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
-                    focusManager.clearFocus()
-                },
-        ) {
-            SearchBar(
-                query = uiState.zipCode,
-                onQueryChange = viewModel::onZipCodeChange,
-                onSearch = {
-                    focusManager.clearFocus()
+        SearchBar(
+            query = uiState.zipCode,
+            onQueryChange = viewModel::onZipCodeChange,
+            onSearch = {
+                focusManager.clearFocus()
+                viewModel.searchByZipCode()
+            },
+            onClear = { viewModel.resetSearch() },
+        )
+
+        Box(Modifier.fillMaxSize()) {
+            when {
+                uiState.isLoading -> LoadingState()
+                uiState.errorMessage != null -> ErrorState(uiState.errorMessage!!) { viewModel.dismissError() }
+                uiState.courts.isEmpty() && uiState.hasSearched -> NoResultsState(uiState.zipExamples) {
+                    viewModel.onZipCodeChange(it)
                     viewModel.searchByZipCode()
-                },
-                onClear = { viewModel.resetSearch() },
-            )
-
-            Box(Modifier.fillMaxSize()) {
-                when {
-                    uiState.isLoading -> LoadingState()
-                    uiState.errorMessage != null -> ErrorState(uiState.errorMessage!!) { viewModel.dismissError() }
-                    uiState.courts.isEmpty() && uiState.hasSearched -> NoResultsState(uiState.zipExamples) {
-                        viewModel.onZipCodeChange(it)
-                        viewModel.searchByZipCode()
-                    }
-                    uiState.courts.isEmpty() -> WelcomeHero(
-                        state = uiState,
-                        onUseCurrentLocation = { onUseCurrentLocation() },
-                        onExampleClick = {
-                            viewModel.onZipCodeChange(it)
-                            focusManager.clearFocus()
-                            viewModel.searchByZipCode()
-                        },
-                    )
-                    else -> ResultsList(uiState.courts, uiState.zipCode)
                 }
+                uiState.courts.isEmpty() -> WelcomeHero(
+                    state = uiState,
+                    onUseCurrentLocation = { onUseCurrentLocation() },
+                    onExampleClick = {
+                        viewModel.onZipCodeChange(it)
+                        focusManager.clearFocus()
+                        viewModel.searchByZipCode()
+                    },
+                )
+                else -> ResultsList(uiState.courts, uiState.zipCode)
             }
         }
     }
@@ -393,7 +382,7 @@ private fun LoadingState() {
                         color = BrandPurple.copy(alpha = alpha),
                     ) {}
                 }
-                Icon(painterResource(R.drawable.play_icon), null, Modifier.size(32.dp), tint = BrandPurple)
+                Icon(painterResource(R.drawable.ic_badminton), null, Modifier.size(32.dp), tint = BrandPurple)
             }
             Spacer(Modifier.height(24.dp))
             Text("Searching for courts…", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -506,7 +495,7 @@ private fun ResultsList(courts: List<CourtResult>, zipCode: String) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Icon(painterResource(R.drawable.play_icon), null, Modifier.size(12.dp), tint = BrandPurple)
+                    Icon(painterResource(R.drawable.ic_badminton), null, Modifier.size(12.dp), tint = BrandPurple)
                     Text("${courts.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
                 }
             }

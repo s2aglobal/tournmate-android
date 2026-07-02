@@ -25,7 +25,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
@@ -69,7 +68,6 @@ fun DiscoverScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DiscoverContent(
     modifier: Modifier = Modifier,
@@ -77,69 +75,58 @@ private fun DiscoverContent(
     onRuleClick: (RuleSection) -> Unit,
 ) {
     val context = LocalContext.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
-    Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            LargeTopAppBar(
-                title = { Text("Discover", fontWeight = FontWeight.Bold) },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.largeTopAppBarColors(
-                    containerColor = GroupedBg,
-                    scrolledContainerColor = GroupedBg,
-                ),
-            )
-        },
-        containerColor = GroupedBg,
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
-            Spacer(Modifier.height(2.dp))
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(GroupedBg)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+        Text(
+            "Discover",
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
+        )
 
-            HeaderSection(sport)
+        HeaderSection(sport)
 
-            QuickLinksBar(sport) { openInBrowser(context, it.url) }
+        QuickLinksBar(sport) { openInBrowser(context, it.url) }
 
-            NewsSection(sport) { openInBrowser(context, it.url) }
+        NewsSection(sport) { openInBrowser(context, it.url) }
 
-            ListSection(
-                title = "Live Matches",
-                icon = Icons.Filled.Sensors,
-                links = DiscoverData.liveMatches(sport),
-                onClick = { openInBrowser(context, it.url) },
-            )
+        ListSection(
+            title = "Live Matches",
+            icon = Icons.Filled.Sensors,
+            links = DiscoverData.liveMatches(sport),
+            onClick = { openInBrowser(context, it.url) },
+        )
 
-            ListSection(
-                title = "World Rankings",
-                icon = Icons.Filled.BarChart,
-                links = DiscoverData.worldRankings(sport),
-                onClick = { openInBrowser(context, it.url) },
-            )
+        ListSection(
+            title = "World Rankings",
+            icon = Icons.Filled.BarChart,
+            links = DiscoverData.worldRankings(sport),
+            onClick = { openInBrowser(context, it.url) },
+        )
 
-            GridSection(
-                title = "Highlights & Videos",
-                icon = Icons.Filled.PlayCircle,
-                items = DiscoverData.highlights(sport).map {
-                    GridCardData(it.icon, it.title, it.subtitle) { openInBrowser(context, it.url) }
-                },
-            )
+        GridSection(
+            title = "Highlights & Videos",
+            icon = Icons.Filled.PlayCircle,
+            items = DiscoverData.highlights(sport).map {
+                GridCardData(it.icon, it.title, it.subtitle) { openInBrowser(context, it.url) }
+            },
+        )
 
-            GridSection(
-                title = "Badminton Rules",
-                icon = Icons.Filled.MenuBook,
-                items = BadmintonRules.sections.map { section ->
-                    GridCardData(section.icon, section.title, section.subtitle) { onRuleClick(section) }
-                },
-            )
+        GridSection(
+            title = "Badminton Rules",
+            icon = Icons.Filled.MenuBook,
+            items = BadmintonRules.sections.map { section ->
+                GridCardData(section.icon, section.title, section.subtitle) { onRuleClick(section) }
+            },
+        )
 
-            Spacer(Modifier.height(20.dp))
-        }
+        Spacer(Modifier.height(20.dp))
     }
 }
 
@@ -159,7 +146,7 @@ private fun HeaderSection(sport: SportType) {
             contentAlignment = Alignment.Center,
         ) {
             val iconPainter: Painter = when (sport) {
-                SportType.BADMINTON -> painterResource(R.drawable.play_icon)
+                SportType.BADMINTON -> painterResource(R.drawable.ic_badminton)
                 else -> rememberVectorPainter(Icons.Filled.SportsTennis)
             }
             Icon(iconPainter, null, Modifier.size(34.dp), tint = BrandPurple)

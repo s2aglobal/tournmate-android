@@ -59,32 +59,7 @@ class NotificationInboxViewModel @Inject constructor(
 
             // 1. Firestore per-user inbox docs (direct recipient notifications)
             if (firebaseUid != null) {
-                try {
-                    val snapshot = db.collection("notifications")
-                        .whereEqualTo("recipientId", firebaseUid)
-                        .orderBy("createdAt", Query.Direction.DESCENDING)
-                        .limit(50)
-                        .get()
-                        .await()
-
-                    snapshot.documents.forEach { doc ->
-                        val data = doc.data ?: return@forEach
-                        val title = data["title"] as? String ?: return@forEach
-                        val body  = data["body"] as? String ?: ""
-                        val ts = (data["createdAt"] as? com.google.firebase.Timestamp)
-                            ?.toDate() ?: Date()
-                        combined += NotificationItem(
-                            id           = doc.id,
-                            type         = data["type"] as? String ?: "",
-                            title        = title,
-                            body         = body,
-                            tournamentId = data["tournamentId"] as? String,
-                            sessionId    = data["sessionId"] as? String,
-                            read         = data["read"] as? Boolean ?: false,
-                            createdAt    = ts,
-                        )
-                    }
-                } catch (_: Exception) {}
+                combined += loadFirestoreNotifications(firebaseUid)
             }
 
             // 2. Local push notifications (broadcast topics not written to Firestore)
@@ -113,6 +88,48 @@ class NotificationInboxViewModel @Inject constructor(
                 notifications = combined.sortedByDescending { it.createdAt },
                 isLoading     = false,
             )
+        }
+    }
+
+    private suspend fun loadFirestoreNotifications(firebaseUid: String): List<NotificationItem> {
+        fun parseSnapshot(snapshot: com.google.firebase.firestore.QuerySnapshot): List<NotificationItem> =
+            snapshot.documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                val title = data["title"] as? String ?: return@mapNotNull null
+                val body = data["body"] as? String ?: return@mapNotNull null
+                val ts = (data["createdAt"] as? com.google.firebase.Timestamp)?.toDate() ?: Date()
+                NotificationItem(
+                    id           = doc.id,
+                    type         = data["type"] as? String ?: "",
+                    title        = title,
+                    body         = body,
+                    tournamentId = data["tournamentId"] as? String,
+                    sessionId    = data["sessionId"] as? String,
+                    read         = data["read"] as? Boolean ?: false,
+                    createdAt    = ts,
+                )
+            }
+
+        return try {
+            val snapshot = db.collection("notifications")
+                .whereEqualTo("recipientId", firebaseUid)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(50)
+                .get()
+                .await()
+            parseSnapshot(snapshot)
+        } catch (_: Exception) {
+            // Fallback when composite index is missing — sort client-side instead.
+            try {
+                val snapshot = db.collection("notifications")
+                    .whereEqualTo("recipientId", firebaseUid)
+                    .limit(50)
+                    .get()
+                    .await()
+                parseSnapshot(snapshot).sortedByDescending { it.createdAt }
+            } catch (_: Exception) {
+                emptyList()
+            }
         }
     }
 
