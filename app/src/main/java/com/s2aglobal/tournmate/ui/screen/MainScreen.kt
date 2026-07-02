@@ -43,7 +43,7 @@ fun MainScreen(
 ) {
     val tabs = remember {
         listOf(
-            TabItem(R.string.tab_play, R.drawable.play_icon),
+            TabItem(R.string.tab_play, R.drawable.ic_badminton),
             TabItem(R.string.tab_courts, R.drawable.ic_sportscourt),
             TabItem(R.string.tab_discover, R.drawable.ic_safari),
             TabItem(R.string.tab_profile, R.drawable.ic_person_circle),
