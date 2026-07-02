@@ -39,6 +39,7 @@ fun MainScreen(
     onNavigateToTournamentDetail: (String) -> Unit = {},
     onNavigateToSessionDetail: (String) -> Unit = {},
     onNavigateToPlayerProfile: (String) -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
 ) {
     val tabs = remember {
         listOf(
@@ -93,6 +94,7 @@ fun MainScreen(
                 isGuestMode = isGuestMode,
                 onNavigateToTournamentDetail = onNavigateToTournamentDetail,
                 onNavigateToSessionDetail = onNavigateToSessionDetail,
+                onNavigateToNotifications = onNavigateToNotifications,
             )
             1 -> CourtFinderScreen(modifier = Modifier.padding(padding))
             2 -> DiscoverScreen(modifier = Modifier.padding(padding))

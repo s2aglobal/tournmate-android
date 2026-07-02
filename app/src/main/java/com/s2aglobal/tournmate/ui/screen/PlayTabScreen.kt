@@ -62,6 +62,7 @@ fun PlayTabScreen(
     isGuestMode: Boolean = false,
     onNavigateToTournamentDetail: (String) -> Unit = {},
     onNavigateToSessionDetail: (String) -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
 ) {
     var selectedSegment by remember { mutableIntStateOf(0) }
     var showPublish by remember { mutableStateOf(false) }
@@ -83,7 +84,7 @@ fun PlayTabScreen(
                     if (selectedSegment == 0) showPublish = true
                     else showCreateSession = true
                 },
-                onNotificationClick = { },
+                onNotificationClick = onNavigateToNotifications,
             )
 
             PillTabSwitcher(

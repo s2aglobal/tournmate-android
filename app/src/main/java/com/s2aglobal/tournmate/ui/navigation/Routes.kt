@@ -12,6 +12,7 @@ object Routes {
     const val TOURNAMENT_DETAIL = "tournament_detail/{tournamentId}"
     const val OPEN_PLAY_DETAIL = "open_play_detail/{sessionId}"
     const val PLAYER_PROFILE = "player_profile/{playerId}"
+    const val NOTIFICATION_INBOX = "notification_inbox"
 
     fun tournamentDetail(tournamentId: String) = "tournament_detail/$tournamentId"
     fun openPlayDetail(sessionId: String) = "open_play_detail/$sessionId"

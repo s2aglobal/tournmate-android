@@ -28,6 +28,7 @@ import coil.compose.AsyncImage
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.screen.tournament.visualizer.*
 import com.s2aglobal.tournmate.ui.theme.*
+import com.s2aglobal.tournmate.util.BracketPdfPrinter
 import com.s2aglobal.tournmate.util.ShareUtil
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -732,65 +733,30 @@ private fun MatchesTabContent(state: TournamentDetailUiState, viewModel: Tournam
                 }
             }
             Spacer(Modifier.weight(1f))
-            // PDF/Share button
+            // PDF export button — opens Android print dialog (Save as PDF / Print)
             Surface(
                 onClick = {
                     val tournament = state.tournament ?: return@Surface
-                    val regMap = state.registrations.associateBy { it.id.toString().uppercase() }
-                    val text = buildString {
-                        appendLine("${tournament.title} — ${tournament.matchFormat.displayName}")
-                        appendLine("${tournament.format.displayName} | ${tournament.location}")
-                        appendLine()
-
-                        when (subTab) {
-                            MatchSubTab.DRAW -> {
-                                appendLine("=== DRAW ===")
-                                val hasGroups = state.matches.any { it.groupLabel != null }
-                                if (hasGroups) {
-                                    state.matches.filter { it.groupLabel != null }.groupBy { it.groupLabel ?: "" }.toSortedMap().forEach { (group, matches) ->
-                                        appendLine("Group $group:")
-                                        val teamIds = matches.flatMap { listOf(it.teamAId, it.teamBId) }.distinct()
-                                        teamIds.forEachIndexed { i, id ->
-                                            val name = regMap[id]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "?"
-                                            appendLine("  ${group}${i+1}. $name")
-                                        }
-                                        appendLine()
-                                    }
-                                }
-                            }
-                            MatchSubTab.MATCHES -> {
-                                appendLine("=== MATCHES ===")
-                                state.matches.groupBy { it.groupLabel ?: "Match" }.toSortedMap().forEach { (group, matches) ->
-                                    appendLine(if (group == "Match") "" else "Group $group:")
-                                    matches.sortedBy { it.round }.forEach { m ->
-                                        val a = regMap[m.teamAId]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "TBD"
-                                        val b = regMap[m.teamBId]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "TBD"
-                                        appendLine("  $a ${m.displayScoreLine} $b [${m.status.rawValue}]")
-                                    }
-                                    appendLine()
-                                }
-                            }
-                            MatchSubTab.STANDINGS -> {
-                                appendLine("=== STANDINGS ===")
-                                val standings = viewModel.computeRRStandings(state)
-                                standings.forEachIndexed { i, e ->
-                                    appendLine("${i+1}. ${e.teamName} — ${e.points}pts (W:${e.wins} L:${e.losses})")
-                                }
-                            }
-                        }
+                    val tabName = when (subTab) {
+                        MatchSubTab.DRAW -> if (tournament.matchFormat == MatchFormat.SINGLE_ELIMINATION ||
+                                               tournament.matchFormat == MatchFormat.DOUBLE_ELIMINATION) "Bracket" else "Draw"
+                        MatchSubTab.MATCHES  -> "Matches"
+                        MatchSubTab.STANDINGS -> "Standings"
                     }
-                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, text)
-                    }
-                    context.startActivity(android.content.Intent.createChooser(intent, "Share ${subTab.label}"))
+                    BracketPdfPrinter.print(
+                        context       = context,
+                        tournament    = tournament,
+                        matches       = state.matches,
+                        registrations = state.registrations,
+                        tabName       = tabName,
+                    )
                 },
                 shape = RoundedCornerShape(50),
-                color = Color(0xFFF2F2F7),
+                color = BrandPurple.copy(alpha = 0.1f),
             ) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Black)
-                    Text("PDF", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = BrandPurple)
+                    Text("PDF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
                 }
             }
         }

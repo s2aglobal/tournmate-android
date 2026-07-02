@@ -27,6 +27,7 @@ import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayDetailViewModel
 import com.s2aglobal.tournmate.ui.screen.player.PlayerProfileScreen
 import com.s2aglobal.tournmate.ui.screen.player.PlayerProfileViewModel
 import com.s2aglobal.tournmate.ui.screen.player.RatePlayerSheet
+import com.s2aglobal.tournmate.ui.screen.notification.NotificationInboxScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentDetailScreen
 
 @Composable
@@ -138,6 +139,9 @@ fun TournMateNavHost(
                 onNavigateToPlayerProfile = { playerId ->
                     navController.navigate(Routes.playerProfile(playerId))
                 },
+                onNavigateToNotifications = {
+                    navController.navigate(Routes.NOTIFICATION_INBOX)
+                },
             )
 
             LaunchedEffect(pendingDeepLink) {
@@ -204,6 +208,18 @@ fun TournMateNavHost(
                     CircularProgressIndicator(color = BrandPurple)
                 }
             }
+        }
+
+        composable(Routes.NOTIFICATION_INBOX) {
+            NotificationInboxScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToTournament = { id ->
+                    navController.navigate(Routes.tournamentDetail(id))
+                },
+                onNavigateToSession = { id ->
+                    navController.navigate(Routes.openPlayDetail(id))
+                },
+            )
         }
 
         composable(Routes.PLAYER_PROFILE) {

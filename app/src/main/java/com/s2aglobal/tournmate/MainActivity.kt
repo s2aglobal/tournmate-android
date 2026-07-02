@@ -19,7 +19,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Handle both URL deep links and FCM notification tap extras
         pendingDeepLink.value = DeepLinkParser.parse(intent?.data)
+            ?: DeepLinkParser.parseExtras(intent?.extras)
         setContent {
             TournMateTheme {
                 TournMateNavHost(
@@ -33,6 +35,8 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        DeepLinkParser.parse(intent.data)?.let { pendingDeepLink.value = it }
+        val target = DeepLinkParser.parse(intent.data)
+            ?: DeepLinkParser.parseExtras(intent.extras)
+        target?.let { pendingDeepLink.value = it }
     }
 }
