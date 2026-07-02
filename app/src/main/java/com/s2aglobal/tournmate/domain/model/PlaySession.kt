@@ -67,12 +67,13 @@ data class PlaySession(
     val formattedDuration: String?
         get() {
             val mins = durationMinutes ?: return null
-            val hours = mins / 60
-            val remaining = mins % 60
-            return when {
-                hours > 0 && remaining > 0 -> "${hours}h ${remaining}m"
-                hours > 0 -> "${hours}h"
-                else -> "${remaining}m"
+            if (mins <= 0) return null
+            if (mins < 60) return "$mins min"
+            val hours = mins / 60.0
+            return if (hours == kotlin.math.floor(hours)) {
+                "${hours.toInt()} hrs"
+            } else {
+                String.format("%.1f hrs", hours)
             }
         }
 }

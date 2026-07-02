@@ -248,11 +248,12 @@ private fun HeaderSection(tournament: Tournament, isCreator: Boolean, onBack: ()
             IconButton(
                 onClick = {
                     val dateFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+                    val shareUrl = "https://www.tournmate.com/tournament/${tournament.id.toString().uppercase()}"
                     val shareText = buildString {
-                        append("${tournament.title}\n")
-                        append("${dateFmt.format(tournament.date)} • ${tournament.format.displayName}\n")
+                        append("🏸 ${tournament.title}\n")
+                        append("📅 ${dateFmt.format(tournament.date)} • ${tournament.format.displayName}\n")
                         if (tournament.location.isNotEmpty()) append("📍 ${tournament.location}\n")
-                        append("\nJoin on TournMate!")
+                        append("\n$shareUrl")
                     }
                     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                         type = "text/plain"

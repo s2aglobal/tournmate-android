@@ -67,6 +67,13 @@ class FirestorePlayerRepository @Inject constructor(
         return lowerDoc.toPlayer()
     }
 
+    override suspend fun findPlayerById(id: String): Player? {
+        val upperDoc = collection.document(id.uppercase()).get().await()
+        upperDoc.toPlayer()?.let { return it }
+        val lowerDoc = collection.document(id.lowercase()).get().await()
+        return lowerDoc.toPlayer()
+    }
+
     override suspend fun findPlayerByEmail(email: String): Player? =
         collection
             .whereEqualTo("email", email.lowercase())

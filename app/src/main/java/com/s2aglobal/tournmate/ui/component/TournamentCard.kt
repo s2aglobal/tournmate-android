@@ -46,12 +46,12 @@ fun TournamentCard(
         color = Color.White,
         shadowElevation = 2.dp,
     ) {
-        Row {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             Box(
                 modifier = Modifier
+                    .padding(vertical = 30.dp)
                     .width(4.dp)
                     .fillMaxHeight()
-                    .padding(vertical = 30.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(accentColor),
             )

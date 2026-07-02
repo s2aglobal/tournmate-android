@@ -17,6 +17,7 @@ interface PlayerRepository {
         firebaseUid: String?,
     ): Player
     suspend fun findPlayerById(id: UUID): Player?
+    suspend fun findPlayerById(id: String): Player?
     suspend fun findPlayerByEmail(email: String): Player?
     suspend fun findPlayerByPhone(phone: String): Player?
     suspend fun findPlayerByFirebaseUid(uid: String): Player?

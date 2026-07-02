@@ -1,19 +1,37 @@
 package com.s2aglobal.tournmate.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.s2aglobal.tournmate.ui.theme.BrandPurple
 import com.s2aglobal.tournmate.ui.screen.MainScreen
 import com.s2aglobal.tournmate.ui.screen.auth.AuthGateScreen
 import com.s2aglobal.tournmate.ui.screen.auth.LoginScreen
 import com.s2aglobal.tournmate.ui.screen.auth.OnboardingScreen
 import com.s2aglobal.tournmate.ui.screen.auth.ProfileSetupScreen
 import com.s2aglobal.tournmate.ui.screen.auth.WelcomeScreen
+import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayDetailScreen
+import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayDetailViewModel
+import com.s2aglobal.tournmate.ui.screen.player.PlayerProfileScreen
+import com.s2aglobal.tournmate.ui.screen.player.PlayerProfileViewModel
+import com.s2aglobal.tournmate.ui.screen.player.RatePlayerSheet
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentDetailScreen
 
 @Composable
-fun TournMateNavHost() {
+fun TournMateNavHost(
+    pendingDeepLink: DeepLinkParser.Target? = null,
+    onDeepLinkConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
 
     NavHost(
@@ -106,7 +124,24 @@ fun TournMateNavHost() {
                 onNavigateToTournamentDetail = { tournamentId ->
                     navController.navigate(Routes.tournamentDetail(tournamentId))
                 },
+                onNavigateToSessionDetail = { sessionId ->
+                    navController.navigate(Routes.openPlayDetail(sessionId))
+                },
+                onNavigateToPlayerProfile = { playerId ->
+                    navController.navigate(Routes.playerProfile(playerId))
+                },
             )
+
+            LaunchedEffect(pendingDeepLink) {
+                val target = pendingDeepLink ?: return@LaunchedEffect
+                when (target.type) {
+                    DeepLinkParser.Type.TOURNAMENT ->
+                        navController.navigate(Routes.tournamentDetail(target.id))
+                    DeepLinkParser.Type.SESSION ->
+                        navController.navigate(Routes.openPlayDetail(target.id))
+                }
+                onDeepLinkConsumed()
+            }
         }
 
         composable(Routes.TOURNAMENT_DETAIL) {
@@ -122,6 +157,69 @@ fun TournMateNavHost() {
                     navController.navigate(Routes.playerProfile(playerId))
                 },
             )
+        }
+
+        composable(Routes.OPEN_PLAY_DETAIL) {
+            val viewModel: OpenPlayDetailViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(uiState.didDelete) {
+                if (uiState.didDelete) navController.popBackStack()
+            }
+
+            val session = uiState.session
+            if (session != null) {
+                OpenPlayDetailScreen(
+                    session = session,
+                    attendees = uiState.attendees,
+                    currentPlayerId = uiState.currentPlayerId,
+                    firebaseUid = uiState.firebaseUid,
+                    isLoading = uiState.isLoading,
+                    onBack = { navController.popBackStack() },
+                    onJoin = { viewModel.join() },
+                    onLeave = { viewModel.leave() },
+                    onCancel = { viewModel.cancel() },
+                    onFinish = { viewModel.finish() },
+                    onUpdate = { title, date, duration, skill, game, ageGroup, cost, notes ->
+                        viewModel.update(title, date, duration, skill, game, ageGroup, cost, notes)
+                    },
+                    onPlayerClick = { playerId ->
+                        navController.navigate(Routes.playerProfile(playerId))
+                    },
+                )
+            } else if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = BrandPurple)
+                }
+            }
+        }
+
+        composable(Routes.PLAYER_PROFILE) {
+            val viewModel: PlayerProfileViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
+            PlayerProfileScreen(
+                player = uiState.player,
+                ratings = uiState.ratings,
+                averageRating = uiState.averageRating,
+                matchStats = uiState.matchStats,
+                currentPlayerId = uiState.currentPlayerId,
+                hasRated = uiState.hasRated,
+                isLoading = uiState.isLoading,
+                onBack = { navController.popBackStack() },
+                onRatePlayer = { viewModel.showRateSheet() },
+            )
+
+            if (uiState.showRateSheet && uiState.player != null) {
+                RatePlayerSheet(
+                    playerName = uiState.player!!.name,
+                    onSubmit = { stars, comment -> viewModel.submitRating(stars, comment) },
+                    onDismiss = { viewModel.hideRateSheet() },
+                )
+            }
         }
     }
 }

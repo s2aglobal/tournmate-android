@@ -37,6 +37,8 @@ private data class TabItem(
 fun MainScreen(
     onSignOut: () -> Unit,
     onNavigateToTournamentDetail: (String) -> Unit = {},
+    onNavigateToSessionDetail: (String) -> Unit = {},
+    onNavigateToPlayerProfile: (String) -> Unit = {},
 ) {
     val tabs = remember {
         listOf(
@@ -89,6 +91,7 @@ fun MainScreen(
             0 -> PlayTabScreen(
                 modifier = Modifier.padding(padding),
                 onNavigateToTournamentDetail = onNavigateToTournamentDetail,
+                onNavigateToSessionDetail = onNavigateToSessionDetail,
             )
             1 -> CourtFinderPlaceholder(modifier = Modifier.padding(padding))
             2 -> DiscoverPlaceholder(modifier = Modifier.padding(padding))
