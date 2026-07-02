@@ -133,15 +133,15 @@ enum class AgeGroup(val rawValue: String) {
         get() = when (this) {
             OPEN -> "Open (All Ages)"
             U13 -> "Under 13"
-            U15 -> "Under 15"
-            U17 -> "Under 17"
-            U19 -> "Under 19"
-            U24 -> "Under 24"
-            SENIOR -> "Senior"
-            VETERANS_35 -> "Veterans 35+"
-            MASTERS_40 -> "Masters 40+"
-            MASTERS_50 -> "Masters 50+"
-            GRAND_MASTERS_55 -> "Grand Masters 55+"
+            U15 -> "Under 15 (Sub-Junior)"
+            U17 -> "Under 17 (Junior)"
+            U19 -> "Under 19 (Youth)"
+            U24 -> "Under 24 (Young Adult)"
+            SENIOR -> "Senior (19+)"
+            VETERANS_35 -> "Veterans (35+)"
+            MASTERS_40 -> "Masters (40+)"
+            MASTERS_50 -> "Masters (50+)"
+            GRAND_MASTERS_55 -> "Grand Masters (55+)"
         }
 
     val minAge: Int?

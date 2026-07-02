@@ -47,7 +47,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.SportType
-import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayListPlaceholder
+import com.s2aglobal.tournmate.ui.screen.openplay.CreateSessionSheet
+import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayListScreen
+import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayListViewModel
 import com.s2aglobal.tournmate.ui.screen.tournament.PublishTournamentScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListViewModel
@@ -58,10 +60,13 @@ import java.util.Calendar
 fun PlayTabScreen(
     modifier: Modifier = Modifier,
     onNavigateToTournamentDetail: (String) -> Unit = {},
+    onNavigateToSessionDetail: (String) -> Unit = {},
 ) {
     var selectedSegment by remember { mutableIntStateOf(0) }
     var showPublish by remember { mutableStateOf(false) }
+    var showCreateSession by remember { mutableStateOf(false) }
     val tournamentListVM: TournamentListViewModel = hiltViewModel()
+    val openPlayVM: OpenPlayListViewModel = hiltViewModel()
     val uiState by tournamentListVM.uiState.collectAsState()
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -72,7 +77,10 @@ fun PlayTabScreen(
         ) {
             PlayHeader(
                 selectedSegment = selectedSegment,
-                onHostClick = { showPublish = true },
+                onHostClick = {
+                    if (selectedSegment == 0) showPublish = true
+                    else showCreateSession = true
+                },
                 onNotificationClick = { },
             )
 
@@ -90,7 +98,14 @@ fun PlayTabScreen(
                     onHostClick = { showPublish = true },
                     viewModel = tournamentListVM,
                 )
-                1 -> OpenPlayListPlaceholder()
+                1 -> OpenPlayListScreen(
+                    viewModel = openPlayVM,
+                    isGuest = false,
+                    onSessionClick = { session ->
+                        onNavigateToSessionDetail(session.id.toString().uppercase())
+                    },
+                    onHostClick = { showCreateSession = true },
+                )
             }
         }
 
@@ -118,6 +133,26 @@ fun PlayTabScreen(
                 onDismiss = { showPublish = false },
             )
         }
+
+    }
+
+    if (showCreateSession) {
+        CreateSessionSheet(
+            preferredSport = uiState.preferredSport,
+            onPost = { title, venue, venueAddress, venueLatitude, venueLongitude,
+                       date, durationMinutes, skillLevel, gameType,
+                       costPerPerson, currency, notes, ageGroup, sportType ->
+                openPlayVM.createSession(
+                    title = title, venue = venue, venueAddress = venueAddress,
+                    venueLatitude = venueLatitude, venueLongitude = venueLongitude,
+                    date = date, durationMinutes = durationMinutes,
+                    skillLevel = skillLevel, gameType = gameType,
+                    costPerPerson = costPerPerson, currency = currency,
+                    notes = notes, ageGroup = ageGroup, sportType = sportType,
+                )
+            },
+            onDismiss = { showCreateSession = false },
+        )
     }
 }
 

@@ -40,6 +40,18 @@ object RegionNormalizer {
         playerPostal = playerPostal,
     )
 
+    fun sessionMatchesPlayerRegion(
+        sessionCountry: String?,
+        sessionPostal: String?,
+        playerCountry: String?,
+        playerPostal: String?,
+    ): Boolean = geographicEntityMatchesPlayerRegion(
+        countryCode = sessionCountry,
+        resolvedCountryCode = null,
+        playerCountry = playerCountry,
+        playerPostal = playerPostal,
+    )
+
     fun geographicEntityMatchesPlayerRegion(
         countryCode: String?,
         resolvedCountryCode: String?,

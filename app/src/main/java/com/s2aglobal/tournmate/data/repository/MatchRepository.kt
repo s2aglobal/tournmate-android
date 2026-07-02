@@ -17,6 +17,7 @@ interface MatchRepository {
         schedule: List<GroupMatchEntry>,
     )
     suspend fun listMatches(tournament: Tournament): List<Match>
+    suspend fun matchesForTournament(tournamentId: String): List<Match>
     suspend fun finalizeMatch(match: Match, scoreA: Int, scoreB: Int)
     suspend fun submitSetScores(match: Match, setScores: List<SetScore>, submittedBy: String)
     suspend fun confirmScore(match: Match, confirmedBy: String)

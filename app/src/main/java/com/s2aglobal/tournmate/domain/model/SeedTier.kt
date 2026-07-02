@@ -8,7 +8,14 @@ import com.s2aglobal.tournmate.ui.theme.SuccessGreen
 data class SeedTier(
     val title: String,
     val badgeColor: Color,
-)
+) {
+    val displayName: String get() = title
+    val color: Color get() = badgeColor
+
+    companion object {
+        fun fromElo(elo: Double): SeedTier = SeedTierRules.tier(elo)
+    }
+}
 
 object SeedTierRules {
     fun tier(elo: Double): SeedTier = when {

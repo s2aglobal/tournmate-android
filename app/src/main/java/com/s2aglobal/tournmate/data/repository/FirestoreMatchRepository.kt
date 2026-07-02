@@ -4,6 +4,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.Source
+import com.s2aglobal.tournmate.data.mapper.toMatch
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.service.elo.EloEngine
 import kotlinx.coroutines.tasks.await
@@ -224,6 +225,16 @@ class FirestoreMatchRepository @Inject constructor(
             .set(updateData, SetOptions.merge()).await()
 
         applyEloIfNeeded(match, winnerId)
+    }
+
+    override suspend fun matchesForTournament(tournamentId: String): List<Match> {
+        val snapshot = collection
+            .whereEqualTo("tournamentId", tournamentId)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toMatch()
+        }
     }
 
     override suspend fun deleteMatches(tournament: Tournament) {
