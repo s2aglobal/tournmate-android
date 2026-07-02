@@ -25,7 +25,6 @@ import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.ui.screen.court.CourtFinderScreen
 import com.s2aglobal.tournmate.ui.screen.discover.DiscoverScreen
 import com.s2aglobal.tournmate.ui.screen.profile.ProfilePlaceholder
-// ProfilePlaceholder now lives in ProfileScreen.kt
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
 
 private data class TabItem(
@@ -35,6 +34,7 @@ private data class TabItem(
 
 @Composable
 fun MainScreen(
+    isGuestMode: Boolean = false,
     onSignOut: () -> Unit,
     onNavigateToTournamentDetail: (String) -> Unit = {},
     onNavigateToSessionDetail: (String) -> Unit = {},
@@ -90,6 +90,7 @@ fun MainScreen(
         when (selectedTab) {
             0 -> PlayTabScreen(
                 modifier = Modifier.padding(padding),
+                isGuestMode = isGuestMode,
                 onNavigateToTournamentDetail = onNavigateToTournamentDetail,
                 onNavigateToSessionDetail = onNavigateToSessionDetail,
             )

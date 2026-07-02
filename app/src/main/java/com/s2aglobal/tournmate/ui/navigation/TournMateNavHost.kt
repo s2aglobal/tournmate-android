@@ -10,11 +10,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
 import com.s2aglobal.tournmate.ui.screen.MainScreen
+import com.s2aglobal.tournmate.ui.screen.auth.AuthGateViewModel
 import com.s2aglobal.tournmate.ui.screen.auth.AuthGateScreen
 import com.s2aglobal.tournmate.ui.screen.auth.LoginScreen
 import com.s2aglobal.tournmate.ui.screen.auth.OnboardingScreen
@@ -33,6 +35,8 @@ fun TournMateNavHost(
     onDeepLinkConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    val authGateViewModel: AuthGateViewModel = hiltViewModel()
+    val isGuestMode by authGateViewModel.isGuestMode.collectAsStateWithLifecycle()
 
     NavHost(
         navController = navController,
@@ -40,6 +44,7 @@ fun TournMateNavHost(
     ) {
         composable(Routes.AUTH_GATE) {
             AuthGateScreen(
+                viewModel = authGateViewModel,
                 onNavigateToWelcome = {
                     navController.navigate(Routes.WELCOME) {
                         popUpTo(Routes.AUTH_GATE) { inclusive = true }
@@ -52,7 +57,7 @@ fun TournMateNavHost(
                 },
                 onNavigateToOnboarding = {
                     navController.navigate(Routes.ONBOARDING) {
-                        popUpTo(Routes.AUTH_GATE) { inclusive = true }
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
                     }
                 },
                 onNavigateToMain = {
@@ -68,6 +73,7 @@ fun TournMateNavHost(
                 onStartJourney = { navController.navigate(Routes.login(createMode = true)) },
                 onLogIn = { navController.navigate(Routes.login(createMode = false)) },
                 onContinueAsGuest = {
+                    authGateViewModel.continueAsGuest()
                     navController.navigate(Routes.MAIN) {
                         popUpTo(Routes.WELCOME) { inclusive = true }
                     }
@@ -116,7 +122,9 @@ fun TournMateNavHost(
 
         composable(Routes.MAIN) {
             MainScreen(
+                isGuestMode = isGuestMode,
                 onSignOut = {
+                    authGateViewModel.signOut()
                     navController.navigate(Routes.WELCOME) {
                         popUpTo(Routes.MAIN) { inclusive = true }
                     }
@@ -175,6 +183,7 @@ fun TournMateNavHost(
                     currentPlayerId = uiState.currentPlayerId,
                     firebaseUid = uiState.firebaseUid,
                     isLoading = uiState.isLoading,
+                    isGuest = isGuestMode,
                     onBack = { navController.popBackStack() },
                     onJoin = { viewModel.join() },
                     onLeave = { viewModel.leave() },

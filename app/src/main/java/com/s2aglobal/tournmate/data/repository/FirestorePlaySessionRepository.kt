@@ -17,8 +17,14 @@ class FirestorePlaySessionRepository @Inject constructor(
     private val collection get() = db.collection("playSessions")
 
     override suspend fun find(id: String): PlaySession? {
-        val doc = collection.document(id).get().await()
-        return doc.toPlaySession()
+        val upper = id.uppercase()
+        val doc = collection.document(upper).get().await()
+        if (doc.exists()) return doc.toPlaySession()
+        // Fallback for legacy lowercase document IDs
+        val lower = id.lowercase()
+        if (lower == upper) return null
+        val fallback = collection.document(lower).get().await()
+        return fallback.toPlaySession()
     }
 
     override suspend fun listUpcoming(): List<PlaySession> {
