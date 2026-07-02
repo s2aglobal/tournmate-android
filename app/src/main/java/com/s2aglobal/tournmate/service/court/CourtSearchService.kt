@@ -44,6 +44,59 @@ class CourtSearchService(private val context: Context) {
         }
     }
 
+    /** Searches for badminton courts near an explicit coordinate (e.g. the user's current location). */
+    suspend fun searchNearby(
+        latitude: Double,
+        longitude: Double,
+        radiusMeters: Int = 25_000,
+    ): List<CourtResult> = withContext(Dispatchers.IO) {
+        val queries = listOf("badminton court", "badminton", "sports recreation center")
+        for (q in queries) {
+            val results = nearbySearch(q, latitude, longitude, radiusMeters)
+            if (results.isNotEmpty()) return@withContext results
+        }
+        emptyList()
+    }
+
+    /**
+     * Reverse-geocodes a coordinate to a 2-letter ISO country code.
+     * Used to keep "use current location" search aligned with the player's home country.
+     */
+    @Suppress("DEPRECATION")
+    suspend fun reverseGeocodeCountryCode(
+        latitude: Double,
+        longitude: Double,
+    ): String? = withContext(Dispatchers.IO) {
+        // Try device Geocoder first
+        try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+            addresses?.firstOrNull()?.countryCode?.let { return@withContext it.uppercase() }
+        } catch (_: Exception) {
+        }
+
+        // Fallback: Google Geocoding HTTP API
+        if (apiKey.isBlank()) return@withContext null
+        try {
+            val geoUrl = "https://maps.googleapis.com/maps/api/geocode/json?latlng=$latitude,$longitude&result_type=country&key=$apiKey"
+            val conn = URL(geoUrl).openConnection() as HttpURLConnection
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            val code = conn.responseCode
+            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+            val responseText = stream.bufferedReader().readText()
+            conn.disconnect()
+            val response = json.decodeFromString<ReverseGeocodingResponse>(responseText)
+            response.results.firstOrNull()
+                ?.address_components
+                ?.firstOrNull { "country" in it.types }
+                ?.short_name
+                ?.uppercase()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     @Suppress("DEPRECATION")
     private fun searchByZipCode(zipCode: String): List<CourtResult> {
         // Step 1: Geocode zip to coordinates (like iOS CLGeocoder)
@@ -285,4 +338,22 @@ private data class GeocodingResponse(
 @Serializable
 private data class GeocodingResult(
     val geometry: PlaceGeometry = PlaceGeometry(),
+)
+
+@Serializable
+private data class ReverseGeocodingResponse(
+    val results: List<ReverseGeocodingResult> = emptyList(),
+    val status: String = "",
+)
+
+@Serializable
+private data class ReverseGeocodingResult(
+    val address_components: List<AddressComponent> = emptyList(),
+)
+
+@Serializable
+private data class AddressComponent(
+    val short_name: String = "",
+    val long_name: String = "",
+    val types: List<String> = emptyList(),
 )
