@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -265,14 +266,13 @@ private fun WelcomeHero(
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(30.dp))
-        Box(
-            modifier = Modifier.size(130.dp).clip(CircleShape).background(BrandPurple.copy(alpha = 0.08f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(painterResource(R.drawable.ic_figure_badminton), null, Modifier.size(56.dp), tint = BrandPurple)
-        }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
+        Image(
+            painter = painterResource(R.drawable.discover_courts),
+            contentDescription = null,
+            modifier = Modifier.size(200.dp),
+        )
+        Spacer(Modifier.height(12.dp))
         Text("Discover Courts\nNear You", fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 32.sp)
         Spacer(Modifier.height(8.dp))
         Text(
@@ -393,7 +393,7 @@ private fun LoadingState() {
                         color = BrandPurple.copy(alpha = alpha),
                     ) {}
                 }
-                Icon(painterResource(R.drawable.ic_figure_badminton), null, Modifier.size(32.dp), tint = BrandPurple)
+                Icon(painterResource(R.drawable.play_icon), null, Modifier.size(32.dp), tint = BrandPurple)
             }
             Spacer(Modifier.height(24.dp))
             Text("Searching for courts…", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -506,7 +506,7 @@ private fun ResultsList(courts: List<CourtResult>, zipCode: String) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Icon(painterResource(R.drawable.ic_figure_badminton), null, Modifier.size(12.dp), tint = BrandPurple)
+                    Icon(painterResource(R.drawable.play_icon), null, Modifier.size(12.dp), tint = BrandPurple)
                     Text("${courts.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
                 }
             }

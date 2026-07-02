@@ -21,7 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
+import com.s2aglobal.tournmate.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -502,7 +505,15 @@ private fun Step1BasicInfo(
                 border = if (sel) ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(BrandPurple), width = 2.dp) else null,
             ) {
                 Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.SportsTennis, null, Modifier.size(20.dp), tint = if (sel) BrandPurple else Color.Gray)
+                    Icon(
+                        painter = when (sport) {
+                            SportType.BADMINTON -> painterResource(R.drawable.play_icon)
+                            else -> rememberVectorPainter(Icons.Default.SportsTennis)
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = if (sel) BrandPurple else Color.Gray,
+                    )
                     Spacer(Modifier.height(6.dp))
                     Text(sport.displayName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (sel) BrandPurple else Color.Gray)
                 }

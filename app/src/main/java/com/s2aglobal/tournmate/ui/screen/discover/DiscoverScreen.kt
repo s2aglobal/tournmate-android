@@ -28,8 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.s2aglobal.tournmate.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -143,8 +147,6 @@ private fun DiscoverContent(
 // Header
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-private fun sportIcon(sport: SportType): ImageVector = Icons.Filled.SportsTennis
-
 @Composable
 private fun HeaderSection(sport: SportType) {
     Column(
@@ -156,7 +158,11 @@ private fun HeaderSection(sport: SportType) {
             modifier = Modifier.size(72.dp).clip(CircleShape).background(BrandPurple.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(sportIcon(sport), null, Modifier.size(34.dp), tint = BrandPurple)
+            val iconPainter: Painter = when (sport) {
+                SportType.BADMINTON -> painterResource(R.drawable.play_icon)
+                else -> rememberVectorPainter(Icons.Filled.SportsTennis)
+            }
+            Icon(iconPainter, null, Modifier.size(34.dp), tint = BrandPurple)
         }
         Text("Your ${sport.displayName} Hub", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(
