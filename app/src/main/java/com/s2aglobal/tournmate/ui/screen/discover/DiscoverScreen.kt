@@ -25,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -72,13 +73,18 @@ private fun DiscoverContent(
     onRuleClick: (RuleSection) -> Unit,
 ) {
     val context = LocalContext.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text("Discover", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = GroupedBg),
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = GroupedBg,
+                    scrolledContainerColor = GroupedBg,
+                ),
             )
         },
         containerColor = GroupedBg,
@@ -152,10 +158,10 @@ private fun HeaderSection(sport: SportType) {
         ) {
             Icon(sportIcon(sport), null, Modifier.size(34.dp), tint = BrandPurple)
         }
-        Text("Your ${sport.displayName} Hub", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Text("Your ${sport.displayName} Hub", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(
             "News, live scores, rankings & more — all in one place.",
-            fontSize = 12.sp,
+            fontSize = 15.sp,
             color = Color.Gray,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 40.dp),
@@ -204,8 +210,8 @@ private fun SectionHeader(title: String, icon: ImageVector) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(icon, null, Modifier.size(18.dp), tint = BrandPurple)
-        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Icon(icon, null, Modifier.size(20.dp), tint = BrandPurple)
+        Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -241,9 +247,9 @@ private fun NewsSection(sport: SportType, onClick: (DiscoverLink) -> Unit) {
                             Icon(Icons.Filled.ArrowOutward, null, Modifier.size(14.dp), tint = Color.Gray.copy(alpha = 0.5f))
                         }
                         Spacer(Modifier.height(10.dp))
-                        Text(link.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 18.sp)
+                        Text(link.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 20.sp)
                         Spacer(Modifier.height(4.dp))
-                        Text(link.subtitle, fontSize = 12.sp, color = Color.Gray, maxLines = 2, lineHeight = 16.sp)
+                        Text(link.subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 2, lineHeight = 18.sp)
                         Spacer(Modifier.weight(1f))
                         Surface(shape = CircleShape, color = BrandPurple.copy(alpha = 0.10f)) {
                             Text(
@@ -297,8 +303,8 @@ private fun ListSection(
                             Icon(link.icon, null, Modifier.size(20.dp), tint = BrandPurple)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(link.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            Text(link.subtitle, fontSize = 12.sp, color = Color.Gray, maxLines = 1)
+                            Text(link.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text(link.subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 1)
                         }
                         Text(link.source, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = BrandPurple)
                         Icon(Icons.Filled.ChevronRight, null, Modifier.size(16.dp), tint = BrandPurple)
@@ -364,9 +370,9 @@ private fun GridCard(data: GridCardData, modifier: Modifier = Modifier) {
                 Icon(Icons.Filled.ChevronRight, null, Modifier.size(14.dp), tint = Color.Gray.copy(alpha = 0.5f))
             }
             Spacer(Modifier.height(10.dp))
-            Text(data.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 18.sp)
+            Text(data.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 20.sp)
             Spacer(Modifier.height(4.dp))
-            Text(data.subtitle, fontSize = 12.sp, color = Color.Gray, maxLines = 2, lineHeight = 16.sp)
+            Text(data.subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 2, lineHeight = 18.sp)
         }
     }
 }

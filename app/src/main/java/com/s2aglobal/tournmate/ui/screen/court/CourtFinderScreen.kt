@@ -37,6 +37,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -110,12 +111,18 @@ fun CourtFinderScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text("Find Courts", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = GroupedBg),
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = GroupedBg,
+                    scrolledContainerColor = GroupedBg,
+                ),
             )
         },
         containerColor = GroupedBg,
@@ -266,14 +273,14 @@ private fun WelcomeHero(
             Icon(painterResource(R.drawable.ic_figure_badminton), null, Modifier.size(56.dp), tint = BrandPurple)
         }
         Spacer(Modifier.height(20.dp))
-        Text("Discover Courts\nNear You", fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 28.sp)
+        Text("Discover Courts\nNear You", fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 32.sp)
         Spacer(Modifier.height(8.dp))
         Text(
             state.welcomeSubtitle,
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             color = Color.Gray,
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp,
+            lineHeight = 22.sp,
             modifier = Modifier.padding(horizontal = 4.dp),
         )
 
@@ -358,8 +365,8 @@ private fun FeatureRow(icon: androidx.compose.ui.graphics.vector.ImageVector, co
                 Icon(icon, null, Modifier.size(18.dp), tint = color)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, fontSize = 12.sp, color = Color.Gray, maxLines = 2, lineHeight = 15.sp)
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 2, lineHeight = 18.sp)
             }
         }
     }
