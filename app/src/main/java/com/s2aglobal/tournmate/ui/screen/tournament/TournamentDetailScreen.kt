@@ -28,6 +28,7 @@ import coil.compose.AsyncImage
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.screen.tournament.visualizer.*
 import com.s2aglobal.tournmate.ui.theme.*
+import com.s2aglobal.tournmate.util.ShareUtil
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -246,21 +247,7 @@ private fun HeaderSection(tournament: Tournament, isCreator: Boolean, onBack: ()
 
             // Share button
             IconButton(
-                onClick = {
-                    val dateFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                    val shareUrl = "https://www.tournmate.com/tournament/${tournament.id.toString().uppercase()}"
-                    val shareText = buildString {
-                        append("🏸 ${tournament.title}\n")
-                        append("📅 ${dateFmt.format(tournament.date)} • ${tournament.format.displayName}\n")
-                        if (tournament.location.isNotEmpty()) append("📍 ${tournament.location}\n")
-                        append("\n$shareUrl")
-                    }
-                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                    }
-                    context.startActivity(android.content.Intent.createChooser(intent, "Share Tournament"))
-                },
+                onClick = { ShareUtil.shareTournament(context, tournament) },
                 modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.15f), CircleShape),
             ) {
                 Icon(Icons.Default.Share, null, Modifier.size(18.dp), tint = Color.White)

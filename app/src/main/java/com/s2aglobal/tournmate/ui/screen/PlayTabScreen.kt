@@ -59,6 +59,7 @@ import java.util.Calendar
 @Composable
 fun PlayTabScreen(
     modifier: Modifier = Modifier,
+    isGuestMode: Boolean = false,
     onNavigateToTournamentDetail: (String) -> Unit = {},
     onNavigateToSessionDetail: (String) -> Unit = {},
 ) {
@@ -77,6 +78,7 @@ fun PlayTabScreen(
         ) {
             PlayHeader(
                 selectedSegment = selectedSegment,
+                showHostButton = !isGuestMode,
                 onHostClick = {
                     if (selectedSegment == 0) showPublish = true
                     else showCreateSession = true
@@ -91,7 +93,7 @@ fun PlayTabScreen(
 
             when (selectedSegment) {
                 0 -> TournamentListScreen(
-                    isGuest = false,
+                    isGuest = isGuestMode,
                     onTournamentClick = { tournament ->
                         onNavigateToTournamentDetail(tournament.id.toString().uppercase())
                     },
@@ -100,7 +102,7 @@ fun PlayTabScreen(
                 )
                 1 -> OpenPlayListScreen(
                     viewModel = openPlayVM,
-                    isGuest = false,
+                    isGuest = isGuestMode,
                     onSessionClick = { session ->
                         onNavigateToSessionDetail(session.id.toString().uppercase())
                     },
@@ -109,7 +111,7 @@ fun PlayTabScreen(
             }
         }
 
-        if (showPublish) {
+        if (showPublish && !isGuestMode) {
             PublishTournamentScreen(
                 firebaseUid = uiState.firebaseUid,
                 preferredSport = uiState.preferredSport,
@@ -136,7 +138,7 @@ fun PlayTabScreen(
 
     }
 
-    if (showCreateSession) {
+    if (showCreateSession && !isGuestMode) {
         CreateSessionSheet(
             preferredSport = uiState.preferredSport,
             onPost = { title, venue, venueAddress, venueLatitude, venueLongitude,
@@ -159,6 +161,7 @@ fun PlayTabScreen(
 @Composable
 private fun PlayHeader(
     selectedSegment: Int,
+    showHostButton: Boolean = true,
     onHostClick: () -> Unit,
     onNotificationClick: () -> Unit,
 ) {
@@ -197,41 +200,43 @@ private fun PlayHeader(
             )
         }
 
-        Spacer(modifier = Modifier.width(6.dp))
+        if (showHostButton) {
+            Spacer(modifier = Modifier.width(6.dp))
 
-        Surface(
-            onClick = onHostClick,
-            shape = RoundedCornerShape(50),
-            color = BrandPurple,
-            shadowElevation = 8.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
+            Surface(
+                onClick = onHostClick,
+                shape = RoundedCornerShape(50),
+                color = BrandPurple,
+                shadowElevation = 8.dp,
             ) {
-                Surface(
-                    modifier = Modifier.size(28.dp),
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.25f),
+                Row(
+                    modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(13.dp),
-                            tint = Color.White,
-                        )
+                    Surface(
+                        modifier = Modifier.size(28.dp),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.25f),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = Color.White,
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "HOST",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        letterSpacing = 0.5.sp,
+                    )
                 }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "HOST",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    letterSpacing = 0.5.sp,
-                )
             }
         }
     }

@@ -45,6 +45,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.theme.*
+import com.s2aglobal.tournmate.util.ShareUtil
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -94,20 +95,7 @@ fun OpenPlayDetailScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = {
-                            val shareUrl = "https://www.tournmate.com/session/${session.id.toString().uppercase()}"
-                            val shareText = buildString {
-                                append("🏸 Open Play: ${session.title}\n")
-                                append("📅 ${dateFormatter.format(session.date)}")
-                                if (session.venue.isNotEmpty()) append("\n📍 ${session.venue}")
-                                append("\n\n$shareUrl")
-                            }
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, shareText)
-                            }
-                            context.startActivity(Intent.createChooser(intent, "Share Session"))
-                        },
+                        onClick = { ShareUtil.shareSession(context, session) },
                     ) {
                         Icon(Icons.Default.Share, "Share")
                     }
