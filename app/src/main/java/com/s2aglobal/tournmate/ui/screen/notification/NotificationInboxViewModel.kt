@@ -2,11 +2,14 @@ package com.s2aglobal.tournmate.ui.screen.notification
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
 import com.s2aglobal.tournmate.service.notification.LocalNotificationStore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +43,7 @@ data class NotificationInboxUiState(
 @HiltViewModel
 class NotificationInboxViewModel @Inject constructor(
     private val db: FirebaseFirestore,
+    private val auth: FirebaseAuth,
     private val localStore: LocalNotificationStore,
     private val currentUserStore: CurrentUserStore,
 ) : ViewModel() {
@@ -49,88 +53,125 @@ class NotificationInboxViewModel @Inject constructor(
 
     val unreadCount: Int get() = _uiState.value.notifications.count { !it.read }
 
-    init { load() }
-
     fun load() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = _uiState.value.notifications.isEmpty())
-            val firebaseUid = currentUserStore.firebaseUid()
-            val combined = mutableListOf<NotificationItem>()
 
-            // 1. Firestore per-user inbox docs (direct recipient notifications)
-            if (firebaseUid != null) {
-                combined += loadFirestoreNotifications(firebaseUid)
-            }
-
-            // 2. Local push notifications (broadcast topics not written to Firestore)
-            val localEntries = localStore.loadAll()
-            val firestoreSessionIds    = combined.mapNotNull { it.sessionId }.toSet()
-            val firestoreTournamentIds = combined.mapNotNull { it.tournamentId }.toSet()
-
-            for (entry in localEntries) {
-                val isDuplicate = entry.sessionId    != null && entry.sessionId in firestoreSessionIds ||
-                                  entry.tournamentId != null && entry.tournamentId in firestoreTournamentIds
-                if (isDuplicate) continue
-                combined += NotificationItem(
-                    id           = "local_${entry.id}",
-                    type         = entry.type,
-                    title        = entry.title,
-                    body         = entry.body,
-                    tournamentId = entry.tournamentId,
-                    sessionId    = entry.sessionId,
-                    read         = entry.read,
-                    createdAt    = Date(entry.createdAt),
+            val firebaseUid = resolveFirebaseUid()
+            if (firebaseUid == null) {
+                _uiState.value = NotificationInboxUiState(
+                    notifications = mergeNotifications(emptyList()),
+                    isLoading = false,
                 )
+                return@launch
             }
 
-            // 3. Sort by date descending
+            val firestoreItems = loadFirestoreNotifications(firebaseUid)
+
             _uiState.value = NotificationInboxUiState(
-                notifications = combined.sortedByDescending { it.createdAt },
-                isLoading     = false,
+                notifications = mergeNotifications(firestoreItems),
+                isLoading = false,
             )
         }
     }
 
-    private suspend fun loadFirestoreNotifications(firebaseUid: String): List<NotificationItem> {
-        fun parseSnapshot(snapshot: com.google.firebase.firestore.QuerySnapshot): List<NotificationItem> =
-            snapshot.documents.mapNotNull { doc ->
-                val data = doc.data ?: return@mapNotNull null
-                val title = data["title"] as? String ?: return@mapNotNull null
-                val body = data["body"] as? String ?: return@mapNotNull null
-                val ts = (data["createdAt"] as? com.google.firebase.Timestamp)?.toDate() ?: Date()
-                NotificationItem(
-                    id           = doc.id,
-                    type         = data["type"] as? String ?: "",
-                    title        = title,
-                    body         = body,
-                    tournamentId = data["tournamentId"] as? String,
-                    sessionId    = data["sessionId"] as? String,
-                    read         = data["read"] as? Boolean ?: false,
-                    createdAt    = ts,
-                )
+    /** Prefer live Firebase Auth UID — must match Firestore security rules. */
+    private suspend fun resolveFirebaseUid(): String? {
+        repeat(8) { attempt ->
+            auth.currentUser?.uid?.let { return it }
+            if (attempt == 0) {
+                currentUserStore.firebaseUid()?.let { return it }
             }
+            delay(150)
+        }
+        return currentUserStore.firebaseUid()
+    }
 
-        return try {
+    private fun mergeNotifications(firestoreItems: List<NotificationItem>): List<NotificationItem> {
+        val combined = firestoreItems.toMutableList()
+        val firestoreSessionIds = combined.mapNotNull { it.sessionId?.uppercase() }.toSet()
+        val firestoreTournamentIds = combined.mapNotNull { it.tournamentId?.uppercase() }.toSet()
+        val firestoreIds = combined.map { it.id }.toSet()
+
+        for (entry in localStore.loadAll()) {
+            val localId = "local_${entry.id}"
+            if (localId in firestoreIds) continue
+
+            val sessionId = entry.sessionId?.uppercase()
+            val tournamentId = entry.tournamentId?.uppercase()
+            val isDuplicate = when {
+                sessionId != null -> sessionId in firestoreSessionIds
+                tournamentId != null -> tournamentId in firestoreTournamentIds
+                else -> false
+            }
+            if (isDuplicate) continue
+
+            combined += NotificationItem(
+                id = localId,
+                type = entry.type,
+                title = entry.title,
+                body = entry.body,
+                tournamentId = entry.tournamentId,
+                sessionId = entry.sessionId,
+                read = entry.read,
+                createdAt = Date(entry.createdAt),
+            )
+        }
+
+        return combined.sortedByDescending { it.createdAt }
+    }
+
+    private suspend fun loadFirestoreNotifications(firebaseUid: String): List<NotificationItem> {
+        // Try indexed query first (server source to avoid stale cache).
+        try {
             val snapshot = db.collection("notifications")
                 .whereEqualTo("recipientId", firebaseUid)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .limit(50)
-                .get()
+                .get(Source.SERVER)
                 .await()
-            parseSnapshot(snapshot)
+            return parseSnapshot(snapshot)
         } catch (_: Exception) {
-            // Fallback when composite index is missing — sort client-side instead.
-            try {
-                val snapshot = db.collection("notifications")
-                    .whereEqualTo("recipientId", firebaseUid)
-                    .limit(50)
-                    .get()
-                    .await()
-                parseSnapshot(snapshot).sortedByDescending { it.createdAt }
-            } catch (_: Exception) {
-                emptyList()
-            }
+            // Fall through to simpler queries.
         }
+
+        // Fallback without orderBy (missing composite index).
+        return try {
+            val snapshot = db.collection("notifications")
+                .whereEqualTo("recipientId", firebaseUid)
+                .limit(50)
+                .get(Source.SERVER)
+                .await()
+            parseSnapshot(snapshot).sortedByDescending { it.createdAt }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun parseSnapshot(snapshot: com.google.firebase.firestore.QuerySnapshot): List<NotificationItem> =
+        snapshot.documents.mapNotNull { doc -> parseNotificationDoc(doc.id, doc.data) }
+
+    private fun parseNotificationDoc(
+        docId: String,
+        data: Map<String, Any?>?,
+    ): NotificationItem? {
+        if (data == null) return null
+        val title = data["title"] as? String ?: return null
+        val body = data["body"] as? String ?: ""
+        val ts = when (val createdAt = data["createdAt"]) {
+            is com.google.firebase.Timestamp -> createdAt.toDate()
+            else -> Date()
+        }
+        return NotificationItem(
+            id = docId,
+            type = data["type"] as? String ?: "",
+            title = title,
+            body = body,
+            tournamentId = data["tournamentId"] as? String,
+            sessionId = data["sessionId"] as? String,
+            read = data["read"] as? Boolean ?: false,
+            createdAt = ts,
+        )
     }
 
     fun markAsRead(item: NotificationItem) {
@@ -155,7 +196,7 @@ class NotificationInboxViewModel @Inject constructor(
         viewModelScope.launch {
             val unread = _uiState.value.notifications.filter { !it.read }
             _uiState.value = _uiState.value.copy(
-                notifications = _uiState.value.notifications.map { it.copy(read = true) }
+                notifications = _uiState.value.notifications.map { it.copy(read = true) },
             )
             localStore.markAllAsRead()
             unread.filter { !it.id.startsWith("local_") }.forEach { item ->
@@ -170,7 +211,7 @@ class NotificationInboxViewModel @Inject constructor(
     fun delete(item: NotificationItem) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
-                notifications = _uiState.value.notifications.filter { it.id != item.id }
+                notifications = _uiState.value.notifications.filter { it.id != item.id },
             )
             if (item.id.startsWith("local_")) {
                 localStore.delete(item.id.removePrefix("local_"))

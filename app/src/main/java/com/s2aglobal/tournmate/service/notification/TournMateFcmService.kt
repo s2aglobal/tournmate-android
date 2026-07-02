@@ -73,8 +73,12 @@ class TournMateFcmService : FirebaseMessagingService() {
         // Build an intent that deep-links when the notification is tapped
         val deepLinkIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("notificationTitle", title)
+            putExtra("notificationBody", body)
+            putExtra("notificationType", type)
             tournamentId?.let { putExtra("tournamentId", it) }
             sessionId?.let    { putExtra("sessionId", it) }
+            createdBy?.let    { putExtra("createdBy", it) }
         }
 
         val pendingIntent = PendingIntent.getActivity(
