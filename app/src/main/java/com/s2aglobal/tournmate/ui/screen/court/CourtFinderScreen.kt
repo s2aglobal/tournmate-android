@@ -123,7 +123,10 @@ fun CourtFinderScreen(
             "Find Courts",
             fontSize = 34.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
+            modifier = Modifier
+                .background(GroupedBg)
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
         )
 
         SearchBar(
@@ -136,15 +139,27 @@ fun CourtFinderScreen(
             onClear = { viewModel.resetSearch() },
         )
 
-        Box(Modifier.fillMaxSize()) {
-            when {
-                uiState.isLoading -> LoadingState()
-                uiState.errorMessage != null -> ErrorState(uiState.errorMessage!!) { viewModel.dismissError() }
-                uiState.courts.isEmpty() && uiState.hasSearched -> NoResultsState(uiState.zipExamples) {
+        when {
+            uiState.isLoading -> Box(Modifier.weight(1f)) { LoadingState() }
+            uiState.errorMessage != null -> Box(Modifier.weight(1f)) {
+                ErrorState(uiState.errorMessage!!) { viewModel.dismissError() }
+            }
+            uiState.courts.isEmpty() && uiState.hasSearched -> Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                NoResultsState(uiState.zipExamples) {
                     viewModel.onZipCodeChange(it)
                     viewModel.searchByZipCode()
                 }
-                uiState.courts.isEmpty() -> WelcomeHero(
+            }
+            uiState.courts.isEmpty() -> Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                WelcomeHero(
                     state = uiState,
                     onUseCurrentLocation = { onUseCurrentLocation() },
                     onExampleClick = {
@@ -153,8 +168,12 @@ fun CourtFinderScreen(
                         viewModel.searchByZipCode()
                     },
                 )
-                else -> ResultsList(uiState.courts, uiState.zipCode)
             }
+            else -> ResultsList(
+                modifier = Modifier.weight(1f),
+                courts = uiState.courts,
+                zipCode = uiState.zipCode,
+            )
         }
     }
 }
@@ -250,8 +269,7 @@ private fun WelcomeHero(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .fillMaxWidth()
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -330,7 +348,7 @@ private fun WelcomeHero(
                 }
             }
         }
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(80.dp))
     }
 }
 
@@ -435,40 +453,44 @@ private fun ErrorState(message: String, onDismiss: () -> Unit) {
 
 @Composable
 private fun NoResultsState(examples: List<String>, onExampleClick: (String) -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(40.dp)) {
-            Icon(Icons.Filled.SearchOff, null, Modifier.size(48.dp), tint = Color.Gray.copy(alpha = 0.3f))
-            Spacer(Modifier.height(16.dp))
-            Text("No Courts Found", fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "We couldn't find badminton courts for that area.\nTry a different postal code.",
-                fontSize = 13.sp,
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
-                lineHeight = 18.sp,
-            )
-            Spacer(Modifier.height(20.dp))
-            Text("Examples to try:", fontSize = 11.sp, color = Color.Gray)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                examples.forEach { zip ->
-                    Surface(
-                        onClick = { onExampleClick(zip) },
-                        shape = CircleShape,
-                        color = BrandPurple.copy(alpha = 0.08f),
-                    ) {
-                        Text(
-                            zip,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BrandPurple,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                        )
-                    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 40.dp, vertical = 60.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(Icons.Filled.SearchOff, null, Modifier.size(48.dp), tint = Color.Gray.copy(alpha = 0.3f))
+        Spacer(Modifier.height(16.dp))
+        Text("No Courts Found", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "We couldn't find badminton courts for that area.\nTry a different postal code.",
+            fontSize = 13.sp,
+            color = Color.Gray,
+            textAlign = TextAlign.Center,
+            lineHeight = 18.sp,
+        )
+        Spacer(Modifier.height(20.dp))
+        Text("Examples to try:", fontSize = 11.sp, color = Color.Gray)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            examples.forEach { zip ->
+                Surface(
+                    onClick = { onExampleClick(zip) },
+                    shape = CircleShape,
+                    color = BrandPurple.copy(alpha = 0.08f),
+                ) {
+                    Text(
+                        zip,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandPurple,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                    )
                 }
             }
         }
+        Spacer(Modifier.height(80.dp))
     }
 }
 
@@ -477,12 +499,18 @@ private fun NoResultsState(examples: List<String>, onExampleClick: (String) -> U
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @Composable
-private fun ResultsList(courts: List<CourtResult>, zipCode: String) {
+private fun ResultsList(
+    modifier: Modifier = Modifier,
+    courts: List<CourtResult>,
+    zipCode: String,
+) {
     val context = LocalContext.current
     val apiKey = remember { mapsApiKey(context) }
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
@@ -507,7 +535,7 @@ private fun ResultsList(courts: List<CourtResult>, zipCode: String) {
             CourtCard(court, apiKey)
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(80.dp))
     }
 }
 

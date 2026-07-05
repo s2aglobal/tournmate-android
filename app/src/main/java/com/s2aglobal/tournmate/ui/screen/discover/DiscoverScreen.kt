@@ -79,17 +79,24 @@ private fun DiscoverContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(GroupedBg)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+            .background(GroupedBg),
     ) {
         Text(
             "Discover",
             fontSize = 34.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
+            modifier = Modifier
+                .background(GroupedBg)
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
         )
 
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
         HeaderSection(sport)
 
         QuickLinksBar(sport) { openInBrowser(context, it.url) }
@@ -126,7 +133,8 @@ private fun DiscoverContent(
             },
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(80.dp))
+        }
     }
 }
 

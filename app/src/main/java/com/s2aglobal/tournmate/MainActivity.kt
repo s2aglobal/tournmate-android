@@ -49,14 +49,27 @@ class MainActivity : ComponentActivity() {
      * When a push arrives while the app is in the background, Android shows the
      * system notification without calling [TournMateFcmService.onMessageReceived].
      * Persist the payload when the user taps so it appears in the inbox (iOS parity).
+     *
+     * Checks both custom keys (set by TournMateFcmService foreground path) and
+     * FCM data payload keys (present when the system handles background notifications).
      */
     private fun persistNotificationFromIntent(intent: Intent?) {
         val extras = intent?.extras ?: return
-        val title = extras.getString("notificationTitle")?.takeIf { it.isNotBlank() } ?: return
-        val body = extras.getString("notificationBody") ?: ""
-        val type = extras.getString("notificationType") ?: ""
+
+        val title = extras.getString("notificationTitle")?.takeIf { it.isNotBlank() }
+            ?: extras.getString("gcm.notification.title")?.takeIf { it.isNotBlank() }
+            ?: extras.getString("title")?.takeIf { it.isNotBlank() }
+            ?: return
+        val body = extras.getString("notificationBody")
+            ?: extras.getString("gcm.notification.body")
+            ?: extras.getString("body")
+            ?: ""
+        val type = extras.getString("notificationType")
+            ?: extras.getString("type")
+            ?: ""
         val tournamentId = extras.getString("tournamentId")
         val sessionId = extras.getString("sessionId")
+        val createdBy = extras.getString("createdBy")
 
         val alreadySaved = localNotificationStore.loadAll().any { entry ->
             entry.title == title &&
@@ -72,7 +85,7 @@ class MainActivity : ComponentActivity() {
             body = body,
             tournamentId = tournamentId,
             sessionId = sessionId,
-            createdBy = extras.getString("createdBy"),
+            createdBy = createdBy,
         )
     }
 }

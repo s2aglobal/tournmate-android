@@ -70,13 +70,14 @@ private val GoogleGBrush = Brush.linearGradient(listOf(GoogleBlue, GoogleRed, Go
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
     initialCreateMode: Boolean = false,
-    onSignInSuccess: (needsProfile: Boolean) -> Unit,
+    onSignInSuccess: (needsProfile: Boolean, displayName: String) -> Unit,
     onBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showEmailSignUp by remember { mutableStateOf(false) }
     var initialized by remember { mutableStateOf(false) }
+    var enteredName by remember { mutableStateOf("") }
 
     if (!initialized) {
         initialized = true
@@ -89,13 +90,14 @@ fun LoginScreen(
         EmailCreateAccountScreen(
             viewModel = viewModel,
             onBack = { showEmailSignUp = false },
-            onSuccess = onSignInSuccess,
+            onSuccess = { needsProfile -> onSignInSuccess(needsProfile, enteredName) },
+            onNameChanged = { enteredName = it },
         )
     } else if (uiState.isCreateAccount) {
         EliteAccessScreen(
             viewModel = viewModel,
             uiState = uiState,
-            onGoogleSignIn = { viewModel.signInWithGoogle(context, onSignInSuccess) },
+            onGoogleSignIn = { viewModel.signInWithGoogle(context) { needsProfile -> onSignInSuccess(needsProfile, "") } },
             onEmailSignUp = { showEmailSignUp = true },
             onToggleMode = { viewModel.toggleCreateAccount() },
         )
@@ -103,8 +105,8 @@ fun LoginScreen(
         WelcomeBackScreen(
             viewModel = viewModel,
             uiState = uiState,
-            onGoogleSignIn = { viewModel.signInWithGoogle(context, onSignInSuccess) },
-            onSignIn = { viewModel.signInWithEmail(onSignInSuccess) },
+            onGoogleSignIn = { viewModel.signInWithGoogle(context) { needsProfile -> onSignInSuccess(needsProfile, "") } },
+            onSignIn = { viewModel.signInWithEmail { needsProfile -> onSignInSuccess(needsProfile, "") } },
             onToggleMode = { viewModel.toggleCreateAccount() },
         )
     }
@@ -310,6 +312,7 @@ private fun EmailCreateAccountScreen(
     viewModel: LoginViewModel,
     onBack: () -> Unit,
     onSuccess: (needsProfile: Boolean) -> Unit,
+    onNameChanged: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var passwordVisible by remember { mutableStateOf(false) }
@@ -360,7 +363,7 @@ private fun EmailCreateAccountScreen(
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
                 value = fullName,
-                onValueChange = { fullName = it },
+                onValueChange = { fullName = it; onNameChanged(it) },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Ex. John Doe", color = Color.Gray) },
                 shape = RoundedCornerShape(14.dp),

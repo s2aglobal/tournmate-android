@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.service.validation.InputValidator
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.util.DatePickerUtils
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -147,18 +148,13 @@ fun PublishTournamentScreen(
 
     // Date picker dialog
     if (showDatePicker) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = newDate.time)
+        val state = rememberDatePickerState(initialSelectedDateMillis = DatePickerUtils.toUtcPickerMillis(newDate))
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { millis ->
-                        val cal = Calendar.getInstance().apply { time = newDate }
-                        val newCal = Calendar.getInstance().apply { timeInMillis = millis }
-                        cal.set(Calendar.YEAR, newCal.get(Calendar.YEAR))
-                        cal.set(Calendar.MONTH, newCal.get(Calendar.MONTH))
-                        cal.set(Calendar.DAY_OF_MONTH, newCal.get(Calendar.DAY_OF_MONTH))
-                        newDate = cal.time
+                        newDate = DatePickerUtils.applyPickerDate(newDate, millis)
                         newDeadline = Tournament.defaultDeadline(newDate)
                     }
                     showDatePicker = false
@@ -196,18 +192,13 @@ fun PublishTournamentScreen(
 
     // Deadline date picker
     if (showDeadlineDatePicker) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = newDeadline.time)
+        val state = rememberDatePickerState(initialSelectedDateMillis = DatePickerUtils.toUtcPickerMillis(newDeadline))
         DatePickerDialog(
             onDismissRequest = { showDeadlineDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { millis ->
-                        val cal = Calendar.getInstance().apply { time = newDeadline }
-                        val newCal = Calendar.getInstance().apply { timeInMillis = millis }
-                        cal.set(Calendar.YEAR, newCal.get(Calendar.YEAR))
-                        cal.set(Calendar.MONTH, newCal.get(Calendar.MONTH))
-                        cal.set(Calendar.DAY_OF_MONTH, newCal.get(Calendar.DAY_OF_MONTH))
-                        newDeadline = cal.time
+                        newDeadline = DatePickerUtils.applyPickerDate(newDeadline, millis)
                     }
                     showDeadlineDatePicker = false
                 }) { Text("OK") }

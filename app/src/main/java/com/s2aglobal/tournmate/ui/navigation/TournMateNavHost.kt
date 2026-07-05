@@ -52,7 +52,7 @@ fun TournMateNavHost(
                     }
                 },
                 onNavigateToProfileSetup = {
-                    navController.navigate(Routes.PROFILE_SETUP) {
+                    navController.navigate(Routes.profileSetup()) {
                         popUpTo(Routes.AUTH_GATE) { inclusive = true }
                     }
                 },
@@ -86,11 +86,9 @@ fun TournMateNavHost(
             val createMode = backStackEntry.arguments?.getString("createMode")?.toBoolean() ?: false
             LoginScreen(
                 initialCreateMode = createMode,
-                onSignInSuccess = { needsProfile ->
+                onSignInSuccess = { needsProfile, displayName ->
                     if (needsProfile) {
-                        navController.navigate(Routes.PROFILE_SETUP) {
-                            popUpTo(Routes.WELCOME) { inclusive = true }
-                        }
+                        navController.navigate(Routes.profileSetup(displayName))
                     } else {
                         navController.navigate(Routes.MAIN) {
                             popUpTo(Routes.WELCOME) { inclusive = true }
@@ -101,8 +99,21 @@ fun TournMateNavHost(
             )
         }
 
-        composable(Routes.PROFILE_SETUP) {
+        composable(
+            route = Routes.PROFILE_SETUP,
+            arguments = listOf(
+                androidx.navigation.navArgument("name") {
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { backStackEntry ->
+            val initialName = java.net.URLDecoder.decode(
+                backStackEntry.arguments?.getString("name") ?: "", "UTF-8"
+            )
             ProfileSetupScreen(
+                initialName = initialName,
+                onBack = { navController.popBackStack() },
                 onComplete = {
                     navController.navigate(Routes.ONBOARDING) {
                         popUpTo(Routes.PROFILE_SETUP) { inclusive = true }

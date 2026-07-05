@@ -30,6 +30,7 @@ import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.screen.tournament.VenuePickerScreen
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.util.DatePickerUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -414,16 +415,14 @@ fun CreateSessionSheet(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDate.time)
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = DatePickerUtils.toUtcPickerMillis(selectedDate),
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = { TextButton(onClick = {
                 datePickerState.selectedDateMillis?.let { millis ->
-                    val newCal = Calendar.getInstance().apply { timeInMillis = millis }
-                    val oldCal = Calendar.getInstance().apply { time = selectedDate }
-                    newCal.set(Calendar.HOUR_OF_DAY, oldCal.get(Calendar.HOUR_OF_DAY))
-                    newCal.set(Calendar.MINUTE, oldCal.get(Calendar.MINUTE))
-                    selectedDate = newCal.time
+                    selectedDate = DatePickerUtils.applyPickerDate(selectedDate, millis)
                 }
                 showDatePicker = false
             }) { Text("OK") } },
