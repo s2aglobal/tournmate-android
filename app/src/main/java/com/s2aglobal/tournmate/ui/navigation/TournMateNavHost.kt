@@ -10,11 +10,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
 import com.s2aglobal.tournmate.ui.screen.MainScreen
+import com.s2aglobal.tournmate.ui.screen.auth.AuthGateViewModel
 import com.s2aglobal.tournmate.ui.screen.auth.AuthGateScreen
 import com.s2aglobal.tournmate.ui.screen.auth.LoginScreen
 import com.s2aglobal.tournmate.ui.screen.auth.OnboardingScreen
@@ -25,6 +27,7 @@ import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayDetailViewModel
 import com.s2aglobal.tournmate.ui.screen.player.PlayerProfileScreen
 import com.s2aglobal.tournmate.ui.screen.player.PlayerProfileViewModel
 import com.s2aglobal.tournmate.ui.screen.player.RatePlayerSheet
+import com.s2aglobal.tournmate.ui.screen.notification.NotificationInboxScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentDetailScreen
 
 @Composable
@@ -33,6 +36,8 @@ fun TournMateNavHost(
     onDeepLinkConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    val authGateViewModel: AuthGateViewModel = hiltViewModel()
+    val isGuestMode by authGateViewModel.isGuestMode.collectAsStateWithLifecycle()
 
     NavHost(
         navController = navController,
@@ -40,19 +45,20 @@ fun TournMateNavHost(
     ) {
         composable(Routes.AUTH_GATE) {
             AuthGateScreen(
+                viewModel = authGateViewModel,
                 onNavigateToWelcome = {
                     navController.navigate(Routes.WELCOME) {
                         popUpTo(Routes.AUTH_GATE) { inclusive = true }
                     }
                 },
                 onNavigateToProfileSetup = {
-                    navController.navigate(Routes.PROFILE_SETUP) {
+                    navController.navigate(Routes.profileSetup()) {
                         popUpTo(Routes.AUTH_GATE) { inclusive = true }
                     }
                 },
                 onNavigateToOnboarding = {
                     navController.navigate(Routes.ONBOARDING) {
-                        popUpTo(Routes.AUTH_GATE) { inclusive = true }
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
                     }
                 },
                 onNavigateToMain = {
@@ -68,6 +74,7 @@ fun TournMateNavHost(
                 onStartJourney = { navController.navigate(Routes.login(createMode = true)) },
                 onLogIn = { navController.navigate(Routes.login(createMode = false)) },
                 onContinueAsGuest = {
+                    authGateViewModel.continueAsGuest()
                     navController.navigate(Routes.MAIN) {
                         popUpTo(Routes.WELCOME) { inclusive = true }
                     }
@@ -79,11 +86,9 @@ fun TournMateNavHost(
             val createMode = backStackEntry.arguments?.getString("createMode")?.toBoolean() ?: false
             LoginScreen(
                 initialCreateMode = createMode,
-                onSignInSuccess = { needsProfile ->
+                onSignInSuccess = { needsProfile, displayName ->
                     if (needsProfile) {
-                        navController.navigate(Routes.PROFILE_SETUP) {
-                            popUpTo(Routes.WELCOME) { inclusive = true }
-                        }
+                        navController.navigate(Routes.profileSetup(displayName))
                     } else {
                         navController.navigate(Routes.MAIN) {
                             popUpTo(Routes.WELCOME) { inclusive = true }
@@ -94,8 +99,21 @@ fun TournMateNavHost(
             )
         }
 
-        composable(Routes.PROFILE_SETUP) {
+        composable(
+            route = Routes.PROFILE_SETUP,
+            arguments = listOf(
+                androidx.navigation.navArgument("name") {
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { backStackEntry ->
+            val initialName = java.net.URLDecoder.decode(
+                backStackEntry.arguments?.getString("name") ?: "", "UTF-8"
+            )
             ProfileSetupScreen(
+                initialName = initialName,
+                onBack = { navController.popBackStack() },
                 onComplete = {
                     navController.navigate(Routes.ONBOARDING) {
                         popUpTo(Routes.PROFILE_SETUP) { inclusive = true }
@@ -116,7 +134,9 @@ fun TournMateNavHost(
 
         composable(Routes.MAIN) {
             MainScreen(
+                isGuestMode = isGuestMode,
                 onSignOut = {
+                    authGateViewModel.signOut()
                     navController.navigate(Routes.WELCOME) {
                         popUpTo(Routes.MAIN) { inclusive = true }
                     }
@@ -129,6 +149,9 @@ fun TournMateNavHost(
                 },
                 onNavigateToPlayerProfile = { playerId ->
                     navController.navigate(Routes.playerProfile(playerId))
+                },
+                onNavigateToNotifications = {
+                    navController.navigate(Routes.NOTIFICATION_INBOX)
                 },
             )
 
@@ -175,6 +198,7 @@ fun TournMateNavHost(
                     currentPlayerId = uiState.currentPlayerId,
                     firebaseUid = uiState.firebaseUid,
                     isLoading = uiState.isLoading,
+                    isGuest = isGuestMode,
                     onBack = { navController.popBackStack() },
                     onJoin = { viewModel.join() },
                     onLeave = { viewModel.leave() },
@@ -195,6 +219,18 @@ fun TournMateNavHost(
                     CircularProgressIndicator(color = BrandPurple)
                 }
             }
+        }
+
+        composable(Routes.NOTIFICATION_INBOX) {
+            NotificationInboxScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToTournament = { id ->
+                    navController.navigate(Routes.tournamentDetail(id))
+                },
+                onNavigateToSession = { id ->
+                    navController.navigate(Routes.openPlayDetail(id))
+                },
+            )
         }
 
         composable(Routes.PLAYER_PROFILE) {

@@ -1,6 +1,7 @@
 package com.s2aglobal.tournmate.ui.navigation
 
 import android.net.Uri
+import android.os.Bundle
 
 /**
  * Parses incoming deep link URIs into a navigation target.
@@ -42,5 +43,22 @@ object DeepLinkParser {
 
         if (id.isBlank()) return null
         return Target(type, id.uppercase())
+    }
+
+    /**
+     * Parses FCM notification tap extras set in [TournMateFcmService].
+     * Returns a [Target] if the extras contain a tournamentId or sessionId.
+     */
+    fun parseExtras(extras: Bundle?): Target? {
+        extras ?: return null
+        val tournamentId = extras.getString("tournamentId")
+        if (!tournamentId.isNullOrBlank()) {
+            return Target(Type.TOURNAMENT, tournamentId.uppercase())
+        }
+        val sessionId = extras.getString("sessionId")
+        if (!sessionId.isNullOrBlank()) {
+            return Target(Type.SESSION, sessionId.uppercase())
+        }
+        return null
     }
 }

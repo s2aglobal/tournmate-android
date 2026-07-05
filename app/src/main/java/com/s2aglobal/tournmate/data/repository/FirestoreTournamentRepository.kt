@@ -22,8 +22,13 @@ class FirestoreTournamentRepository @Inject constructor(
     private val collection get() = db.collection("tournaments")
 
     override suspend fun findTournament(id: UUID): Tournament? {
-        val doc = collection.document(id.toString().uppercase()).get().await()
-        return doc.toTournament()
+        val upper = id.toString().uppercase()
+        val doc = collection.document(upper).get().await()
+        if (doc.exists()) return doc.toTournament()
+        // Fallback for legacy lowercase document IDs
+        val lower = id.toString().lowercase()
+        val fallback = collection.document(lower).get().await()
+        return fallback.toTournament()
     }
 
     override suspend fun listTournaments(): List<Tournament> {
@@ -109,6 +114,7 @@ class FirestoreTournamentRepository @Inject constructor(
             formatConfigData = configJson,
             countryCode = countryCode,
             postalCode = postalCode,
+            timeZone = java.util.TimeZone.getDefault().id,
             sportType = sportType,
         )
 

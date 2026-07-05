@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.service.auth.AuthService
+import com.s2aglobal.tournmate.service.notification.NotificationService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,7 @@ class AuthGateViewModel @Inject constructor(
     private val authService: AuthService,
     private val playerRepo: PlayerRepository,
     private val currentUserStore: CurrentUserStore,
+    private val notificationService: NotificationService,
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow(AuthState.LOADING)
@@ -51,6 +53,7 @@ class AuthGateViewModel @Inject constructor(
             if (savedPlayerId != null) {
                 val player = playerRepo.findPlayerById(savedPlayerId)
                 if (player != null) {
+                    notificationService.subscribeToHomeRegion(player)
                     val hasSeenOnboarding = currentUserStore.hasSeenOnboarding()
                     _authState.value = if (hasSeenOnboarding) AuthState.SIGNED_IN
                     else AuthState.NEEDS_ONBOARDING
@@ -62,6 +65,7 @@ class AuthGateViewModel @Inject constructor(
             if (player != null) {
                 currentUserStore.setCurrentPlayerId(player.id)
                 currentUserStore.setFirebaseUid(firebaseUser.uid)
+                notificationService.subscribeToHomeRegion(player)
                 val hasSeenOnboarding = currentUserStore.hasSeenOnboarding()
                 _authState.value = if (hasSeenOnboarding) AuthState.SIGNED_IN
                 else AuthState.NEEDS_ONBOARDING

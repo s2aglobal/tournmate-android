@@ -38,6 +38,8 @@ class FirestorePlayerRepository @Inject constructor(
         homeCountryCode: String?,
         homePostalCode: String?,
         firebaseUid: String?,
+        dateOfBirth: Date?,
+        preferredSport: SportType,
     ): Player {
         val player = Player(
             id = UUID.randomUUID(),
@@ -46,13 +48,14 @@ class FirestorePlayerRepository @Inject constructor(
             email = email.lowercase(),
             genderRaw = gender.rawValue,
             createdAt = Date(),
-            eloRatings = mapOf("badminton" to 1200.0),
-            preferredSport = SportType.BADMINTON,
+            eloRatings = mapOf(preferredSport.rawValue to 1200.0),
+            preferredSport = preferredSport,
             streak = 0,
             firebaseUid = firebaseUid,
             avatarId = avatarId.ifBlank { PlayerAvatar.DEFAULT.id },
             homeCountryCode = homeCountryCode,
             homePostalCode = homePostalCode,
+            dateOfBirth = dateOfBirth,
         )
         collection.document(player.id.toString().uppercase())
             .set(player.toFirestoreMap())

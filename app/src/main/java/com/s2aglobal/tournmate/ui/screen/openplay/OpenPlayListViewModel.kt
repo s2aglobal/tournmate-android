@@ -184,6 +184,7 @@ class OpenPlayListViewModel @Inject constructor(
                     hostName = state.currentPlayer?.name,
                     hostAvatarId = state.currentPlayer?.avatarId,
                     createdAt = Date(),
+                    timeZone = java.util.TimeZone.getDefault().id,
                     sportType = sportType,
                     attendeeIds = listOf(state.currentPlayerId ?: ""),
                 )

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.util.DatePickerUtils
 import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.*
@@ -418,27 +419,19 @@ fun EditTournamentSheet(
         // Date picker dialog
         if (showDatePicker) {
             val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = editDate.time,
+                initialSelectedDateMillis = DatePickerUtils.toUtcPickerMillis(editDate),
             )
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },
                 confirmButton = {
                     TextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            val cal = Calendar.getInstance().apply {
-                                time = editDate
-                                val newCal = Calendar.getInstance().apply { timeInMillis = millis }
-                                set(Calendar.YEAR, newCal.get(Calendar.YEAR))
-                                set(Calendar.MONTH, newCal.get(Calendar.MONTH))
-                                set(Calendar.DAY_OF_MONTH, newCal.get(Calendar.DAY_OF_MONTH))
-                            }
-                            editDate = cal.time
-                            // Update deadline if it's after the new date
+                            editDate = DatePickerUtils.applyPickerDate(editDate, millis)
                             val defaultDeadline = Calendar.getInstance().apply {
-                                time = cal.time
+                                time = editDate
                                 add(Calendar.HOUR, -2)
                             }.time
-                            if (editDeadline.after(cal.time)) editDeadline = defaultDeadline
+                            if (editDeadline.after(editDate)) editDeadline = defaultDeadline
                         }
                         showDatePicker = false
                     }) { Text("OK", color = BrandPurple) }

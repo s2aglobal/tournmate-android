@@ -7,7 +7,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -407,7 +409,9 @@ private fun MyTournamentsEmptyState(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(40.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 40.dp)
+            .padding(bottom = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(30.dp))
@@ -474,7 +478,9 @@ private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(40.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 40.dp)
+            .padding(bottom = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(40.dp))

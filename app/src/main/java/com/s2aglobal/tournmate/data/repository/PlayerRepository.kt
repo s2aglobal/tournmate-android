@@ -2,6 +2,8 @@ package com.s2aglobal.tournmate.data.repository
 
 import com.s2aglobal.tournmate.domain.model.Gender
 import com.s2aglobal.tournmate.domain.model.Player
+import com.s2aglobal.tournmate.domain.model.SportType
+import java.util.Date
 import java.util.UUID
 
 interface PlayerRepository {
@@ -15,6 +17,8 @@ interface PlayerRepository {
         homeCountryCode: String?,
         homePostalCode: String?,
         firebaseUid: String?,
+        dateOfBirth: Date? = null,
+        preferredSport: SportType = SportType.BADMINTON,
     ): Player
     suspend fun findPlayerById(id: UUID): Player?
     suspend fun findPlayerById(id: String): Player?

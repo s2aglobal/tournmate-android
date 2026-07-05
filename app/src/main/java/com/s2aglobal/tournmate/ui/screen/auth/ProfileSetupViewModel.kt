@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.domain.model.Gender
+import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.auth.AuthService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
@@ -23,6 +25,8 @@ class ProfileSetupViewModel @Inject constructor(
         avatarId: String,
         homeCountryCode: String?,
         homePostalCode: String?,
+        dateOfBirth: Date?,
+        preferredSport: SportType,
         onComplete: () -> Unit,
     ) {
         viewModelScope.launch {
@@ -38,6 +42,8 @@ class ProfileSetupViewModel @Inject constructor(
                 homeCountryCode = homeCountryCode,
                 homePostalCode = homePostalCode,
                 firebaseUid = uid,
+                dateOfBirth = dateOfBirth,
+                preferredSport = preferredSport,
             )
 
             currentUserStore.setCurrentPlayerId(player.id)
