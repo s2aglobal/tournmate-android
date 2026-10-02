@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Match
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +104,7 @@ fun SimpleScoreEntryScreen(
                 enabled = canSubmit,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
             ) {
                 Text(
                     if (isCreator) "FINALIZE SCORE" else "SUBMIT SCORE",

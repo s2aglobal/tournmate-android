@@ -25,7 +25,9 @@ import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.ui.screen.court.CourtFinderScreen
 import com.s2aglobal.tournmate.ui.screen.discover.DiscoverScreen
 import com.s2aglobal.tournmate.ui.screen.profile.ProfilePlaceholder
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 
 private data class TabItem(
     val titleRes: Int,
@@ -64,7 +66,8 @@ fun MainScreen(
                         onClick = { selectedTab = index },
                         icon = {
                             Icon(
-                                painter = painterResource(tab.iconRes),
+                                // Play tab icon follows the user's sport.
+                                painter = if (index == 0) sportIconPainter(CurrentSport.sport, R.drawable.ic_badminton) else painterResource(tab.iconRes),
                                 contentDescription = stringResource(tab.titleRes),
                                 modifier = Modifier.size(22.dp),
                             )
@@ -77,8 +80,8 @@ fun MainScreen(
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = BrandPurple,
-                            selectedTextColor = BrandPurple,
+                            selectedIconColor = AppAccent,
+                            selectedTextColor = AppAccent,
                             unselectedIconColor = Color.Gray,
                             unselectedTextColor = Color.Gray,
                             indicatorColor = Color.Transparent,

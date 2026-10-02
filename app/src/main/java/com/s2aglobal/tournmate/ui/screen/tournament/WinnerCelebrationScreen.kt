@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -33,7 +33,7 @@ fun WinnerCelebrationScreen(
     val confettiColors = listOf(
         Color(0xFFFF6B6B), Color(0xFF4ECDC4), Color(0xFFFFE66D),
         Color(0xFF95E1D3), Color(0xFFF38181), Color(0xFFAA96DA),
-        BrandPurple, Color(0xFFFF9800), Color(0xFF4CAF50),
+        AppAccent, Color(0xFFFF9800), Color(0xFF4CAF50),
     )
 
     val particles = remember {
@@ -87,12 +87,12 @@ fun WinnerCelebrationScreen(
                 Surface(
                     modifier = Modifier.size(100.dp).offset(y = (-trophyBounce * 8).dp),
                     shape = CircleShape,
-                    color = BrandPurple.copy(alpha = 0.15f),
+                    color = AppAccent.copy(alpha = 0.15f),
                 ) {}
                 Surface(
                     modifier = Modifier.size(72.dp).offset(y = (-trophyBounce * 8).dp),
                     shape = CircleShape,
-                    color = BrandPurple,
+                    color = AppAccent,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.EmojiEvents, null, Modifier.size(36.dp), tint = Color.White)
@@ -105,7 +105,7 @@ fun WinnerCelebrationScreen(
             Text("🎉", fontSize = 32.sp)
             Spacer(Modifier.height(8.dp))
             Text(winnerName, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            Text("WINS!", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = BrandPurple, letterSpacing = 2.sp)
+            Text("WINS!", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppAccent, letterSpacing = 2.sp)
             Spacer(Modifier.height(16.dp))
             Text(scoreLine, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
 
@@ -132,7 +132,7 @@ fun WinnerCelebrationScreen(
                 onClick = onDone,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
             ) {
                 Text("DONE", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             }

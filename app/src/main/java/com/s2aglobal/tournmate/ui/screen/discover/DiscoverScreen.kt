@@ -42,7 +42,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.s2aglobal.tournmate.domain.model.rulebook
 import com.s2aglobal.tournmate.domain.model.RuleSection
 import com.s2aglobal.tournmate.domain.model.SportType
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.util.openInBrowser
 
 private val GroupedBg = Color(0xFFF2F2F7)
@@ -156,14 +157,10 @@ private fun HeaderSection(sport: SportType) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            modifier = Modifier.size(72.dp).clip(CircleShape).background(BrandPurple.copy(alpha = 0.10f)),
+            modifier = Modifier.size(72.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            val iconPainter: Painter = when (sport) {
-                SportType.BADMINTON -> painterResource(R.drawable.ic_badminton)
-                else -> rememberVectorPainter(Icons.Filled.SportsTennis)
-            }
-            Icon(iconPainter, null, Modifier.size(34.dp), tint = BrandPurple)
+            Icon(sportIconPainter(sport, R.drawable.ic_badminton), null, Modifier.size(34.dp), tint = AppAccent)
         }
         Text("Your ${sport.displayName} Hub", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(
@@ -191,15 +188,15 @@ private fun QuickLinksBar(sport: SportType, onClick: (DiscoverLink) -> Unit) {
                 onClick = { onClick(link) },
                 shape = CircleShape,
                 color = Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BrandPurple.copy(alpha = 0.25f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppAccent.copy(alpha = 0.25f)),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Icon(link.icon, null, Modifier.size(15.dp), tint = BrandPurple)
-                    Text(link.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = BrandPurple)
+                    Icon(link.icon, null, Modifier.size(15.dp), tint = AppAccent)
+                    Text(link.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AppAccent)
                 }
             }
         }
@@ -217,7 +214,7 @@ private fun SectionHeader(title: String, icon: ImageVector) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(icon, null, Modifier.size(20.dp), tint = BrandPurple)
+        Icon(icon, null, Modifier.size(20.dp), tint = AppAccent)
         Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     }
 }
@@ -245,10 +242,10 @@ private fun NewsSection(sport: SportType, onClick: (DiscoverLink) -> Unit) {
                     Column(Modifier.padding(14.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Box(
-                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(BrandPurple.copy(alpha = 0.08f)),
+                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(AppAccent.copy(alpha = 0.08f)),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(link.icon, null, Modifier.size(22.dp), tint = BrandPurple)
+                                Icon(link.icon, null, Modifier.size(22.dp), tint = AppAccent)
                             }
                             Spacer(Modifier.weight(1f))
                             Icon(Icons.Filled.ArrowOutward, null, Modifier.size(14.dp), tint = Color.Gray.copy(alpha = 0.5f))
@@ -258,12 +255,12 @@ private fun NewsSection(sport: SportType, onClick: (DiscoverLink) -> Unit) {
                         Spacer(Modifier.height(4.dp))
                         Text(link.subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 2, lineHeight = 18.sp)
                         Spacer(Modifier.weight(1f))
-                        Surface(shape = CircleShape, color = BrandPurple.copy(alpha = 0.10f)) {
+                        Surface(shape = CircleShape, color = AppAccent.copy(alpha = 0.10f)) {
                             Text(
                                 link.source,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = BrandPurple,
+                                color = AppAccent,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -304,17 +301,17 @@ private fun ListSection(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         Box(
-                            modifier = Modifier.size(42.dp).clip(CircleShape).background(BrandPurple.copy(alpha = 0.10f)),
+                            modifier = Modifier.size(42.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.10f)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(link.icon, null, Modifier.size(20.dp), tint = BrandPurple)
+                            Icon(link.icon, null, Modifier.size(20.dp), tint = AppAccent)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(link.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                             Text(link.subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 1)
                         }
-                        Text(link.source, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = BrandPurple)
-                        Icon(Icons.Filled.ChevronRight, null, Modifier.size(16.dp), tint = BrandPurple)
+                        Text(link.source, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = AppAccent)
+                        Icon(Icons.Filled.ChevronRight, null, Modifier.size(16.dp), tint = AppAccent)
                     }
                     if (index < links.size - 1) {
                         HorizontalDivider(Modifier.padding(start = 72.dp), color = GroupedBg)
@@ -368,10 +365,10 @@ private fun GridCard(data: GridCardData, modifier: Modifier = Modifier) {
         Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(38.dp).clip(CircleShape).background(BrandPurple.copy(alpha = 0.10f)),
+                    modifier = Modifier.size(38.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(data.icon, null, Modifier.size(18.dp), tint = BrandPurple)
+                    Icon(data.icon, null, Modifier.size(18.dp), tint = AppAccent)
                 }
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Filled.ChevronRight, null, Modifier.size(14.dp), tint = Color.Gray.copy(alpha = 0.5f))
@@ -399,7 +396,7 @@ private fun RuleDetailScreen(section: RuleSection, source: String, onBack: () ->
                 title = { Text(section.title, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = BrandPurple)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = AppAccent)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = GroupedBg),
@@ -419,10 +416,10 @@ private fun RuleDetailScreen(section: RuleSection, source: String, onBack: () ->
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(
-                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(BrandPurple.copy(alpha = 0.10f)),
+                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(AppAccent.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(section.icon, null, Modifier.size(24.dp), tint = BrandPurple)
+                    Icon(section.icon, null, Modifier.size(24.dp), tint = AppAccent)
                 }
                 Text(section.subtitle, fontSize = 14.sp, color = Color.Gray)
             }
@@ -437,7 +434,7 @@ private fun RuleDetailScreen(section: RuleSection, source: String, onBack: () ->
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Box(
-                                modifier = Modifier.size(26.dp).clip(CircleShape).background(BrandPurple),
+                                modifier = Modifier.size(26.dp).clip(CircleShape).background(AppAccent),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text("${index + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)

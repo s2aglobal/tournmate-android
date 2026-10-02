@@ -14,7 +14,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.screen.MainScreen
 import com.s2aglobal.tournmate.ui.screen.auth.AuthGateViewModel
 import com.s2aglobal.tournmate.ui.screen.auth.AuthGateScreen
@@ -216,7 +216,7 @@ fun TournMateNavHost(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = BrandPurple)
+                    CircularProgressIndicator(color = AppAccent)
                 }
             }
         }

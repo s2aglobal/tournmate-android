@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Tournament
 import com.s2aglobal.tournmate.domain.model.TournamentStatus
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.ErrorRed
 import com.s2aglobal.tournmate.ui.theme.PrizeGold
 import com.s2aglobal.tournmate.ui.theme.SuccessGreen
@@ -71,15 +71,18 @@ fun TournamentCard(
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Badge(statusText.uppercase(), statusColor)
                         Badge(tournament.format.shortName, Color.Gray)
-                        Badge(tournament.matchFormat.displayName, BrandPurple)
+                        Badge(tournament.matchFormat.displayName, AppAccent)
                     }
 
-                    Text(
-                        text = formatDateShort(tournament.date),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Gray,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SportBadge(tournament.sportType, 16.dp)
+                        Text(
+                            text = formatDateShort(tournament.date),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray,
+                        )
+                    }
                 }
 
                 // Row 2: Title
@@ -196,10 +199,10 @@ private fun FeeBadge(text: String, isFree: Boolean) {
         text = text,
         fontSize = 13.sp,
         fontWeight = FontWeight.Bold,
-        color = if (isFree) BrandPurple else Color.Black,
+        color = if (isFree) AppAccent else Color.Black,
         modifier = Modifier
             .background(
-                if (isFree) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
+                if (isFree) AppAccent.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
                 RoundedCornerShape(10.dp),
             )
             .padding(horizontal = 12.dp, vertical = 6.dp),

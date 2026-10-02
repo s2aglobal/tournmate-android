@@ -79,7 +79,7 @@ fun TournamentDetailScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = BrandPurple)
+                    CircularProgressIndicator(color = AppAccent)
                     Spacer(Modifier.height(16.dp))
                     Text("Loading...", fontSize = 13.sp, color = Color.Gray)
                 }
@@ -95,12 +95,12 @@ fun TournamentDetailScreen(
                     Spacer(Modifier.height(16.dp))
                     Text(state.errorMessage ?: "Tournament not found", color = Color.Gray)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { viewModel.load() }, colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)) {
+                    Button(onClick = { viewModel.load() }, colors = ButtonDefaults.buttonColors(containerColor = AppAccent)) {
                         Text("Retry")
                     }
                     Spacer(Modifier.height(12.dp))
                     TextButton(onClick = onBack) {
-                        Text("Go Back", color = BrandPurple)
+                        Text("Go Back", color = AppAccent)
                     }
                 }
             }
@@ -227,7 +227,7 @@ private fun HeaderSection(tournament: Tournament, isCreator: Boolean, onBack: ()
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                Brush.linearGradient(listOf(BrandPurple, BrandPurpleDark))
+                Brush.linearGradient(listOf(AppAccent, AppAccentDeep))
             )
             .statusBarsPadding()
             .padding(horizontal = 24.dp)
@@ -337,7 +337,7 @@ private fun TabPicker(active: DetailTab, tabs: List<DetailTab>, onSelect: (Detai
                         .height(3.dp)
                         .width(40.dp)
                         .background(
-                            if (isActive) BrandPurple else Color.Transparent,
+                            if (isActive) AppAccent else Color.Transparent,
                             RoundedCornerShape(2.dp),
                         ),
                 )
@@ -365,7 +365,7 @@ private fun CoachsCornerCard() {
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "\"Stay focused on your footwork and shuttle placement. Consistency wins matches!\"",
+                "\"Stay focused on your footwork and shot placement. Consistency wins matches!\"",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 fontStyle = FontStyle.Italic,
@@ -419,7 +419,7 @@ private fun InfoGridCard(icon: ImageVector, label: String, value: String, modifi
         border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(Color.Gray.copy(alpha = 0.1f)), width = 1.dp),
     ) {
         Column(Modifier.padding(16.dp)) {
-            Icon(icon, null, Modifier.size(20.dp), tint = BrandPurple)
+            Icon(icon, null, Modifier.size(20.dp), tint = AppAccent)
             Spacer(Modifier.height(8.dp))
             Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
             Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
@@ -463,7 +463,7 @@ private fun FeeCard(tournament: Tournament) {
                 tournament.formattedFee ?: "Free",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (tournament.isFree) BrandPurple else Color.Black,
+                color = if (tournament.isFree) AppAccent else Color.Black,
             )
             tournament.paymentInfo?.takeIf { it.isNotEmpty() }?.let {
                 Spacer(Modifier.height(8.dp))
@@ -594,7 +594,7 @@ private fun TeamRow(registration: Registration, seedNumber: Int, onClick: () -> 
     ) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             // Numbered seed circle
-            Surface(modifier = Modifier.size(40.dp), shape = CircleShape, color = BrandPurple) {
+            Surface(modifier = Modifier.size(40.dp), shape = CircleShape, color = AppAccent) {
                 Box(contentAlignment = Alignment.Center) {
                     Text("$seedNumber", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
@@ -657,7 +657,7 @@ private fun StickyFooter(
                         onClick = {},
                         modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(28.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                     ) {
                         Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -670,7 +670,7 @@ private fun StickyFooter(
                         enabled = !isRegistering,
                         modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(28.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                     ) {
                         if (isRegistering) {
                             CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
@@ -727,7 +727,7 @@ private fun MatchesTabContent(state: TournamentDetailUiState, viewModel: Tournam
         Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             MatchSubTab.entries.forEach { tab ->
                 val sel = subTab == tab
-                Surface(onClick = { subTab = tab }, shape = RoundedCornerShape(50), color = if (sel) BrandPurple else Color(0xFFF2F2F7)) {
+                Surface(onClick = { subTab = tab }, shape = RoundedCornerShape(50), color = if (sel) AppAccent else Color(0xFFF2F2F7)) {
                     Text(tab.label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (sel) Color.White else Color.Black,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
@@ -752,11 +752,11 @@ private fun MatchesTabContent(state: TournamentDetailUiState, viewModel: Tournam
                     )
                 },
                 shape = RoundedCornerShape(50),
-                color = BrandPurple.copy(alpha = 0.1f),
+                color = AppAccent.copy(alpha = 0.1f),
             ) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = BrandPurple)
-                    Text("PDF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                    Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = AppAccent)
+                    Text("PDF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                 }
             }
         }
@@ -781,7 +781,7 @@ private fun MatchesTabContent(state: TournamentDetailUiState, viewModel: Tournam
                         val knockoutMatches = state.matches.filter { it.groupLabel == null }
 
                         groupMatches.groupBy { it.groupLabel ?: "" }.toSortedMap().forEach { (groupLabel, gMatches) ->
-                            Text("Group $groupLabel", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = BrandPurple, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                            Text("Group $groupLabel", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
                             gMatches.sortedBy { it.round ?: 0 }.forEach { match ->
                                 val aName = regMap[match.teamAId]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "TBD"
                                 val bName = regMap[match.teamBId]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "TBD"
@@ -792,7 +792,7 @@ private fun MatchesTabContent(state: TournamentDetailUiState, viewModel: Tournam
                         }
 
                         if (knockoutMatches.isNotEmpty()) {
-                            Text("Knockout Stage", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = BrandPurple, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
+                            Text("Knockout Stage", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
                             knockoutMatches.sortedWith(compareBy<Match> { it.round ?: 0 }.thenBy { it.bracketPosition ?: 0 }).forEach { match ->
                                 val aName = regMap[match.teamAId]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "TBD"
                                 val bName = regMap[match.teamBId]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "TBD"
@@ -803,7 +803,7 @@ private fun MatchesTabContent(state: TournamentDetailUiState, viewModel: Tournam
                         }
                     } else {
                         state.matches.groupBy { it.round ?: 0 }.toSortedMap().forEach { (round, roundMatches) ->
-                            Text("Round $round", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple, modifier = Modifier.padding(vertical = 8.dp))
+                            Text("Round $round", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.padding(vertical = 8.dp))
                             roundMatches.forEach { match ->
                                 val aName = regMap[match.teamAId]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "TBD"
                                 val bName = regMap[match.teamBId]?.let { listOfNotNull(it.player.name, it.partner?.name).joinToString(" & ") } ?: "TBD"
@@ -821,7 +821,7 @@ private fun MatchesTabContent(state: TournamentDetailUiState, viewModel: Tournam
                         MatchFormat.GROUP_KNOCKOUT -> {
                             val gs = viewModel.computeGroupStandings(state)
                             gs.keys.sorted().forEach { g ->
-                                Text("Group $g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple, modifier = Modifier.padding(vertical = 8.dp))
+                                Text("Group $g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.padding(vertical = 8.dp))
                                 StandingsTable(gs[g] ?: emptyList())
                             }
                         }
@@ -860,7 +860,7 @@ private fun StandingsTable(standings: List<StandingsEntry>) {
                 Text("P", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.width(24.dp))
                 Text("W", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.width(24.dp))
                 Text("L", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.width(24.dp))
-                Text("Pts", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BrandPurple, modifier = Modifier.width(30.dp))
+                Text("Pts", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.width(30.dp))
             }
             HorizontalDivider(Modifier.padding(vertical = 6.dp), color = Color(0xFFF2F2F7))
             standings.forEachIndexed { i, e ->
@@ -870,7 +870,7 @@ private fun StandingsTable(standings: List<StandingsEntry>) {
                     Text("${e.played}", fontSize = 12.sp, modifier = Modifier.width(24.dp))
                     Text("${e.wins}", fontSize = 12.sp, modifier = Modifier.width(24.dp))
                     Text("${e.losses}", fontSize = 12.sp, modifier = Modifier.width(24.dp))
-                    Text("${e.points}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple, modifier = Modifier.width(30.dp))
+                    Text("${e.points}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.width(30.dp))
                 }
             }
         }
@@ -917,7 +917,7 @@ private fun ManageTabContent(state: TournamentDetailUiState, viewModel: Tourname
             }
         }
 
-        state.statusMessage?.let { Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = BrandPurple.copy(alpha = 0.08f)) { Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(14.dp)) } }
+        state.statusMessage?.let { Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = AppAccent.copy(alpha = 0.08f)) { Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(14.dp)) } }
 
         if (tournament.format.isDoubles && state.registrations.count { it.partnerId == null } >= 2) {
             AdminActionButton("RANDOM PAIRINGS", Icons.Default.Shuffle, state.isLoading) { viewModel.generateRandomPairs() }
@@ -927,7 +927,7 @@ private fun ManageTabContent(state: TournamentDetailUiState, viewModel: Tourname
             Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = Color.White, border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(Color.Gray.copy(alpha = 0.1f)))) {
                 Column(Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.AutoAwesome, null, Modifier.size(20.dp), tint = BrandPurple)
+                        Icon(Icons.Default.AutoAwesome, null, Modifier.size(20.dp), tint = AppAccent)
                         Text("BRACKET GENERATION", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.height(8.dp))
@@ -969,7 +969,7 @@ private fun ManageTabContent(state: TournamentDetailUiState, viewModel: Tourname
                     Button(onClick = { val a = manualTeamA!!; val b = manualTeamB!!; viewModel.createManualMatch(a, b, 1); manualTeamA = null; manualTeamB = null },
                         enabled = manualTeamA != null && manualTeamB != null && manualTeamA != manualTeamB,
                         modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(25.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)) { Text("CREATE MATCH", fontWeight = FontWeight.Bold) }
+                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent)) { Text("CREATE MATCH", fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -1023,7 +1023,7 @@ private fun ManageTabContent(state: TournamentDetailUiState, viewModel: Tourname
 @Composable
 private fun AdminActionButton(title: String, icon: ImageVector, isLoading: Boolean, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = !isLoading, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)) {
+        colors = ButtonDefaults.buttonColors(containerColor = AppAccent)) {
         if (isLoading) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
         else { Icon(icon, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
     }

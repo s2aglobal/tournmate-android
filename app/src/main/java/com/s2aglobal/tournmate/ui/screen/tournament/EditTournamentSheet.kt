@@ -24,7 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.util.DatePickerUtils
 import java.text.SimpleDateFormat
 import java.util.*
@@ -131,11 +131,11 @@ fun EditTournamentSheet(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = BrandPurple.copy(alpha = 0.12f),
+                        color = AppAccent.copy(alpha = 0.12f),
                         modifier = Modifier.size(60.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Edit, null, tint = BrandPurple, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.Edit, null, tint = AppAccent, modifier = Modifier.size(28.dp))
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -150,7 +150,7 @@ fun EditTournamentSheet(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BrandPurple,
+                        focusedBorderColor = AppAccent,
                         unfocusedBorderColor = Color(0xFFE5E5EA),
                         unfocusedContainerColor = Color(0xFFF2F2F7),
                         focusedContainerColor = Color(0xFFF2F2F7),
@@ -187,7 +187,7 @@ fun EditTournamentSheet(
                             modifier = Modifier.padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.Shuffle, null, tint = BrandPurple, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Shuffle, null, tint = AppAccent, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("Random Pairing", fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -196,7 +196,7 @@ fun EditTournamentSheet(
                             Switch(
                                 checked = editRandomPairing,
                                 onCheckedChange = { editRandomPairing = it },
-                                colors = SwitchDefaults.colors(checkedTrackColor = BrandPurple),
+                                colors = SwitchDefaults.colors(checkedTrackColor = AppAccent),
                             )
                         }
                     }
@@ -213,9 +213,9 @@ fun EditTournamentSheet(
                         modifier = Modifier.fillMaxWidth().padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Surface(shape = CircleShape, color = BrandPurple.copy(alpha = 0.1f), modifier = Modifier.size(40.dp)) {
+                        Surface(shape = CircleShape, color = AppAccent.copy(alpha = 0.1f), modifier = Modifier.size(40.dp)) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.LocationOn, null, tint = BrandPurple, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.LocationOn, null, tint = AppAccent, modifier = Modifier.size(20.dp))
                             }
                         }
                         Spacer(Modifier.width(14.dp))
@@ -301,7 +301,7 @@ fun EditTournamentSheet(
                         Spacer(Modifier.width(8.dp))
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BrandPurple,
+                        focusedBorderColor = AppAccent,
                         unfocusedBorderColor = Color(0xFFE5E5EA),
                         unfocusedContainerColor = Color(0xFFF2F2F7),
                         focusedContainerColor = Color(0xFFF2F2F7),
@@ -321,7 +321,7 @@ fun EditTournamentSheet(
                         shape = RoundedCornerShape(14.dp),
                         placeholder = { Text("e.g. Venmo: @handle, or Pay cash at venue", fontSize = 14.sp) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandPurple,
+                            focusedBorderColor = AppAccent,
                             unfocusedBorderColor = Color(0xFFE5E5EA),
                             unfocusedContainerColor = Color(0xFFF2F2F7),
                             focusedContainerColor = Color(0xFFF2F2F7),
@@ -354,7 +354,7 @@ fun EditTournamentSheet(
                         shape = RoundedCornerShape(14.dp),
                         placeholder = { Text("e.g. 1st: \$150, 2nd: \$50", fontSize = 14.sp) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandPurple,
+                            focusedBorderColor = AppAccent,
                             unfocusedBorderColor = Color(0xFFE5E5EA),
                             unfocusedContainerColor = Color(0xFFF2F2F7),
                             focusedContainerColor = Color(0xFFF2F2F7),
@@ -374,7 +374,7 @@ fun EditTournamentSheet(
                         suffix = { Text("minutes", fontSize = 13.sp, color = Color.Gray) },
                         leadingIcon = { Icon(Icons.Default.HourglassBottom, null, tint = Color(0xFF5856D6).copy(alpha = 0.6f)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandPurple,
+                            focusedBorderColor = AppAccent,
                             unfocusedBorderColor = Color(0xFFE5E5EA),
                             unfocusedContainerColor = Color(0xFFF2F2F7),
                             focusedContainerColor = Color(0xFFF2F2F7),
@@ -410,8 +410,8 @@ fun EditTournamentSheet(
                         enabled = canSave,
                         shape = RoundedCornerShape(28.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = BrandPurple,
-                            disabledContainerColor = BrandPurple.copy(alpha = 0.4f),
+                            containerColor = AppAccent,
+                            disabledContainerColor = AppAccent.copy(alpha = 0.4f),
                         ),
                     ) {
                         Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
@@ -440,10 +440,10 @@ fun EditTournamentSheet(
                             if (editDeadline.after(editDate)) editDeadline = defaultDeadline
                         }
                         showDatePicker = false
-                    }) { Text("OK", color = BrandPurple) }
+                    }) { Text("OK", color = AppAccent) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = BrandPurple) }
+                    TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = AppAccent) }
                 },
             ) {
                 DatePicker(state = datePickerState)
@@ -468,10 +468,10 @@ fun EditTournamentSheet(
                         }
                         editDate = newCal.time
                         showTimePicker = false
-                    }) { Text("OK", color = BrandPurple) }
+                    }) { Text("OK", color = AppAccent) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = BrandPurple) }
+                    TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = AppAccent) }
                 },
                 text = { TimePicker(state = timePickerState) },
                 title = { Text("Select Time") },
@@ -564,7 +564,7 @@ private fun <T> PickerDialog(
                     Surface(
                         onClick = { onSelect(item) },
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) BrandPurple.copy(alpha = 0.12f) else Color.Transparent,
+                        color = if (isSelected) AppAccent.copy(alpha = 0.12f) else Color.Transparent,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -575,11 +575,11 @@ private fun <T> PickerDialog(
                                 displayName(item),
                                 fontSize = 15.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) BrandPurple else Color.Black,
+                                color = if (isSelected) AppAccent else Color.Black,
                             )
                             if (isSelected) {
                                 Spacer(Modifier.weight(1f))
-                                Icon(Icons.Default.Check, null, tint = BrandPurple, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Check, null, tint = AppAccent, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -588,7 +588,7 @@ private fun <T> PickerDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = BrandPurple) }
+            TextButton(onClick = onDismiss) { Text("Cancel", color = AppAccent) }
         },
     )
 }
@@ -609,7 +609,7 @@ private fun EditFormatConfigSection(
         MatchFormat.DOUBLE_ELIMINATION -> {
             Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF2F2F7)) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = BrandPurple, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Info, null, tint = AppAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Losers bracket runs alongside the main bracket.", fontSize = 12.sp, color = Color.Gray)
                 }
@@ -639,7 +639,7 @@ private fun EditFormatConfigSection(
         MatchFormat.MANUAL_DRAW -> {
             Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF2F2F7)) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Draw, null, tint = BrandPurple, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Draw, null, tint = AppAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Matchups assigned manually by organizer.", fontSize = 12.sp, color = Color.Gray)
                 }
@@ -660,7 +660,7 @@ private fun EditToggle(label: String, checked: Boolean, onCheckedChange: (Boolea
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(checkedTrackColor = BrandPurple),
+                colors = SwitchDefaults.colors(checkedTrackColor = AppAccent),
             )
         }
     }

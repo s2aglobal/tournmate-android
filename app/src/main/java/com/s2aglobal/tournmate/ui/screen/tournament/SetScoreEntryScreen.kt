@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.SetScore
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,7 +141,7 @@ fun SetScoreEntryScreen(
             // Score summary
             if (parsedSets.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text("Sets: $setsWonA - $setsWonB", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                Text("Sets: $setsWonA - $setsWonB", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
             }
 
             Spacer(Modifier.height(24.dp))
@@ -151,7 +151,7 @@ fun SetScoreEntryScreen(
                 enabled = hasWinner,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
             ) {
                 Text("SUBMIT SCORE", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             }

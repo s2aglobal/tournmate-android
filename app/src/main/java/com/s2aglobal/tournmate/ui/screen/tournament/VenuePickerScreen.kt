@@ -34,7 +34,8 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.service.court.CourtResult
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.court.CourtSearchService
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -87,7 +88,7 @@ fun VenuePickerScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
                 TextButton(onClick = onCancel) {
-                    Text("Cancel", color = BrandPurple, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text("Cancel", color = AppAccent, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
                 Text(
                     "Select Venue",
@@ -121,7 +122,7 @@ fun VenuePickerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         textStyle = TextStyle(fontSize = 15.sp, color = Color.Black),
                         singleLine = true,
-                        cursorBrush = SolidColor(BrandPurple),
+                        cursorBrush = SolidColor(AppAccent),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { doSearch(query) }),
                     )
@@ -135,7 +136,7 @@ fun VenuePickerScreen(
                         onClick = { doSearch(query) },
                         modifier = Modifier.size(32.dp),
                         shape = CircleShape,
-                        color = BrandPurple,
+                        color = AppAccent,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.ArrowForward, null, Modifier.size(16.dp), tint = Color.White)
@@ -148,7 +149,7 @@ fun VenuePickerScreen(
         // ── Body ──
         when {
             isSearching -> SearchingState(sportType)
-            results.isNotEmpty() -> ResultsState(results, onVenueSelected)
+            results.isNotEmpty() -> ResultsState(results, sportType, onVenueSelected)
             hasSearched -> EmptyResultsState(sportType, popularExamples) { query = it; doSearch(it) }
             else -> WelcomeState(sportType, popularExamples) { query = it; doSearch(it) }
         }
@@ -158,13 +159,6 @@ fun VenuePickerScreen(
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MARK: - Searching Animation (matches iOS radar animation)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-private fun sportIcon(sportType: SportType) = when (sportType) {
-    SportType.BADMINTON -> Icons.Default.SportsTennis
-    SportType.TENNIS -> Icons.Default.SportsTennis
-    SportType.PICKLEBALL -> Icons.Default.SportsTennis
-    else -> Icons.Default.SportsTennis
-}
 
 private fun sportLabel(sportType: SportType) = when (sportType) {
     SportType.BADMINTON -> "Badminton"
@@ -188,16 +182,16 @@ private fun SearchingState(sportType: SportType) {
                     Surface(
                         modifier = Modifier.size(size).scale(scale),
                         shape = CircleShape,
-                        color = BrandPurple.copy(alpha = alpha),
+                        color = AppAccent.copy(alpha = alpha),
                     ) {}
                 }
-                Icon(sportIcon(sportType), null, Modifier.size(32.dp), tint = BrandPurple)
+                Icon(sportIconPainter(sportType), null, Modifier.size(32.dp), tint = AppAccent)
             }
             Spacer(Modifier.height(24.dp))
             Text("Searching for courts...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text("Finding ${sportLabel(sportType).lowercase()} facilities\nnear your location", fontSize = 13.sp, color = Color.Gray, textAlign = TextAlign.Center)
             Spacer(Modifier.height(16.dp))
-            CircularProgressIndicator(Modifier.size(20.dp), BrandPurple, strokeWidth = 2.dp)
+            CircularProgressIndicator(Modifier.size(20.dp), AppAccent, strokeWidth = 2.dp)
         }
     }
 }
@@ -217,13 +211,13 @@ private fun WelcomeState(sportType: SportType, examples: List<Pair<String, Strin
             Surface(
                 modifier = Modifier.fillMaxWidth().height(150.dp),
                 shape = RoundedCornerShape(20.dp),
-                color = BrandPurple.copy(alpha = 0.06f),
+                color = AppAccent.copy(alpha = 0.06f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.LocationOn, null, Modifier.size(20.dp).offset(x = (-45).dp, y = (-25).dp), tint = BrandPurple.copy(alpha = 0.7f))
-                    Icon(Icons.Default.LocationOn, null, Modifier.size(16.dp).offset(x = 30.dp, y = 12.dp), tint = BrandPurple.copy(alpha = 0.5f))
-                    Icon(Icons.Default.LocationOn, null, Modifier.size(12.dp).offset(x = (-12).dp, y = 35.dp), tint = BrandPurple.copy(alpha = 0.4f))
-                    Icon(sportIcon(sportType), null, Modifier.size(42.dp), tint = BrandPurple)
+                    Icon(Icons.Default.LocationOn, null, Modifier.size(20.dp).offset(x = (-45).dp, y = (-25).dp), tint = AppAccent.copy(alpha = 0.7f))
+                    Icon(Icons.Default.LocationOn, null, Modifier.size(16.dp).offset(x = 30.dp, y = 12.dp), tint = AppAccent.copy(alpha = 0.5f))
+                    Icon(Icons.Default.LocationOn, null, Modifier.size(12.dp).offset(x = (-12).dp, y = 35.dp), tint = AppAccent.copy(alpha = 0.4f))
+                    Icon(sportIconPainter(sportType), null, Modifier.size(42.dp), tint = AppAccent)
                 }
             }
 
@@ -238,7 +232,7 @@ private fun WelcomeState(sportType: SportType, examples: List<Pair<String, Strin
                 Column {
                     // Use Current Location row
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.MyLocation, null, Modifier.size(18.dp), tint = BrandPurple)
+                        Icon(Icons.Default.MyLocation, null, Modifier.size(18.dp), tint = AppAccent)
                         Spacer(Modifier.width(12.dp))
                         Text("Use Current Location", fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                         Icon(Icons.Default.ChevronRight, null, Modifier.size(14.dp), tint = Color.Gray.copy(alpha = 0.4f))
@@ -259,9 +253,9 @@ private fun WelcomeState(sportType: SportType, examples: List<Pair<String, Strin
                             Surface(
                                 onClick = { onSearch(zip) },
                                 shape = RoundedCornerShape(50),
-                                color = BrandPurple.copy(alpha = 0.08f),
+                                color = AppAccent.copy(alpha = 0.08f),
                             ) {
-                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple, modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp))
+                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp))
                             }
                         }
                     }
@@ -278,6 +272,7 @@ private fun WelcomeState(sportType: SportType, examples: List<Pair<String, Strin
 @Composable
 private fun ResultsState(
     results: List<CourtResult>,
+    sportType: SportType,
     onSelect: (name: String, address: String, latitude: Double, longitude: Double) -> Unit,
 ) {
     val context = LocalContext.current
@@ -286,10 +281,10 @@ private fun ResultsState(
         // Results header
         item {
             Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(shape = RoundedCornerShape(50), color = BrandPurple.copy(alpha = 0.12f)) {
+                Surface(shape = RoundedCornerShape(50), color = AppAccent.copy(alpha = 0.12f)) {
                     Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.SportsTennis, null, Modifier.size(12.dp), tint = BrandPurple)
-                        Text("${results.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                        Icon(sportIconPainter(sportType), null, Modifier.size(12.dp), tint = AppAccent)
+                        Text("${results.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                     }
                 }
                 Text("court${if (results.size == 1) "" else "s"} found — tap to select", fontSize = 13.sp, color = Color.Gray)
@@ -337,7 +332,7 @@ private fun ResultsState(
                             ) {
                                 Text(
                                     CourtSearchService.formatDistance(dist),
-                                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BrandPurple,
+                                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppAccent,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                 )
                             }
@@ -357,8 +352,8 @@ private fun ResultsState(
                         court.distanceMeters?.let { dist ->
                             Spacer(Modifier.height(6.dp))
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(Icons.Default.NearMe, null, Modifier.size(12.dp), tint = BrandPurple)
-                                Text(CourtSearchService.formatDistance(dist), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                                Icon(Icons.Default.NearMe, null, Modifier.size(12.dp), tint = AppAccent)
+                                Text(CourtSearchService.formatDistance(dist), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                             }
                         }
                     }
@@ -391,9 +386,9 @@ private fun EmptyResultsState(sportType: SportType, examples: List<Pair<String, 
                     Surface(
                         onClick = { onSearch(zip) },
                         shape = RoundedCornerShape(50),
-                        color = BrandPurple.copy(alpha = 0.08f),
+                        color = AppAccent.copy(alpha = 0.08f),
                     ) {
-                        Text(zip, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple, modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp))
+                        Text(zip, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp))
                     }
                 }
             }

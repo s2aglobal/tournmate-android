@@ -83,6 +83,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -105,7 +108,9 @@ import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.SeedTierRules
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.component.BottomSheetPicker
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.component.SportPickerRow
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
 import com.s2aglobal.tournmate.util.openInBrowser
 import kotlin.math.abs
@@ -129,7 +134,7 @@ fun ProfilePlaceholder(
         containerColor = GroupedBg,
     ) { padding ->
         when {
-            uiState.isLoading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = BrandPurple) }
+            uiState.isLoading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppAccent) }
             uiState.isGuest -> GuestPromptScreen(Modifier.padding(padding), onSignOut)
             uiState.player != null -> SignedInProfile(Modifier.padding(padding), uiState.player!!, viewModel, onSignOut)
             else -> GuestPromptScreen(Modifier.padding(padding), onSignOut)
@@ -254,12 +259,12 @@ private fun ProfileHeader(player: Player, onAvatarEdit: () -> Unit = {}) {
     val tier = SeedTierRules.tier(player.elo)
     Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.clickable { onAvatarEdit() }) {
-            Box(Modifier.size(140.dp).background(Brush.radialGradient(listOf(BrandPurple.copy(alpha = 0.12f), Color.Transparent), radius = 200f), CircleShape))
-            Surface(Modifier.size(100.dp), CircleShape, BrandPurple.copy(alpha = 0.1f)) {
+            Box(Modifier.size(140.dp).background(Brush.radialGradient(listOf(AppAccent.copy(alpha = 0.12f), Color.Transparent), radius = 200f), CircleShape))
+            Surface(Modifier.size(100.dp), CircleShape, AppAccent.copy(alpha = 0.1f)) {
                 AsyncImage(player.avatar.avatarUrl(128), "Avatar", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
             Surface(Modifier.size(32.dp).offset(x = 38.dp, y = 38.dp).shadow(4.dp, CircleShape), CircleShape, Color.White) {
-                Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Settings, null, Modifier.size(15.dp), tint = BrandPurple) }
+                Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Settings, null, Modifier.size(15.dp), tint = AppAccent) }
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -312,25 +317,8 @@ private fun SportCard(player: Player, vm: ProfileViewModel) {
     Column(Modifier.padding(horizontal = 16.dp)) {
         SectionHeader("My Sport", Icons.Default.SportsTennis)
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SportType.SELECTABLE.forEach { sport ->
-                SportChip(sport, player.preferredSport == sport, Modifier.weight(1f)) { vm.updateSport(sport) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SportChip(sport: SportType, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick, modifier = modifier.then(if (selected) Modifier.border(2.dp, BrandPurple, RoundedCornerShape(14.dp)) else Modifier),
-        shape = RoundedCornerShape(14.dp), color = if (selected) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
-    ) {
-        Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.SportsTennis, null, Modifier.size(20.dp), tint = if (selected) BrandPurple else Color.Gray)
-            Spacer(Modifier.height(6.dp))
-            Text(sport.displayName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (selected) BrandPurple else Color.Gray)
-        }
+        // Mirrors the app-wide sport so a switch from the Play tab shows here too.
+        SportPickerRow(selection = CurrentSport.sport, onSelect = vm::updateSport)
     }
 }
 
@@ -385,7 +373,7 @@ private fun HomeRegionCard(player: Player, vm: ProfileViewModel) {
 
                 message?.let {
                     Spacer(Modifier.height(8.dp))
-                    Text(it, fontSize = 11.sp, color = if (it.contains("Saved")) BrandPurple else Color.Red)
+                    Text(it, fontSize = 11.sp, color = if (it.contains("Saved")) AppAccent else Color.Red)
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -400,7 +388,7 @@ private fun HomeRegionCard(player: Player, vm: ProfileViewModel) {
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                     enabled = !isSaving,
                 ) {
                     Text(if (isSaving) "Saving..." else "Save home area", fontWeight = FontWeight.SemiBold)
@@ -434,7 +422,7 @@ private fun MatchStatsSection() {
         SectionHeader("Match Stats", Icons.Default.BarChart)
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatTile(Icons.Default.SportsTennis, "0", "Matches", BrandPurple, Modifier.weight(1f))
+            StatTile(Icons.Default.SportsTennis, "0", "Matches", AppAccent, Modifier.weight(1f))
             StatTile(Icons.Default.EmojiEvents, "0", "Wins", WarningOrange, Modifier.weight(1f))
             StatTile(Icons.Default.Percent, "0%", "Win Rate", Color(0xFF2196F3), Modifier.weight(1f))
         }
@@ -442,7 +430,11 @@ private fun MatchStatsSection() {
 }
 
 @Composable
-private fun StatTile(icon: ImageVector, value: String, label: String, color: Color, modifier: Modifier) {
+private fun StatTile(icon: ImageVector, value: String, label: String, color: Color, modifier: Modifier) =
+    StatTile(rememberVectorPainter(icon), value, label, color, modifier)
+
+@Composable
+private fun StatTile(icon: Painter, value: String, label: String, color: Color, modifier: Modifier) {
     Surface(modifier, RoundedCornerShape(16.dp), Color.White, shadowElevation = 2.dp) {
         Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Surface(Modifier.size(36.dp), CircleShape, color.copy(alpha = 0.1f)) { Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(14.dp), tint = color) } }
@@ -464,13 +456,13 @@ private fun SkillRatingCard(player: Player, showInfo: Boolean, onToggle: () -> U
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionHeader("Skill Rating", Icons.Default.Star)
             Spacer(Modifier.weight(1f))
-            Icon(if (showInfo) Icons.Default.CheckCircle else Icons.Default.Info, null, Modifier.size(20.dp).clickable { onToggle() }, tint = if (showInfo) Color.Gray else BrandPurple)
+            Icon(if (showInfo) Icons.Default.CheckCircle else Icons.Default.Info, null, Modifier.size(20.dp).clickable { onToggle() }, tint = if (showInfo) Color.Gray else AppAccent)
         }
         Spacer(Modifier.height(10.dp))
         Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Color.White, shadowElevation = 2.dp) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(80.dp), contentAlignment = Alignment.Center) {
-                    val p = BrandPurple
+                    val p = AppAccent
                     androidx.compose.foundation.Canvas(Modifier.size(80.dp)) {
                         drawArc(p.copy(alpha = 0.2f), 0f, 360f, false, style = Stroke(4.dp.toPx()))
                         drawArc(p, -90f, 360f * progress, false, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
@@ -503,7 +495,7 @@ private fun SkillRatingCard(player: Player, showInfo: Boolean, onToggle: () -> U
 
 @Composable
 private fun EloExplainer() {
-    Surface(Modifier.padding(top = 10.dp).fillMaxWidth(), RoundedCornerShape(16.dp), BrandPurple.copy(alpha = 0.04f), border = androidx.compose.foundation.BorderStroke(1.dp, BrandPurple.copy(alpha = 0.15f))) {
+    Surface(Modifier.padding(top = 10.dp).fillMaxWidth(), RoundedCornerShape(16.dp), AppAccent.copy(alpha = 0.04f), border = androidx.compose.foundation.BorderStroke(1.dp, AppAccent.copy(alpha = 0.15f))) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("💡", fontSize = 16.sp)
@@ -523,7 +515,7 @@ private fun EloExplainer() {
             Spacer(Modifier.height(10.dp))
             EloInfoRow("⚖️", "K-Factor = 24", "Controls how much ratings change per match. Higher K = faster swings.", Color(0xFF2196F3))
             Spacer(Modifier.height(10.dp))
-            EloInfoRow("👥", "Doubles", "Team Elo is the average of both partners. Rating change is split equally.", BrandPurple)
+            EloInfoRow("👥", "Doubles", "Team Elo is the average of both partners. Rating change is split equally.", AppAccent)
 
             Spacer(Modifier.height(14.dp)); Divider(color = Color.Gray.copy(alpha = 0.15f)); Spacer(Modifier.height(14.dp))
 
@@ -579,13 +571,13 @@ private fun FitnessSection(uiState: ProfileUiState, player: Player, onQuickPlay:
                     Text("Health Connect Integration", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("TournMate connects with Health Connect to provide accurate fitness tracking for your badminton sessions.", fontSize = 12.sp, color = Color.Gray, lineHeight = 18.sp)
+                Text("TournMate connects with Health Connect to provide accurate fitness tracking for your ${CurrentSport.sport.inlineName} sessions.", fontSize = 12.sp, color = Color.Gray, lineHeight = 18.sp)
                 Spacer(Modifier.height(12.dp))
                 Divider()
                 Spacer(Modifier.height(12.dp))
                 HealthDataRow("Reads", "Workout calories from Health Connect", Color(0xFF4CAF50))
                 Spacer(Modifier.height(8.dp))
-                HealthDataRow("Writes", "Calories burned during badminton sessions", Color(0xFF2196F3))
+                HealthDataRow("Writes", "Calories burned during ${CurrentSport.sport.inlineName} sessions", Color(0xFF2196F3))
             }
         }
 
@@ -594,7 +586,7 @@ private fun FitnessSection(uiState: ProfileUiState, player: Player, onQuickPlay:
         if (uiState.sessionsTracked > 0) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StatTile(Icons.Default.LocalFireDepartment, formatCalories(uiState.totalCalories), "Total Calories", WarningOrange, Modifier.weight(1f))
-                StatTile(Icons.Default.SportsTennis, "${uiState.sessionsTracked}", "Sessions", BrandPurple, Modifier.weight(1f))
+                StatTile(sportIconPainter(CurrentSport.sport), "${uiState.sessionsTracked}", "Sessions", AppAccent, Modifier.weight(1f))
                 StatTile(Icons.Default.BarChart, formatCalories(uiState.avgCaloriesPerSession), "Avg / Session", Color(0xFF2196F3), Modifier.weight(1f))
             }
 
@@ -621,10 +613,10 @@ private fun FitnessSection(uiState: ProfileUiState, player: Player, onQuickPlay:
                     onClick = onQuickPlay,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
-                    color = BrandPurple.copy(alpha = 0.08f),
+                    color = AppAccent.copy(alpha = 0.08f),
                 ) {
                     Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        Text("⚡ Quick Play", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                        Text("⚡ Quick Play", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                     }
                 }
             }
@@ -635,9 +627,9 @@ private fun FitnessSection(uiState: ProfileUiState, player: Player, onQuickPlay:
                     Spacer(Modifier.height(12.dp))
                     Text("Play sessions and log calories to see your fitness stats here.", fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
-                    Surface(onClick = onQuickPlay, shape = RoundedCornerShape(12.dp), color = BrandPurple.copy(alpha = 0.08f)) {
+                    Surface(onClick = onQuickPlay, shape = RoundedCornerShape(12.dp), color = AppAccent.copy(alpha = 0.08f)) {
                         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center) {
-                            Text("⚡ Log a Quick Play", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                            Text("⚡ Log a Quick Play", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                         }
                     }
                 }
@@ -672,8 +664,8 @@ private fun QuickPlayDialog(playerWeight: Double, onDismiss: () -> Unit, onSave:
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(Modifier.size(42.dp), CircleShape, BrandPurple.copy(alpha = 0.12f)) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.SportsTennis, null, Modifier.size(22.dp), tint = BrandPurple) }
+                Surface(Modifier.size(42.dp), CircleShape, AppAccent.copy(alpha = 0.12f)) {
+                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.SportsTennis, null, Modifier.size(22.dp), tint = AppAccent) }
                 }
                 Column {
                     Text("Quick Play", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
@@ -685,9 +677,9 @@ private fun QuickPlayDialog(playerWeight: Double, onDismiss: () -> Unit, onSave:
             Column {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Duration", fontSize = 12.sp, color = Color.Gray)
-                    Text("${durationMinutes.toInt()} min", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                    Text("${durationMinutes.toInt()} min", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                 }
-                androidx.compose.material3.Slider(value = durationMinutes, onValueChange = { durationMinutes = it }, valueRange = 15f..240f, steps = 14, colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = BrandPurple, activeTrackColor = BrandPurple))
+                androidx.compose.material3.Slider(value = durationMinutes, onValueChange = { durationMinutes = it }, valueRange = 15f..240f, steps = 14, colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = AppAccent, activeTrackColor = AppAccent))
 
                 Spacer(Modifier.height(12.dp))
 
@@ -746,7 +738,7 @@ private fun LegalSection() {
 @Composable
 private fun LegalRow(title: String, icon: ImageVector, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(15.dp), tint = BrandPurple); Spacer(Modifier.width(12.dp))
+        Icon(icon, null, Modifier.size(15.dp), tint = AppAccent); Spacer(Modifier.width(12.dp))
         Text(title, fontSize = 14.sp); Spacer(Modifier.weight(1f))
         Icon(Icons.Default.ChevronRight, null, Modifier.size(12.dp), tint = Color.LightGray)
     }
@@ -773,8 +765,8 @@ private fun SignOutSection(onSignOut: () -> Unit, onDelete: () -> Unit) {
 @Composable
 private fun SectionHeader(title: String, icon: ImageVector) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Icon(icon, null, Modifier.size(16.dp), tint = BrandPurple)
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+        Icon(icon, null, Modifier.size(16.dp), tint = AppAccent)
+        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppAccent)
     }
 }
 
@@ -789,7 +781,7 @@ private fun CardSection(title: String, icon: ImageVector, content: @Composable (
 @Composable
 private fun InfoRow(icon: ImageVector, title: String, subtitle: String) {
     Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Surface(Modifier.size(32.dp), RoundedCornerShape(8.dp), BrandPurple.copy(alpha = 0.08f)) { Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(14.dp), tint = BrandPurple) } }
+        Surface(Modifier.size(32.dp), RoundedCornerShape(8.dp), AppAccent.copy(alpha = 0.08f)) { Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(14.dp), tint = AppAccent) } }
         Spacer(Modifier.width(14.dp))
         Column { Text(title, fontSize = 15.sp); if (subtitle.isNotBlank()) Text(subtitle, fontSize = 12.sp, color = Color.Gray) }
     }
@@ -805,18 +797,18 @@ private fun GuestPromptScreen(modifier: Modifier, onJoinClick: () -> Unit) {
         Spacer(Modifier.weight(1f))
         Box(contentAlignment = Alignment.BottomEnd) {
             Box(contentAlignment = Alignment.Center) {
-                Box(Modifier.size(130.dp).background(Brush.radialGradient(listOf(BrandPurple.copy(alpha = 0.18f), BrandPurple.copy(alpha = 0.04f))), CircleShape))
-                Box(Modifier.size(96.dp).background(BrandPurple, CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, Modifier.size(44.dp), tint = Color.White.copy(alpha = 0.85f)) }
+                Box(Modifier.size(130.dp).background(Brush.radialGradient(listOf(AppAccent.copy(alpha = 0.18f), AppAccent.copy(alpha = 0.04f))), CircleShape))
+                Box(Modifier.size(96.dp).background(AppAccent, CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, Modifier.size(44.dp), tint = Color.White.copy(alpha = 0.85f)) }
             }
-            Surface(Modifier.size(36.dp).offset(x = 2.dp, y = 2.dp).shadow(4.dp, RoundedCornerShape(10.dp)), RoundedCornerShape(10.dp), Color.Black) { Box(contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.Login, null, Modifier.size(14.dp), tint = BrandPurple) } }
+            Surface(Modifier.size(36.dp).offset(x = 2.dp, y = 2.dp).shadow(4.dp, RoundedCornerShape(10.dp)), RoundedCornerShape(10.dp), Color.Black) { Box(contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.Login, null, Modifier.size(14.dp), tint = AppAccent) } }
         }
         Text("Guest Mode", fontSize = 32.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 24.dp))
         Text("Sign in to see your profile, track your stats,\nand rate other players.", fontSize = 16.sp, color = Color.Gray, textAlign = TextAlign.Center, lineHeight = 22.sp, modifier = Modifier.padding(top = 10.dp, start = 40.dp, end = 40.dp))
         Row(Modifier.padding(top = 32.dp, start = 40.dp, end = 40.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Tile(Icons.Default.BarChart, "ANALYTICS", BrandPurple, Modifier.weight(1f)); Tile(Icons.Default.EmojiEvents, "LEAGUES", WarningOrange, Modifier.weight(1f))
+            Tile(Icons.Default.BarChart, "ANALYTICS", AppAccent, Modifier.weight(1f)); Tile(Icons.Default.EmojiEvents, "LEAGUES", WarningOrange, Modifier.weight(1f))
         }
         Spacer(Modifier.weight(1f))
-        TextButton(onClick = onJoinClick, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(60.dp).background(BrandPurple, RoundedCornerShape(30.dp))) {
+        TextButton(onClick = onJoinClick, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(60.dp).background(AppAccent, RoundedCornerShape(30.dp))) {
             Text("JOIN THE ELITE", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp); Spacer(Modifier.width(10.dp)); Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(14.dp), tint = Color.White)
         }
         Spacer(Modifier.height(24.dp))
@@ -840,7 +832,7 @@ private fun AvatarPickerDialog(
         title = { Text("Choose Avatar", fontWeight = FontWeight.Bold) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(Modifier.size(80.dp), CircleShape, BrandPurple.copy(alpha = 0.1f)) {
+                Surface(Modifier.size(80.dp), CircleShape, AppAccent.copy(alpha = 0.1f)) {
                     AsyncImage(selectedAvatar.avatarUrl(128), "Preview", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 }
                 Spacer(Modifier.height(8.dp))
@@ -852,7 +844,7 @@ private fun AvatarPickerDialog(
                         Surface(
                             modifier = Modifier
                                 .size(52.dp)
-                                .then(if (isSelected) Modifier.border(3.dp, BrandPurple, CircleShape) else Modifier.border(1.dp, Color.LightGray, CircleShape))
+                                .then(if (isSelected) Modifier.border(3.dp, AppAccent, CircleShape) else Modifier.border(1.dp, Color.LightGray, CircleShape))
                                 .clickable { selected = avatar.id },
                             shape = CircleShape,
                         ) {
@@ -863,7 +855,7 @@ private fun AvatarPickerDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(selected) }, colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)) {
+            Button(onClick = { onSave(selected) }, colors = ButtonDefaults.buttonColors(containerColor = AppAccent)) {
                 Text("Save Avatar")
             }
         },

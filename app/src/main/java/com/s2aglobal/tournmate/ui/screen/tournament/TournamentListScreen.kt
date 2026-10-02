@@ -25,7 +25,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.Tournament
 import com.s2aglobal.tournmate.ui.component.TournamentCard
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.ui.theme.theme
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.offset
 
 @Composable
 fun TournamentListScreen(
@@ -329,7 +335,7 @@ private fun SectionHeader(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = BrandPurple,
+            tint = AppAccent,
             modifier = Modifier.size(18.dp),
         )
         Text(
@@ -341,9 +347,9 @@ private fun SectionHeader(
             text = "$count TOTAL",
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            color = BrandPurple,
+            color = AppAccent,
             modifier = Modifier
-                .background(BrandPurple.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                .background(AppAccent.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
@@ -393,7 +399,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+            colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
             shape = RoundedCornerShape(50),
         ) {
             Text("Try Again", fontWeight = FontWeight.Bold)
@@ -416,25 +422,21 @@ private fun MyTournamentsEmptyState(
     ) {
         Spacer(Modifier.height(30.dp))
 
+        val sport = CurrentSport.sport
         Box(contentAlignment = Alignment.Center) {
             Surface(
                 modifier = Modifier.size(120.dp),
                 shape = CircleShape,
-                color = BrandPurple.copy(alpha = 0.08f),
+                color = sport.theme.tint,
             ) {}
-            Icon(
-                imageVector = Icons.Default.EmojiEvents,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = BrandPurple.copy(alpha = 0.6f),
-            )
+            SportBadge(sport, 64.dp, Modifier.rotate(-12f))
         }
 
         Spacer(Modifier.height(24.dp))
         Text("No Tournaments Yet", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Start your first badminton tournament or\njoin one happening nearby.",
+            "Start your first ${sport.inlineName} tournament or\njoin one happening nearby.",
             color = Color.Gray,
             textAlign = TextAlign.Center,
             lineHeight = 20.sp,
@@ -443,7 +445,7 @@ private fun MyTournamentsEmptyState(
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = onBrowse,
-            colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+            colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
             shape = RoundedCornerShape(50),
         ) {
             Icon(Icons.Default.Search, null, Modifier.size(18.dp))
@@ -465,7 +467,7 @@ private fun MyTournamentsEmptyState(
 
         ActionCard(
             icon = Icons.Default.People,
-            iconColor = BrandPurple,
+            iconColor = AppAccent,
             title = "Join Tournament",
             subtitle = "Register and compete with others",
             onClick = onBrowse,
@@ -485,17 +487,25 @@ private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
     ) {
         Spacer(Modifier.height(40.dp))
 
+        val sport = CurrentSport.sport
         Box(contentAlignment = Alignment.Center) {
             Surface(
                 modifier = Modifier.size(120.dp),
                 shape = CircleShape,
-                color = BrandPurple.copy(alpha = 0.08f),
+                color = sport.theme.tint,
             ) {}
             Icon(
                 imageVector = Icons.Default.EmojiEvents,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
-                tint = BrandPurple.copy(alpha = 0.5f),
+                tint = sport.theme.primary.copy(alpha = 0.75f),
+            )
+            SportBadge(
+                sport, 40.dp,
+                Modifier
+                    .offset(x = 38.dp, y = 34.dp)
+                    .rotate(-15f)
+                    .shadow(4.dp, CircleShape),
             )
         }
 
@@ -503,8 +513,8 @@ private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
         Text("No Tournaments Yet", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(
-            text = if (isGuest) "Sign in to create or browse upcoming\nbadminton tournaments near you."
-            else "Be the first to organize a tournament!\nTap HOST to get the shuttlecocks flying.",
+            text = if (isGuest) "Sign in to create or browse upcoming\n${sport.inlineName} tournaments near you."
+            else "Be the first to organize a tournament!\nTap HOST to ${sport.theme.gearPhrase}.",
             color = Color.Gray,
             textAlign = TextAlign.Center,
             lineHeight = 20.sp,
@@ -514,7 +524,7 @@ private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = onCreateClick,
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                 shape = RoundedCornerShape(50),
             ) {
                 Icon(Icons.Default.AddCircle, null, Modifier.size(18.dp))
@@ -528,7 +538,7 @@ private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         TipRow(icon = Icons.Default.People, color = Color(0xFF2196F3), text = "Players register and get paired for singles or doubles.")
         Spacer(Modifier.height(12.dp))
-        TipRow(icon = Icons.Default.BarChart, color = BrandPurple, text = "Play matches, track scores, and climb the Elo rankings.")
+        TipRow(icon = Icons.Default.BarChart, color = AppAccent, text = "Play matches, track scores, and climb the Elo rankings.")
     }
 }
 
@@ -552,7 +562,7 @@ private fun SkeletonLoading() {
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(28.dp),
-                        color = BrandPurple,
+                        color = AppAccent,
                         strokeWidth = 2.dp,
                     )
                 }

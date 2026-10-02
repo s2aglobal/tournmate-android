@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.MatchStatus
 import com.s2aglobal.tournmate.domain.model.Registration
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.ErrorRed
 import com.s2aglobal.tournmate.ui.theme.SuccessGreen
 
@@ -49,7 +49,7 @@ fun RoundRobinVisualizerView(
         // Header
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Everyone plays everyone. Top teams based on points.", fontSize = 11.sp, color = Color.Gray)
-            Text("$finishedMatches/$totalMatches", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+            Text("$finishedMatches/$totalMatches", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppAccent)
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
@@ -70,7 +70,7 @@ fun RoundRobinVisualizerView(
                         Box(Modifier.width(100.dp).height(36.dp))
                         labels.forEach { label ->
                             Box(Modifier.width(44.dp).height(36.dp), contentAlignment = Alignment.Center) {
-                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                             }
                         }
                     }
@@ -88,7 +88,7 @@ fun RoundRobinVisualizerView(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    labels[rowIdx], fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple,
+                                    labels[rowIdx], fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent,
                                     modifier = Modifier.width(18.dp),
                                 )
                                 Text(
@@ -159,7 +159,7 @@ fun RoundRobinVisualizerView(
 
         // Standings note
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(Icons.Default.EmojiEvents, null, Modifier.size(12.dp), tint = BrandPurple)
+            Icon(Icons.Default.EmojiEvents, null, Modifier.size(12.dp), tint = AppAccent)
             Text("Points decide the standings", fontSize = 11.sp, color = Color.Gray)
         }
     }

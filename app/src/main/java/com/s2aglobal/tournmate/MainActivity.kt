@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.s2aglobal.tournmate.data.local.CurrentUserStore
 import com.s2aglobal.tournmate.service.AnalyticsService
 import com.s2aglobal.tournmate.service.config.AppVersionGate
 import com.s2aglobal.tournmate.service.notification.LocalNotificationStore
@@ -20,9 +21,12 @@ import com.s2aglobal.tournmate.ui.navigation.DeepLinkParser
 import com.s2aglobal.tournmate.ui.navigation.TournMateNavHost
 import com.s2aglobal.tournmate.ui.screen.update.UPDATE_FALLBACK_URL
 import com.s2aglobal.tournmate.ui.screen.update.UpdateRequiredScreen
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.theme.TournMateTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -31,12 +35,18 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var localNotificationStore: LocalNotificationStore
     @Inject lateinit var versionGate: AppVersionGate
     @Inject lateinit var analytics: AnalyticsService
+    @Inject lateinit var currentUserStore: CurrentUserStore
 
     private val pendingDeepLink = mutableStateOf<DeepLinkParser.Target?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Resolve the sport before first frame so the accent never flashes the default.
+        CurrentSport.sport = runBlocking { currentUserStore.preferredSportFlow.first() }
+        lifecycleScope.launch {
+            currentUserStore.preferredSportFlow.collect { CurrentSport.sport = it }
+        }
         // QA: launch with `--ez simulateUpdateRequired true` to preview the update blocker (debug only).
         if (BuildConfig.DEBUG && intent?.getBooleanExtra(EXTRA_SIMULATE_UPDATE_REQUIRED, false) == true) {
             versionGate.simulateUpdateRequired()

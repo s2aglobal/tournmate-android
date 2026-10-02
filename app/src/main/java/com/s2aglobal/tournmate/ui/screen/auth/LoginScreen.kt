@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.TournmatePurple
 import com.s2aglobal.tournmate.util.openInBrowser
 
 private val GoogleRed = Color(0xFFEA4335)
@@ -186,7 +186,7 @@ private fun EliteAccessScreen(
         TextButton(onClick = onToggleMode, modifier = Modifier.fillMaxWidth().padding(bottom = 30.dp)) {
             Row {
                 Text("Already a member? ", fontSize = 14.sp, color = Color.Gray)
-                Text("Sign In", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                Text("Sign In", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TournmatePurple)
             }
         }
     }
@@ -251,7 +251,7 @@ private fun WelcomeBackScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("PASSWORD", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 TextButton(onClick = { viewModel.resetPassword() }, modifier = Modifier.height(20.dp)) {
-                    Text("FORGOT?", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BrandPurple, letterSpacing = 1.sp)
+                    Text("FORGOT?", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TournmatePurple, letterSpacing = 1.sp)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -279,7 +279,7 @@ private fun WelcomeBackScreen(
                 onClick = onSignIn,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = TournmatePurple),
                 enabled = !uiState.isLoading,
             ) {
                 if (uiState.isLoading) {
@@ -301,7 +301,7 @@ private fun WelcomeBackScreen(
         TextButton(onClick = onToggleMode, modifier = Modifier.fillMaxWidth().padding(bottom = 30.dp)) {
             Row {
                 Text("New here? ", fontSize = 14.sp, color = Color.Gray)
-                Text("Create Account", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                Text("Create Account", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TournmatePurple)
             }
         }
     }
@@ -344,7 +344,7 @@ private fun EmailCreateAccountScreen(
                     modifier = Modifier
                         .width(44.dp)
                         .height(6.dp)
-                        .background(BrandPurple, RoundedCornerShape(3.dp)),
+                        .background(TournmatePurple, RoundedCornerShape(3.dp)),
                 )
             }
 
@@ -420,7 +420,7 @@ private fun EmailCreateAccountScreen(
                 .padding(bottom = 34.dp)
                 .height(58.dp),
             shape = RoundedCornerShape(29.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+            colors = ButtonDefaults.buttonColors(containerColor = TournmatePurple),
             enabled = !uiState.isLoading,
         ) {
             if (uiState.isLoading) {

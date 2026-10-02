@@ -26,7 +26,7 @@ import coil.request.ImageRequest
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.SeedTier
 import com.s2aglobal.tournmate.domain.model.SportType
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,7 +83,7 @@ fun PlayerDirectoryScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = BrandPurple)
+                    CircularProgressIndicator(color = AppAccent)
                 }
             } else if (players.isEmpty()) {
                 Box(

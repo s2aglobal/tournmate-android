@@ -1,6 +1,8 @@
 package com.s2aglobal.tournmate.ui.screen
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -47,13 +49,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.SportType
+import com.s2aglobal.tournmate.ui.component.SportHeroBanner
+import com.s2aglobal.tournmate.ui.component.SportSwitcherSheet
+import com.s2aglobal.tournmate.ui.component.SportSwitcherViewModel
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.screen.openplay.CreateSessionSheet
 import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayListScreen
 import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayListViewModel
 import com.s2aglobal.tournmate.ui.screen.tournament.PublishTournamentScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListViewModel
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import java.util.Calendar
 
 @Composable
@@ -70,6 +76,9 @@ fun PlayTabScreen(
     val tournamentListVM: TournamentListViewModel = hiltViewModel()
     val openPlayVM: OpenPlayListViewModel = hiltViewModel()
     val uiState by tournamentListVM.uiState.collectAsState()
+    val sportSwitcherVM: SportSwitcherViewModel = hiltViewModel()
+    var showSportSwitcher by remember { mutableStateOf(false) }
+    val sport = CurrentSport.sport
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -85,6 +94,12 @@ fun PlayTabScreen(
                     else showCreateSession = true
                 },
                 onNotificationClick = onNavigateToNotifications,
+            )
+
+            SportHeroBanner(
+                sport = sport,
+                onSwitch = { showSportSwitcher = true },
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 6.dp),
             )
 
             PillTabSwitcher(
@@ -137,6 +152,14 @@ fun PlayTabScreen(
             )
         }
 
+    }
+
+    if (showSportSwitcher) {
+        SportSwitcherSheet(
+            current = sport,
+            onSelect = sportSwitcherVM::select,
+            onDismiss = { showSportSwitcher = false },
+        )
     }
 
     if (showCreateSession && !isGuestMode) {
@@ -197,18 +220,19 @@ private fun PlayHeader(
                 imageVector = Icons.Outlined.Notifications,
                 contentDescription = "Notifications",
                 modifier = Modifier.size(24.dp),
-                tint = Color.Black,
+                tint = AppAccent,
             )
         }
 
         if (showHostButton) {
             Spacer(modifier = Modifier.width(6.dp))
 
+            val hostColor by animateColorAsState(AppAccent, tween(300), label = "hostColor")
             Surface(
                 onClick = onHostClick,
+                modifier = Modifier.shadow(8.dp, RoundedCornerShape(50), ambientColor = hostColor.copy(alpha = 0.3f), spotColor = hostColor.copy(alpha = 0.3f)),
                 shape = RoundedCornerShape(50),
-                color = BrandPurple,
-                shadowElevation = 8.dp,
+                color = hostColor,
             ) {
                 Row(
                     modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
@@ -306,14 +330,14 @@ private fun PillTabSwitcher(
                                     imageVector = tab.icon,
                                     contentDescription = null,
                                     modifier = Modifier.size(13.dp),
-                                    tint = if (selectedIndex == index) BrandPurple else Color.Gray,
+                                    tint = if (selectedIndex == index) AppAccent else Color.Gray,
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = tab.label,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (selectedIndex == index) BrandPurple else Color.Gray,
+                                    color = if (selectedIndex == index) AppAccent else Color.Gray,
                                     letterSpacing = 0.8.sp,
                                 )
                             }

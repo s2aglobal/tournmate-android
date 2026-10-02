@@ -1,5 +1,9 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.domain.model.SportType
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -34,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.s2aglobal.tournmate.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.TournmatePurple
 import com.s2aglobal.tournmate.ui.theme.DarkNavy
 
 @Composable
@@ -83,17 +87,17 @@ private fun SplashScreen() {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Purple rounded rect with badminton icon
+            // Purple rounded rect with sport icon
             Surface(
                 modifier = Modifier
                     .size(80.dp)
-                    .shadow(20.dp, RoundedCornerShape(24.dp), ambientColor = BrandPurple.copy(alpha = 0.4f)),
+                    .shadow(20.dp, RoundedCornerShape(24.dp), ambientColor = TournmatePurple.copy(alpha = 0.4f)),
                 shape = RoundedCornerShape(24.dp),
-                color = BrandPurple,
+                color = TournmatePurple,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.SportsHandball,
+                        painter = if (CurrentSport.sport == SportType.BADMINTON) rememberVectorPainter(Icons.Default.SportsHandball) else sportIconPainter(CurrentSport.sport),
                         contentDescription = null,
                         modifier = Modifier.size(36.dp),
                         tint = Color.White,
@@ -113,7 +117,7 @@ private fun SplashScreen() {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Your badminton companion",
+                text = "Your sports companion",
                 fontSize = 14.sp,
                 color = Color.White.copy(alpha = 0.5f),
             )

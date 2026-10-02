@@ -3,6 +3,7 @@ package com.s2aglobal.tournmate.ui.screen.court
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.domain.model.HomeRegionCountry
 import com.s2aglobal.tournmate.domain.model.Player
@@ -38,7 +39,7 @@ data class CourtFinderUiState(
         get() = if (usesHomeRegion) {
             "Court search follows your home country from Profile — the same region as tournaments and Open Play."
         } else {
-            "Find badminton courts near where you play. Add your home region in Profile to match local listings."
+            "Find ${CurrentSport.sport.inlineName} courts near where you play. Add your home region in Profile to match local listings."
         }
 
     val zipExamples: List<String> get() = popularExamples.map { it.zip }

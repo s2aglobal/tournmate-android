@@ -22,7 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.SuccessGreen
 import kotlin.math.pow
 
@@ -56,7 +56,7 @@ fun SingleEliminationVisualizerView(
                         Text(
                             round.roundName.uppercase(),
                             fontSize = 9.sp, fontWeight = FontWeight.Bold,
-                            color = BrandPurple, letterSpacing = 0.5.sp,
+                            color = AppAccent, letterSpacing = 0.5.sp,
                             modifier = Modifier.width(CARD_WIDTH),
                             textAlign = TextAlign.Center,
                         )
@@ -144,14 +144,14 @@ private fun BracketMatchCard(node: MatchNode, onTap: () -> Unit) {
         Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
             // Team A row
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                val aColor = if (winnerIsA && isFinished) BrandPurple else Color.Black
+                val aColor = if (winnerIsA && isFinished) AppAccent else Color.Black
                 Text(
                     node.teamAName, fontSize = 11.sp, fontWeight = if (winnerIsA && isFinished) FontWeight.Bold else FontWeight.Normal,
                     color = aColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                 )
                 Text(
                     "${node.match.scoreA ?: "-"}", fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                    color = if (winnerIsA && isFinished) BrandPurple else Color.Gray,
+                    color = if (winnerIsA && isFinished) AppAccent else Color.Gray,
                 )
             }
             Spacer(Modifier.height(2.dp))
@@ -159,14 +159,14 @@ private fun BracketMatchCard(node: MatchNode, onTap: () -> Unit) {
             Spacer(Modifier.height(2.dp))
             // Team B row
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                val bColor = if (winnerIsB && isFinished) BrandPurple else Color.Black
+                val bColor = if (winnerIsB && isFinished) AppAccent else Color.Black
                 Text(
                     node.teamBName, fontSize = 11.sp, fontWeight = if (winnerIsB && isFinished) FontWeight.Bold else FontWeight.Normal,
                     color = bColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                 )
                 Text(
                     "${node.match.scoreB ?: "-"}", fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                    color = if (winnerIsB && isFinished) BrandPurple else Color.Gray,
+                    color = if (winnerIsB && isFinished) AppAccent else Color.Gray,
                 )
             }
         }

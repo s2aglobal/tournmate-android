@@ -1,5 +1,8 @@
 package com.s2aglobal.tournmate.ui.screen.openplay
 
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.ui.theme.gearNoun
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -239,7 +242,7 @@ private fun HeroSection(session: PlaySession) {
             ),
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_figure_badminton),
+            painter = sportIconPainter(CurrentSport.sport),
             contentDescription = null,
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -329,9 +332,9 @@ private fun SessionInfoCard(session: PlaySession) {
             if (session.preferredAgeGroup != AgeGroup.OPEN) {
                 add(Triple(Icons.Default.Person, "Age Group", session.preferredAgeGroup.displayName) to Color(0xFF009688))
             }
-            add(Triple(Icons.Default.Group, "Attendees", "${session.attendeeCount} joined") to BrandPurple)
+            add(Triple(Icons.Default.Group, "Attendees", "${session.attendeeCount} joined") to AppAccent)
             val costValue = session.formattedCost ?: "Free"
-            val costColor = if (session.hasCost) WarningOrange else BrandPurple
+            val costColor = if (session.hasCost) WarningOrange else AppAccent
             add(Triple(Icons.Default.LocalOffer, "Cost / Person", costValue) to costColor)
         }
 
@@ -388,7 +391,7 @@ private fun SessionInfoCard(session: PlaySession) {
         session.notes?.takeIf { it.isNotBlank() }?.let { notes ->
             Spacer(modifier = Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Notes, null, Modifier.size(14.dp), tint = BrandPurple)
+                Icon(Icons.Default.Notes, null, Modifier.size(14.dp), tint = AppAccent)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Notes", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray)
             }
@@ -447,7 +450,7 @@ private fun VenueCard(session: PlaySession) {
                         .background(Color(0xFFF2F2F7)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.Map, null, tint = BrandPurple.copy(alpha = 0.5f))
+                    Icon(Icons.Default.Map, null, tint = AppAccent.copy(alpha = 0.5f))
                 }
             }
 
@@ -486,10 +489,10 @@ private fun VenueCard(session: PlaySession) {
                             Icons.Default.Directions,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = BrandPurple,
+                            tint = AppAccent,
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Directions", color = BrandPurple, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        Text("Directions", color = AppAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                     }
                 }
             }
@@ -530,21 +533,21 @@ private fun YourStatusCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(BrandPurple.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
+                        .background(AppAccent.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(BrandPurple.copy(alpha = 0.12f), CircleShape),
+                            .background(AppAccent.copy(alpha = 0.12f), CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Default.CheckCircle, null, tint = BrandPurple)
+                        Icon(Icons.Default.CheckCircle, null, tint = AppAccent)
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("You're in!", fontWeight = FontWeight.Bold, color = BrandPurple, fontSize = 14.sp)
+                        Text("You're in!", fontWeight = FontWeight.Bold, color = AppAccent, fontSize = 14.sp)
                         Text("See you on the court 🏸", fontSize = 12.sp, color = Color.Gray)
                         if (session.hasCost) {
                             Text(
@@ -583,7 +586,7 @@ private fun YourStatusCard(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = session.isJoinable && !isLoading,
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
@@ -593,7 +596,7 @@ private fun YourStatusCard(
                             )
                         } else {
                             Icon(
-                                painter = painterResource(R.drawable.ic_figure_badminton),
+                                painter = sportIconPainter(CurrentSport.sport),
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )
@@ -648,7 +651,7 @@ private fun AttendeesCard(
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(
-                    color = BrandPurple,
+                    color = AppAccent,
                     strokeWidth = 2.dp,
                 )
             }
@@ -683,7 +686,7 @@ private fun HostActionsCard(
             onClick = onEdit,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+            colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
         ) {
             Icon(Icons.Default.Edit, null, Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(8.dp))
@@ -744,8 +747,8 @@ private fun DetailSectionHeader(title: String, icon: ImageVector) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = BrandPurple, modifier = Modifier.size(18.dp))
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+        Icon(icon, contentDescription = null, tint = AppAccent, modifier = Modifier.size(18.dp))
+        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppAccent)
     }
     Spacer(modifier = Modifier.height(14.dp))
 }
@@ -840,14 +843,14 @@ private fun AttendeeRow(
                     if (isHost) {
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = BrandPurple.copy(alpha = 0.15f),
+                            color = AppAccent.copy(alpha = 0.15f),
                         ) {
                             Text(
                                 "Host",
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = BrandPurple,
+                                color = AppAccent,
                             )
                         }
                     }
@@ -865,7 +868,7 @@ private fun AttendeeRow(
 }
 
 private fun detailSkillLevelColor(level: SkillLevel): Color = when (level) {
-    SkillLevel.ALL_LEVELS -> BrandPurple
+    SkillLevel.ALL_LEVELS -> AppAccent
     SkillLevel.BEGINNER -> Color(0xFF2196F3)
     SkillLevel.INTERMEDIATE -> WarningOrange
     SkillLevel.ADVANCED -> ErrorRed
@@ -934,7 +937,7 @@ private fun EditSessionSheet(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.CenterStart),
                 ) {
-                    Text("Cancel", color = BrandPurple, fontSize = 16.sp)
+                    Text("Cancel", color = AppAccent, fontSize = 16.sp)
                 }
                 Text(
                     "Edit Session",
@@ -959,7 +962,7 @@ private fun EditSessionSheet(
                             modifier = Modifier.weight(1f),
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CalendarToday, null, tint = BrandPurple, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.CalendarToday, null, tint = AppAccent, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(dateFormatter.format(selectedDate), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             }
@@ -972,7 +975,7 @@ private fun EditSessionSheet(
                             modifier = Modifier.weight(1f),
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Schedule, null, tint = BrandPurple, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Schedule, null, tint = AppAccent, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(timeFormatter.format(selectedDate), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             }
@@ -990,7 +993,7 @@ private fun EditSessionSheet(
                             Surface(
                                 onClick = { selectedDuration = mins },
                                 shape = RoundedCornerShape(50),
-                                color = if (isSelected) BrandPurple else Color.White,
+                                color = if (isSelected) AppAccent else Color.White,
                                 shadowElevation = if (isSelected) 0.dp else 1.dp,
                             ) {
                                 Text(
@@ -1069,7 +1072,7 @@ private fun EditSessionSheet(
                             modifier = Modifier.fillMaxWidth().padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("$", color = BrandPurple, fontWeight = FontWeight.Bold)
+                            Text("$", color = AppAccent, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.width(8.dp))
                             androidx.compose.foundation.text.BasicTextField(
                                 value = costText,
@@ -1090,7 +1093,7 @@ private fun EditSessionSheet(
                     FormTextField(
                         value = notes,
                         onValueChange = { notes = it.take(500) },
-                        placeholder = "e.g. Court 3, bring shuttlecocks",
+                        placeholder = "e.g. Court 3, bring your own ${CurrentSport.sport.gearNoun}",
                         singleLine = false,
                         minHeight = 80.dp,
                     )
@@ -1112,7 +1115,7 @@ private fun EditSessionSheet(
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     enabled = title.trim().isNotEmpty(),
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                     shape = RoundedCornerShape(14.dp),
                 ) {
                     Text("Save Changes", fontWeight = FontWeight.Bold, fontSize = 16.sp)

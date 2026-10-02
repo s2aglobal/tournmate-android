@@ -14,6 +14,7 @@ import com.s2aglobal.tournmate.service.AnalyticsService
 import com.s2aglobal.tournmate.service.auth.AuthService
 import com.s2aglobal.tournmate.service.calorie.HealthConnectService
 import com.s2aglobal.tournmate.service.notification.NotificationService
+import com.s2aglobal.tournmate.service.sport.PreferredSportUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +42,7 @@ class ProfileViewModel @Inject constructor(
     private val currentUserStore: CurrentUserStore,
     private val notificationService: NotificationService,
     private val analytics: AnalyticsService,
+    private val sportUpdater: PreferredSportUpdater,
     val healthConnectService: HealthConnectService,
 ) : ViewModel() {
 
@@ -89,18 +91,8 @@ class ProfileViewModel @Inject constructor(
 
     fun updateSport(sport: SportType) {
         val player = _uiState.value.player ?: return
-        val oldSport = player.preferredSport
-        if (oldSport == sport) return
-        val updated = player.copy(preferredSport = sport)
-        _uiState.value = _uiState.value.copy(player = updated)
-        analytics.log(AnalyticsService.EventName.PREFERRED_SPORT_CHANGED, AnalyticsService.Param.SPORT to sport.rawValue)
-        viewModelScope.launch {
-            currentUserStore.setPreferredSport(sport)
-            notificationService.switchSportTopics(updated, oldSport, sport)
-            try {
-                playerRepo.updatePlayerFields(player.id, mapOf("preferredSport" to sport.rawValue))
-            } catch (_: Exception) {}
-        }
+        if (!sportUpdater.setPreferredSport(sport, player)) return
+        _uiState.value = _uiState.value.copy(player = player.copy(preferredSport = sport))
     }
 
     fun updateHomeRegion(countryCode: String, postalCode: String, onResult: (String) -> Unit) {

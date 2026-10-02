@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.CalorieActivityType
 import com.s2aglobal.tournmate.domain.model.CalorieRecord
 import com.s2aglobal.tournmate.domain.model.CalorieSource
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -127,7 +127,7 @@ private fun RecordCard(record: CalorieRecord, timeFormat: SimpleDateFormat) {
         CalorieActivityType.TOURNAMENT -> "Tournament"
         CalorieActivityType.OPEN_PLAY -> "Open Play"
     }
-    val sourceColor = if (isHealthConnect) Color(0xFFE53935) else BrandPurple
+    val sourceColor = if (isHealthConnect) Color(0xFFE53935) else AppAccent
     val sourceLabel = if (isHealthConnect) "Health" else "Estimated"
 
     Surface(

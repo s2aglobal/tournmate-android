@@ -18,6 +18,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -46,7 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.TournmatePurple
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -57,6 +59,8 @@ private data class OnboardingPage(
     val description: String,
     val icon: ImageVector,
     val backgroundGradient: List<Color>,
+    /** Draw the current sport's icon instead of `icon` (matches iOS). */
+    val usesSportIcon: Boolean = false,
 )
 
 @HiltViewModel
@@ -90,6 +94,7 @@ fun OnboardingScreen(
             title = "Rally Up",
             description = "Host casual sessions, meet players, and enjoy the game together.",
             icon = Icons.Default.SportsTennis,
+            usesSportIcon = true,
             backgroundGradient = listOf(Color(0xFF0D3B2E), Color(0xFF1B5E20)),
         ),
         OnboardingPage(
@@ -102,7 +107,7 @@ fun OnboardingScreen(
         OnboardingPage(
             category = "DISCOVER",
             title = "Stay Sharp",
-            description = "Browse badminton news, live matches, rankings, and official rules.",
+            description = "Browse news, live matches, rankings, and official rules for your sport.",
             icon = Icons.Default.Explore,
             backgroundGradient = listOf(Color(0xFF2E1A47), Color(0xFF4A148C)),
         ),
@@ -167,7 +172,7 @@ fun OnboardingScreen(
                                         )
                                         .clip(CircleShape)
                                         .background(
-                                            if (pagerState.currentPage == index) BrandPurple
+                                            if (pagerState.currentPage == index) TournmatePurple
                                             else Color.White.copy(alpha = 0.3f)
                                         ),
                                 )
@@ -185,12 +190,21 @@ fun OnboardingScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            imageVector = page.icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(140.dp),
-                            tint = Color.White.copy(alpha = 0.15f),
-                        )
+                        if (page.usesSportIcon) {
+                            Icon(
+                                painter = sportIconPainter(CurrentSport.sport),
+                                contentDescription = null,
+                                modifier = Modifier.size(140.dp),
+                                tint = Color.White.copy(alpha = 0.15f),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = page.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(140.dp),
+                                tint = Color.White.copy(alpha = 0.15f),
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.weight(1f))
 
@@ -200,7 +214,7 @@ fun OnboardingScreen(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp,
-                        color = BrandPurple,
+                        color = TournmatePurple,
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(

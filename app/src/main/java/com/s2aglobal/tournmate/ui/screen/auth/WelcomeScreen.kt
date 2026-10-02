@@ -1,5 +1,9 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.domain.model.SportType
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -43,7 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.TournmatePurple
 import com.s2aglobal.tournmate.ui.theme.DarkNavy
 import com.s2aglobal.tournmate.ui.theme.DarkNavyLight
 import com.s2aglobal.tournmate.ui.theme.LimeAccent
@@ -81,20 +85,20 @@ fun WelcomeScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 32.dp),
         ) {
-            // Top section with bouncing shuttlecock icon
+            // Top section with bouncing sport icon
             Spacer(modifier = Modifier.height(80.dp))
 
             Surface(
                 modifier = Modifier
                     .size(56.dp)
                     .offset(y = bounceOffset.dp)
-                    .shadow(12.dp, RoundedCornerShape(16.dp), ambientColor = BrandPurple.copy(alpha = 0.4f)),
+                    .shadow(12.dp, RoundedCornerShape(16.dp), ambientColor = TournmatePurple.copy(alpha = 0.4f)),
                 shape = RoundedCornerShape(16.dp),
-                color = BrandPurple,
+                color = TournmatePurple,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.SportsHandball,
+                        painter = if (CurrentSport.sport == SportType.BADMINTON) rememberVectorPainter(Icons.Default.SportsHandball) else sportIconPainter(CurrentSport.sport),
                         contentDescription = null,
                         modifier = Modifier.size(28.dp),
                         tint = Color.White,
@@ -127,7 +131,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Elevate your badminton game\nwith elite analytics.",
+                text = "Elevate your game\nwith elite analytics.",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Normal,
                 color = Color.White.copy(alpha = 0.5f),

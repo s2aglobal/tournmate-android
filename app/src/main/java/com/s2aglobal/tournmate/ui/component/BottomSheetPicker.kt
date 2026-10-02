@@ -40,7 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -158,7 +158,7 @@ fun <T> BottomSheetPicker(
                                 itemLabel(item),
                                 fontSize = 16.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) BrandPurple else Color.Black,
+                                color = if (isSelected) AppAccent else Color.Black,
                             )
                             itemSubtitle?.let {
                                 Text(it(item), fontSize = 12.sp, color = Color.Gray)
@@ -168,7 +168,7 @@ fun <T> BottomSheetPicker(
                             Surface(
                                 modifier = Modifier.size(24.dp),
                                 shape = CircleShape,
-                                color = BrandPurple,
+                                color = AppAccent,
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(Icons.Default.Check, null, Modifier.size(14.dp), tint = Color.White)

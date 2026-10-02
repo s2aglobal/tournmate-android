@@ -19,6 +19,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TournMate"
         tools:targetApi="34">
+        <!-- Status-bar icon for FCM notifications shown while the app is in the background. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+
 
         <activity
             android:name=".MainActivity"

@@ -31,7 +31,11 @@ import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.domain.model.PlaySession
 import com.s2aglobal.tournmate.domain.model.PlaySessionStatus
 import com.s2aglobal.tournmate.domain.model.SkillLevel
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.ui.theme.theme
+import androidx.compose.ui.draw.rotate
 import com.s2aglobal.tournmate.ui.theme.ErrorRed
 import com.s2aglobal.tournmate.ui.theme.SuccessGreen
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
@@ -72,7 +76,7 @@ fun OpenPlayListScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = BrandPurple)
+                CircularProgressIndicator(color = AppAccent)
             }
         } else if (uiState.isEmpty && !uiState.isLoading) {
             EmptyState(
@@ -159,21 +163,21 @@ private fun SectionHeader(
             imageVector = Icons.Filled.History,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint = BrandPurple,
+            tint = AppAccent,
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text("Completed", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.width(8.dp))
         Surface(
             shape = RoundedCornerShape(4.dp),
-            color = BrandPurple.copy(alpha = 0.1f),
+            color = AppAccent.copy(alpha = 0.1f),
         ) {
             Text(
                 "$count TOTAL",
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = BrandPurple,
+                color = AppAccent,
             )
         }
 
@@ -184,7 +188,7 @@ private fun SectionHeader(
                 Icon(
                     imageVector = Icons.Filled.FilterList,
                     contentDescription = "Sort",
-                    tint = BrandPurple,
+                    tint = AppAccent,
                 )
             }
             DropdownMenu(
@@ -252,19 +256,14 @@ private fun SessionCard(
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         SessionBadge(statusText.uppercase(), statusColor)
                         SessionBadge(session.skillLevel.displayName, skillLevelColor(session.skillLevel))
-                        SessionBadge(session.gameType.displayName, BrandPurple)
+                        SessionBadge(session.gameType.displayName, AppAccent)
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_figure_badminton),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = BrandPurple.copy(alpha = 0.7f),
-                        )
+                        SportBadge(session.sportType, 16.dp)
                         Text(
                             text = dateFormatter.format(session.date),
                             fontSize = 12.sp,
@@ -404,10 +403,10 @@ private fun SessionFeeBadge(text: String, isFree: Boolean) {
         text = text,
         fontSize = 13.sp,
         fontWeight = FontWeight.Bold,
-        color = if (isFree) BrandPurple else Color.Black,
+        color = if (isFree) AppAccent else Color.Black,
         modifier = Modifier
             .background(
-                if (isFree) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
+                if (isFree) AppAccent.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
                 RoundedCornerShape(10.dp),
             )
             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -444,18 +443,16 @@ private fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // Shuttlecock player illustration matching iOS
+        val sport = CurrentSport.sport
+        val heroSize = if (filter == OpenPlayFilter.MY_SESSIONS) 100.dp else 120.dp
         Box(
             modifier = Modifier
-                .size(120.dp)
+                .size(heroSize)
                 .clip(CircleShape)
-                .background(BrandPurple.copy(alpha = 0.1f)),
+                .background(sport.theme.tint),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = "\uD83C\uDFF8",
-                fontSize = 48.sp,
-            )
+            SportBadge(sport, if (filter == OpenPlayFilter.MY_SESSIONS) 52.dp else 64.dp, Modifier.rotate(-12f))
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -474,7 +471,8 @@ private fun EmptyState(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = when (filter) {
-                OpenPlayFilter.ALL_SESSIONS -> "Be the first to post a session!\nInvite others to play."
+                OpenPlayFilter.ALL_SESSIONS -> if (isGuest) "Sign in to post a session or join others."
+                else "Be the first to post a ${sport.inlineName} session!\nInvite others to play."
                 OpenPlayFilter.MY_SESSIONS -> "Post your own session or join one\nfrom the All Sessions tab."
                 OpenPlayFilter.COMPLETED -> "Completed sessions will show here."
             },
@@ -490,7 +488,7 @@ private fun EmptyState(
                     Button(
                         onClick = onHostClick,
                         modifier = Modifier.fillMaxWidth(0.85f),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                         shape = RoundedCornerShape(14.dp),
                         contentPadding = PaddingValues(vertical = 14.dp),
                     ) {
@@ -501,7 +499,7 @@ private fun EmptyState(
                     Button(
                         onClick = onBrowseClick,
                         modifier = Modifier.fillMaxWidth(0.85f),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                         shape = RoundedCornerShape(14.dp),
                         contentPadding = PaddingValues(vertical = 14.dp),
                     ) {

@@ -22,8 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.service.config.AppUpdatePolicy
 import com.s2aglobal.tournmate.service.config.AppVersion
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
-import com.s2aglobal.tournmate.ui.theme.BrandPurpleDark
+import com.s2aglobal.tournmate.ui.theme.TournmatePurple
+import com.s2aglobal.tournmate.ui.theme.TournmatePurpleDark
 import com.s2aglobal.tournmate.ui.theme.DarkNavy
 
 const val UPDATE_FALLBACK_URL = "https://www.tournmate.com/#download"
@@ -48,7 +48,7 @@ fun UpdateRequiredScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(DarkNavy, BrandPurpleDark))),
+            .background(Brush.verticalGradient(listOf(DarkNavy, TournmatePurpleDark))),
     ) {
         Column(
             modifier = Modifier
@@ -68,7 +68,7 @@ fun UpdateRequiredScreen(
                 Box(
                     modifier = Modifier
                         .size(104.dp)
-                        .background(Brush.linearGradient(listOf(BrandPurple, BrandPurpleDark)), CircleShape),
+                        .background(Brush.linearGradient(listOf(TournmatePurple, TournmatePurpleDark)), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Filled.Download, null, Modifier.size(46.dp), tint = Color.White)
@@ -101,7 +101,7 @@ fun UpdateRequiredScreen(
             Button(
                 onClick = { onUpdate(policy?.storeUrl ?: UPDATE_FALLBACK_URL) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = BrandPurpleDark),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = TournmatePurpleDark),
             ) {
                 Icon(Icons.Filled.ArrowCircleDown, null)
                 Spacer(Modifier.width(8.dp))

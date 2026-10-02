@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.PrizeGold
 import com.s2aglobal.tournmate.ui.theme.SuccessGreen
 
@@ -44,12 +44,12 @@ fun GroupKnockoutVisualizerView(
 
         // GROUP STAGE
         if (state.groups.isNotEmpty()) {
-            Text("GROUP STAGE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple, letterSpacing = 1.sp)
+            Text("GROUP STAGE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, letterSpacing = 1.sp)
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 state.groups.forEach { group ->
                     Column(Modifier.weight(1f)) {
-                        Text("Group ${group.label}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                        Text("Group ${group.label}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                         Spacer(Modifier.height(8.dp))
                         group.participants.forEachIndexed { index, p ->
                             val isAdvancing = index < group.advancingCount
@@ -61,7 +61,7 @@ fun GroupKnockoutVisualizerView(
                                 Surface(
                                     modifier = Modifier.size(22.dp),
                                     shape = CircleShape,
-                                    color = if (isAdvancing) BrandPurple else Color.Gray.copy(alpha = 0.2f),
+                                    color = if (isAdvancing) AppAccent else Color.Gray.copy(alpha = 0.2f),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Text(
@@ -82,9 +82,9 @@ fun GroupKnockoutVisualizerView(
             // Arrow
             Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Surface(modifier = Modifier.size(32.dp), shape = CircleShape, color = BrandPurple.copy(alpha = 0.1f)) {
+                    Surface(modifier = Modifier.size(32.dp), shape = CircleShape, color = AppAccent.copy(alpha = 0.1f)) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.ArrowDownward, null, Modifier.size(16.dp), tint = BrandPurple)
+                            Icon(Icons.Default.ArrowDownward, null, Modifier.size(16.dp), tint = AppAccent)
                         }
                     }
                     Text("Top teams qualify", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
@@ -93,7 +93,7 @@ fun GroupKnockoutVisualizerView(
         }
 
         // KNOCKOUT STAGE
-        Text("KNOCKOUT STAGE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandPurple, letterSpacing = 1.sp)
+        Text("KNOCKOUT STAGE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, letterSpacing = 1.sp)
 
         if (state.knockoutRounds.isNotEmpty()) {
             // Round name pills
@@ -101,12 +101,12 @@ fun GroupKnockoutVisualizerView(
                 state.knockoutRounds.forEach { round ->
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = BrandPurple.copy(alpha = 0.1f),
+                        color = AppAccent.copy(alpha = 0.1f),
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(
                             round.roundName.uppercase(),
-                            fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BrandPurple,
+                            fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppAccent,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                             textAlign = TextAlign.Center,
                         )
@@ -125,12 +125,12 @@ fun GroupKnockoutVisualizerView(
             val advancingCount = state.groups.firstOrNull()?.advancingCount ?: 2
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(shape = RoundedCornerShape(50), color = BrandPurple.copy(alpha = 0.1f), modifier = Modifier.weight(1f)) {
-                    Text("SEMI FINAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BrandPurple,
+                Surface(shape = RoundedCornerShape(50), color = AppAccent.copy(alpha = 0.1f), modifier = Modifier.weight(1f)) {
+                    Text("SEMI FINAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppAccent,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), textAlign = TextAlign.Center)
                 }
-                Surface(shape = RoundedCornerShape(50), color = BrandPurple.copy(alpha = 0.1f), modifier = Modifier.weight(1f)) {
-                    Text("FINAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BrandPurple,
+                Surface(shape = RoundedCornerShape(50), color = AppAccent.copy(alpha = 0.1f), modifier = Modifier.weight(1f)) {
+                    Text("FINAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppAccent,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), textAlign = TextAlign.Center)
                 }
             }

@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.ui.screen.notification
 
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,7 +33,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.s2aglobal.tournmate.R
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -75,7 +77,7 @@ fun NotificationInboxScreen(
                         ) {
                             Text(
                                 "Read All",
-                                color = if (state.notifications.any { !it.read }) BrandPurple else Color.Gray,
+                                color = if (state.notifications.any { !it.read }) AppAccent else Color.Gray,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -96,7 +98,7 @@ fun NotificationInboxScreen(
                 state.isLoading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
-                        color = BrandPurple,
+                        color = AppAccent,
                     )
                 }
 
@@ -142,7 +144,7 @@ private fun NotificationRow(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(12.dp),
-        color = if (item.read) Color.White else BrandPurple.copy(alpha = 0.04f),
+        color = if (item.read) Color.White else AppAccent.copy(alpha = 0.04f),
         shadowElevation = if (item.read) 0.dp else 1.dp,
     ) {
         Row(
@@ -157,9 +159,9 @@ private fun NotificationRow(
                     .background(iconStyle.color.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
-                when (iconStyle.useBadmintonAsset) {
+                when (iconStyle.useSportIcon) {
                     true -> Icon(
-                        painter = painterResource(R.drawable.ic_badminton),
+                        painter = sportIconPainter(CurrentSport.sport, R.drawable.ic_badminton),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                         tint = iconStyle.color,
@@ -206,7 +208,7 @@ private fun NotificationRow(
                         .padding(top = 4.dp)
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(BrandPurple),
+                        .background(AppAccent),
                 )
             }
         }
@@ -239,21 +241,21 @@ private fun EmptyState(modifier: Modifier = Modifier) {
 private data class NotificationIconStyle(
     val icon: ImageVector,
     val color: Color,
-    val useBadmintonAsset: Boolean = false,
+    val useSportIcon: Boolean = false,
 )
 
 private fun notificationIconStyle(type: String): NotificationIconStyle = when (type) {
     "new_registration" -> NotificationIconStyle(Icons.Default.PersonAdd, Color(0xFF4CAF50))
     "tournament_reminder" -> NotificationIconStyle(Icons.Default.Schedule, Color(0xFFFF9800))
-    "tournament_created" -> NotificationIconStyle(Icons.Default.EmojiEvents, BrandPurple)
+    "tournament_created" -> NotificationIconStyle(Icons.Default.EmojiEvents, AppAccent)
     "match_finished" -> NotificationIconStyle(Icons.Default.EmojiEvents, Color(0xFFFFC107))
     "tournament_cancelled" -> NotificationIconStyle(Icons.Default.Cancel, Color(0xFFE53935))
-    "session_created" -> NotificationIconStyle(Icons.Default.SportsHandball, Color(0xFF2196F3), useBadmintonAsset = true)
+    "session_created" -> NotificationIconStyle(Icons.Default.SportsHandball, Color(0xFF2196F3), useSportIcon = true)
     "session_joined" -> NotificationIconStyle(Icons.Default.People, Color(0xFF4CAF50))
     "session_left" -> NotificationIconStyle(Icons.Default.PersonRemove, Color(0xFFFF9800))
     "session_finished" -> NotificationIconStyle(Icons.Default.Flag, Color(0xFF4CAF50))
     "player_unregistered" -> NotificationIconStyle(Icons.Default.PersonRemove, Color(0xFFE53935))
-    else -> NotificationIconStyle(Icons.Default.Notifications, BrandPurple)
+    else -> NotificationIconStyle(Icons.Default.Notifications, AppAccent)
 }
 
 private fun timeAgo(date: Date): String {

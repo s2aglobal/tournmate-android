@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.s2aglobal.tournmate.domain.model.*
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -43,7 +43,7 @@ fun PlayerProfileScreen(
 ) {
     if (player == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (isLoading) CircularProgressIndicator(color = BrandPurple)
+            if (isLoading) CircularProgressIndicator(color = AppAccent)
             else Text("Player not found", color = Color.Gray)
         }
         return
@@ -146,13 +146,13 @@ fun PlayerProfileScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("ELO Rating", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                        Text("ELO Rating", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                         ) {
-                            StatColumn("Rating", "${elo.toInt()}", BrandPurple)
+                            StatColumn("Rating", "${elo.toInt()}", AppAccent)
                             StatColumn("Tier", tier.displayName, tier.color)
                             StatColumn("Streak", "${player.streak}", Color(0xFF34C759))
                         }
@@ -166,7 +166,7 @@ fun PlayerProfileScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Match Stats", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                        Text("Match Stats", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -178,7 +178,7 @@ fun PlayerProfileScreen(
                                 "Win Rate",
                                 if (matchStats.played > 0) "${(matchStats.wins * 100 / matchStats.played)}%"
                                 else "—",
-                                BrandPurple,
+                                AppAccent,
                             )
                         }
                     }
@@ -192,7 +192,7 @@ fun PlayerProfileScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Sportsmanship", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                            Text("Sportsmanship", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                             Spacer(modifier = Modifier.weight(1f))
                             if (averageRating > 0) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -217,7 +217,7 @@ fun PlayerProfileScreen(
                             Button(
                                 onClick = onRatePlayer,
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                                 shape = RoundedCornerShape(10.dp),
                             ) {
                                 Icon(Icons.Default.Star, null, Modifier.size(16.dp))

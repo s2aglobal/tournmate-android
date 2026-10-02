@@ -80,7 +80,8 @@ import com.s2aglobal.tournmate.domain.model.Gender
 import com.s2aglobal.tournmate.domain.model.HomeRegionCountry
 import com.s2aglobal.tournmate.domain.model.PlayerAvatar
 import com.s2aglobal.tournmate.domain.model.SportType
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.TournmatePurple
+import com.s2aglobal.tournmate.ui.component.SportPickerRow
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -244,7 +245,7 @@ private fun ProfileInfoStep(
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 leadingIcon = { Icon(Icons.Default.Person, null, tint = Color.Gray) },
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray, focusedBorderColor = BrandPurple),
+                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray, focusedBorderColor = TournmatePurple),
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -276,13 +277,9 @@ private fun ProfileInfoStep(
             Text("Required for age verification and tournament eligibility.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             Spacer(modifier = Modifier.height(24.dp))
 
-            SectionLabel("Your Sport")
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SportType.SELECTABLE.forEach { sport ->
-                    SportCard(sport, selectedSport == sport, { onSportChange(sport) }, Modifier.weight(1f))
-                }
-            }
+            SectionLabel("YOUR SPORT")
+            Spacer(modifier = Modifier.height(12.dp))
+            SportPickerRow(selection = selectedSport, onSelect = onSportChange)
             Spacer(modifier = Modifier.height(24.dp))
 
             SectionLabel("AVATAR")
@@ -298,12 +295,12 @@ private fun ProfileInfoStep(
                             model = ImageRequest.Builder(LocalContext.current).data(avatar.avatarUrl(64)).crossfade(true).build(),
                             contentDescription = avatar.displayName,
                             modifier = Modifier.size(52.dp).clip(CircleShape)
-                                .then(if (isSelected) Modifier.border(3.dp, BrandPurple, CircleShape) else Modifier.border(1.dp, Color.LightGray, CircleShape))
+                                .then(if (isSelected) Modifier.border(3.dp, TournmatePurple, CircleShape) else Modifier.border(1.dp, Color.LightGray, CircleShape))
                                 .clickable { onAvatarChange(avatar) },
                             contentScale = ContentScale.Crop,
                         )
                         Spacer(Modifier.height(4.dp))
-                        Text(avatar.displayName, style = MaterialTheme.typography.labelSmall, color = if (isSelected) BrandPurple else Color.Gray)
+                        Text(avatar.displayName, style = MaterialTheme.typography.labelSmall, color = if (isSelected) TournmatePurple else Color.Gray)
                     }
                 }
             }
@@ -344,7 +341,7 @@ private fun ProfileInfoStep(
                 placeholder = { Text("75201") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray, focusedBorderColor = BrandPurple),
+                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray, focusedBorderColor = TournmatePurple),
             )
             Text(
                 "You'll see tournaments in your country. Postal / ZIP must match that country's format (e.g. 5-digit US ZIP, 6-digit India PIN).",
@@ -355,7 +352,7 @@ private fun ProfileInfoStep(
             Button(
                 onClick = onNext, modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = TournmatePurple),
                 enabled = isNextEnabled,
             ) {
                 Text("NEXT STEP  \u203A", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
@@ -420,7 +417,7 @@ private fun PlayingHandStep(
                     Surface(
                         modifier = Modifier.weight(1f).clickable { onHandChange(hand) },
                         shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) BrandPurple else Color.LightGray),
+                        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) TournmatePurple else Color.LightGray),
                         color = Color.White,
                     ) {
                         Column(
@@ -430,7 +427,7 @@ private fun PlayingHandStep(
                             Surface(
                                 modifier = Modifier.size(64.dp),
                                 shape = RoundedCornerShape(16.dp),
-                                color = if (isSelected) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
+                                color = if (isSelected) TournmatePurple.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
@@ -444,7 +441,7 @@ private fun PlayingHandStep(
                                 hand.displayName,
                                 fontSize = 11.sp, fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp,
-                                color = if (isSelected) BrandPurple else Color.Gray,
+                                color = if (isSelected) TournmatePurple else Color.Gray,
                             )
                         }
                     }
@@ -456,7 +453,7 @@ private fun PlayingHandStep(
             Button(
                 onClick = onNext, modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = TournmatePurple),
             ) {
                 Text("NEXT STEP  \u203A", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             }
@@ -498,7 +495,7 @@ private fun SkillLevelStep(
                         .padding(vertical = 6.dp)
                         .clickable { onLevelChange(level) },
                     shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) BrandPurple else Color.LightGray),
+                    border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) TournmatePurple else Color.LightGray),
                     color = Color.White,
                 ) {
                     Row(
@@ -508,10 +505,10 @@ private fun SkillLevelStep(
                         Surface(
                             modifier = Modifier.size(44.dp),
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
+                            color = if (isSelected) TournmatePurple.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(level.icon, null, tint = if (isSelected) BrandPurple else Color.Gray, modifier = Modifier.size(22.dp))
+                                Icon(level.icon, null, tint = if (isSelected) TournmatePurple else Color.Gray, modifier = Modifier.size(22.dp))
                             }
                         }
                         Spacer(Modifier.width(16.dp))
@@ -520,7 +517,7 @@ private fun SkillLevelStep(
                             Text(level.subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                         }
                         if (isSelected) {
-                            Icon(Icons.Default.CheckCircle, null, tint = BrandPurple, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.CheckCircle, null, tint = TournmatePurple, modifier = Modifier.size(24.dp))
                         }
                     }
                 }
@@ -531,7 +528,7 @@ private fun SkillLevelStep(
             Button(
                 onClick = onCreateProfile, modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = TournmatePurple),
             ) {
                 Text("CREATE PROFILE  \u2714", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             }
@@ -568,7 +565,7 @@ private fun AllSetScreen(onContinue: () -> Unit) {
                         Icons.Default.CheckCircle,
                         contentDescription = null,
                         modifier = Modifier.size(44.dp),
-                        tint = BrandPurple,
+                        tint = TournmatePurple,
                     )
                 }
             }
@@ -620,34 +617,12 @@ private fun GenderButton(label: String, isSelected: Boolean, onClick: () -> Unit
         onClick = onClick, modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = if (isSelected) BrandPurple.copy(alpha = 0.08f) else Color.Transparent,
-            contentColor = if (isSelected) BrandPurple else Color.DarkGray,
+            containerColor = if (isSelected) TournmatePurple.copy(alpha = 0.08f) else Color.Transparent,
+            contentColor = if (isSelected) TournmatePurple else Color.DarkGray,
         ),
-        border = BorderStroke(1.dp, if (isSelected) BrandPurple else Color.LightGray),
+        border = BorderStroke(1.dp, if (isSelected) TournmatePurple else Color.LightGray),
     ) {
         Text(label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, fontSize = 14.sp)
-    }
-}
-
-@Composable
-private fun SportCard(sport: SportType, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val iconRes = when (sport) {
-        SportType.BADMINTON -> R.drawable.ic_badminton
-        SportType.PICKLEBALL -> R.drawable.ic_figure_badminton
-        SportType.TENNIS -> R.drawable.ic_sportscourt
-        else -> R.drawable.ic_badminton
-    }
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) BrandPurple else Color.LightGray),
-        color = if (isSelected) BrandPurple.copy(alpha = 0.05f) else Color.White,
-    ) {
-        Column(Modifier.padding(vertical = 16.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(painterResource(id = iconRes), sport.displayName, Modifier.size(32.dp), tint = if (isSelected) BrandPurple else Color.Gray)
-            Spacer(Modifier.height(8.dp))
-            Text(sport.displayName, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) BrandPurple else Color.DarkGray)
-        }
     }
 }
 

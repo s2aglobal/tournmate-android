@@ -17,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.s2aglobal.tournmate.ui.component.SportPickerRow
+import com.s2aglobal.tournmate.ui.theme.theme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.service.validation.InputValidator
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
 import com.s2aglobal.tournmate.util.DatePickerUtils
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -57,6 +58,11 @@ private data class MatchFormatItem(
     val icon: ImageVector,
     val tagline: String,
 )
+
+private val LocalHostedSport = staticCompositionLocalOf { SportType.BADMINTON }
+
+private val WizardAccent: Color
+    @Composable @ReadOnlyComposable get() = LocalHostedSport.current.theme.primary
 
 private val matchFormatItems = listOf(
     MatchFormatItem(MatchFormat.SINGLE_ELIMINATION, Icons.Default.EmojiEvents, "Lose once, you're out"),
@@ -118,6 +124,15 @@ fun PublishTournamentScreen(
     var showDeadlineDatePicker by remember { mutableStateOf(false) }
     var showDeadlineTimePicker by remember { mutableStateOf(false) }
 
+    // Wizard accent follows the sport being hosted (iOS `accentGreen`).
+    val hostedTheme = newSportType.theme
+    val hostedScheme = MaterialTheme.colorScheme.copy(
+        primary = hostedTheme.primary,
+        secondary = hostedTheme.primaryDeep,
+        primaryContainer = hostedTheme.primary.copy(alpha = 0.15f),
+    )
+    CompositionLocalProvider(LocalHostedSport provides newSportType) {
+    MaterialTheme(colorScheme = hostedScheme, typography = MaterialTheme.typography) {
     val titleError = remember(newTitle) {
         val trimmed = newTitle.trim()
         if (trimmed.isEmpty()) null else InputValidator.validateEventTitle(newTitle).errorMessage
@@ -182,7 +197,7 @@ fun PublishTournamentScreen(
                         newDate = cal.time
                         showTimePicker = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                    colors = ButtonDefaults.buttonColors(containerColor = WizardAccent),
                 ) { Text("SET TIME") }
             },
             dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
@@ -225,7 +240,7 @@ fun PublishTournamentScreen(
                         newDeadline = cal.time
                         showDeadlineTimePicker = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                    colors = ButtonDefaults.buttonColors(containerColor = WizardAccent),
                 ) { Text("SET TIME") }
             },
             dismissButton = { TextButton(onClick = { showDeadlineTimePicker = false }) { Text("Cancel") } },
@@ -368,6 +383,8 @@ fun PublishTournamentScreen(
             onCancel = { showVenueSheet = false },
         )
     }
+    }
+    }
 }
 
 // ── Bottom Sheets ────────────────────────────────────
@@ -400,11 +417,11 @@ private fun <T> ListBottomSheet(
                     Text(
                         itemLabel(item), fontSize = 16.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) BrandPurple else Color.Black,
+                        color = if (isSelected) WizardAccent else Color.Black,
                         modifier = Modifier.weight(1f),
                     )
                     if (isSelected) {
-                        Surface(Modifier.size(24.dp), CircleShape, BrandPurple) {
+                        Surface(Modifier.size(24.dp), CircleShape, WizardAccent) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(Icons.Default.Check, null, Modifier.size(14.dp), tint = Color.White)
                             }
@@ -440,7 +457,7 @@ private fun WizardTopBar(step: Int, onBack: () -> Unit) {
 private fun WizardProgressBar(step: Int, modifier: Modifier = Modifier) {
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         repeat(4) { i ->
-            Surface(Modifier.weight(1f).height(4.dp), RoundedCornerShape(50), if (i < step) BrandPurple else Color.Gray.copy(alpha = 0.15f)) {}
+            Surface(Modifier.weight(1f).height(4.dp), RoundedCornerShape(50), if (i < step) WizardAccent else Color.Gray.copy(alpha = 0.15f)) {}
         }
     }
 }
@@ -454,7 +471,7 @@ private fun WizardBottomButton(step: Int, disabled: Boolean, onNext: () -> Unit,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = !disabled,
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple, disabledContainerColor = BrandPurple.copy(alpha = 0.4f)),
+                colors = ButtonDefaults.buttonColors(containerColor = WizardAccent, disabledContainerColor = WizardAccent.copy(alpha = 0.4f)),
             ) {
                 if (step < 4) {
                     Text("NEXT", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -485,31 +502,7 @@ private fun Step1BasicInfo(
     durationMinutes: String, onDurationChange: (String) -> Unit,
 ) {
     SectionLabel("SPORT")
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        SportType.SELECTABLE.forEach { sport ->
-            val sel = sportType == sport
-            Surface(
-                onClick = { onSportChange(sport) }, modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp),
-                color = if (sel) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
-                border = if (sel) ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(BrandPurple), width = 2.dp) else null,
-            ) {
-                Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        painter = when (sport) {
-                            SportType.BADMINTON -> painterResource(R.drawable.ic_badminton)
-                            else -> rememberVectorPainter(Icons.Default.SportsTennis)
-                        },
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = if (sel) BrandPurple else Color.Gray,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(sport.displayName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (sel) BrandPurple else Color.Gray)
-                }
-            }
-        }
-    }
+    SportPickerRow(selection = sportType, onSelect = onSportChange)
 
     SectionLabel("TOURNAMENT NAME")
     OutlinedTextField(
@@ -532,8 +525,8 @@ private fun Step1BasicInfo(
         shape = RoundedCornerShape(14.dp), color = Color(0xFFF2F2F7),
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Surface(Modifier.size(40.dp), CircleShape, BrandPurple.copy(alpha = 0.1f)) {
-                Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.LocationOn, null, Modifier.size(18.dp), tint = BrandPurple) }
+            Surface(Modifier.size(40.dp), CircleShape, WizardAccent.copy(alpha = 0.1f)) {
+                Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.LocationOn, null, Modifier.size(18.dp), tint = WizardAccent) }
             }
             if (venueName.isEmpty()) {
                 Text("Select Venue", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color.Gray, modifier = Modifier.weight(1f))
@@ -551,14 +544,14 @@ private fun Step1BasicInfo(
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Surface(onClick = onDateClick, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = Color(0xFFF2F2F7)) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarToday, null, Modifier.size(16.dp), tint = BrandPurple.copy(alpha = 0.6f))
+                Icon(Icons.Default.CalendarToday, null, Modifier.size(16.dp), tint = WizardAccent.copy(alpha = 0.6f))
                 Spacer(Modifier.width(10.dp))
                 Text(dateFmt.format(date), fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
         Surface(onClick = onTimeClick, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = Color(0xFFF2F2F7)) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Schedule, null, Modifier.size(16.dp), tint = BrandPurple.copy(alpha = 0.6f))
+                Icon(Icons.Default.Schedule, null, Modifier.size(16.dp), tint = WizardAccent.copy(alpha = 0.6f))
                 Spacer(Modifier.width(10.dp))
                 Text(timeFmt.format(date), fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
@@ -595,13 +588,13 @@ private fun Step2FormatRules(
                         onClick = { onMatchFormatChange(item.format) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
-                        color = if (sel) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
-                        border = if (sel) ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(BrandPurple), width = 1.5.dp) else null,
+                        color = if (sel) WizardAccent.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
+                        border = if (sel) ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(WizardAccent), width = 1.5.dp) else null,
                     ) {
                         Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(item.icon, null, Modifier.size(24.dp), tint = if (sel) BrandPurple else Color.Gray)
+                            Icon(item.icon, null, Modifier.size(24.dp), tint = if (sel) WizardAccent else Color.Gray)
                             Spacer(Modifier.height(8.dp))
-                            Text(item.format.displayName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (sel) BrandPurple else Color.Black, textAlign = TextAlign.Center)
+                            Text(item.format.displayName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (sel) WizardAccent else Color.Black, textAlign = TextAlign.Center)
                             Spacer(Modifier.height(2.dp))
                             Text(item.tagline, fontSize = 10.sp, color = Color.Gray, textAlign = TextAlign.Center, maxLines = 2, lineHeight = 13.sp)
                         }
@@ -644,7 +637,7 @@ private fun FormatConfigSection(
             ToggleRow(Icons.Default.SwapVert, "Allow Byes", "Top seeds get a first-round bye when bracket isn't full", config.allowByes) {
                 onChange(config.copy(allowByes = it))
             }
-            InfoBanner(Icons.Default.Info, BrandPurple, "Players must lose twice to be eliminated. A losers bracket runs alongside the main bracket.")
+            InfoBanner(Icons.Default.Info, WizardAccent, "Players must lose twice to be eliminated. A losers bracket runs alongside the main bracket.")
         }
         MatchFormat.ROUND_ROBIN -> {
             ToggleRow(Icons.Default.Repeat, "Double Round Robin", "Each team plays every other team twice", config.doubleRoundRobin) {
@@ -663,14 +656,14 @@ private fun FormatConfigSection(
                 StepperField("Per Group", config.teamsPerGroup, 3..8, Modifier.weight(1f)) { onChange(config.copy(teamsPerGroup = it)) }
             }
             StepperField("Advance Per Group", config.advancingPerGroup, 1..4, Modifier.fillMaxWidth()) { onChange(config.copy(advancingPerGroup = it)) }
-            InfoBanner(Icons.Default.Info, BrandPurple, "Top finishers from each group advance to a single-elimination knockout stage.")
+            InfoBanner(Icons.Default.Info, WizardAccent, "Top finishers from each group advance to a single-elimination knockout stage.")
         }
         MatchFormat.SWISS -> {
             StepperField("Number of Rounds", config.swissRounds, 3..10, Modifier.fillMaxWidth()) { onChange(config.copy(swissRounds = it)) }
-            InfoBanner(Icons.Default.Info, BrandPurple, "Each round, players with similar records are paired against each other. No one is eliminated.")
+            InfoBanner(Icons.Default.Info, WizardAccent, "Each round, players with similar records are paired against each other. No one is eliminated.")
         }
         MatchFormat.MANUAL_DRAW -> {
-            InfoBanner(Icons.Default.Draw, BrandPurple, "You will manually assign all matchups after registration closes. Full control over the draw.")
+            InfoBanner(Icons.Default.Draw, WizardAccent, "You will manually assign all matchups after registration closes. Full control over the draw.")
         }
     }
 
@@ -699,11 +692,11 @@ private fun SeedingModePicker(config: FormatConfig, onChange: (FormatConfig) -> 
             Surface(
                 onClick = { onChange(config.copy(seedingMode = mode.rawValue)) },
                 modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
-                color = if (sel) BrandPurple.copy(alpha = 0.15f) else Color(0xFFF2F2F7),
-                border = if (sel) ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(BrandPurple), width = 1.dp) else null,
+                color = if (sel) WizardAccent.copy(alpha = 0.15f) else Color(0xFFF2F2F7),
+                border = if (sel) ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(WizardAccent), width = 1.dp) else null,
             ) {
                 Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-                    color = if (sel) BrandPurple else Color.Black, modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth())
+                    color = if (sel) WizardAccent else Color.Black, modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth())
             }
         }
     }
@@ -783,21 +776,21 @@ private fun Step3RulesLogistics(
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Surface(onClick = onDeadlineDateClick, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = Color(0xFFF2F2F7)) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarToday, null, Modifier.size(16.dp), tint = BrandPurple.copy(alpha = 0.7f))
+                Icon(Icons.Default.CalendarToday, null, Modifier.size(16.dp), tint = WizardAccent.copy(alpha = 0.7f))
                 Spacer(Modifier.width(10.dp))
                 Text(dateFmt.format(deadline), fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
         Surface(onClick = onDeadlineTimeClick, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = Color(0xFFF2F2F7)) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Schedule, null, Modifier.size(16.dp), tint = BrandPurple.copy(alpha = 0.7f))
+                Icon(Icons.Default.Schedule, null, Modifier.size(16.dp), tint = WizardAccent.copy(alpha = 0.7f))
                 Spacer(Modifier.width(10.dp))
                 Text(timeFmt.format(deadline), fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
     if (deadlineIsPast) Text("Registration deadline must be in the future.", fontSize = 12.sp, color = Color.Red, fontWeight = FontWeight.Medium)
-    InfoBanner(Icons.Default.Info, BrandPurple, "Players must register before this time. Defaults to 1 hour before start.")
+    InfoBanner(Icons.Default.Info, WizardAccent, "Players must register before this time. Defaults to 1 hour before start.")
 }
 
 // ── Step 4 ───────────────────────────────────────────
@@ -812,12 +805,12 @@ private fun Step4Review(
     val symbol = commonCurrencies.firstOrNull { it.first == currency }?.second ?: currency
     Surface(
         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
-        color = BrandPurple.copy(alpha = 0.05f),
+        color = WizardAccent.copy(alpha = 0.05f),
     ) {
         Column(Modifier.padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(contentAlignment = Alignment.Center) {
-                Surface(Modifier.size(50.dp), CircleShape, BrandPurple.copy(alpha = 0.12f)) {}
-                Icon(Icons.Default.Visibility, null, Modifier.size(26.dp), tint = BrandPurple)
+                Surface(Modifier.size(50.dp), CircleShape, WizardAccent.copy(alpha = 0.12f)) {}
+                Icon(Icons.Default.Visibility, null, Modifier.size(26.dp), tint = WizardAccent)
             }
             Spacer(Modifier.height(12.dp))
             Text("CONFIRM DETAILS", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -831,7 +824,7 @@ private fun Step4Review(
     ReviewRow("DEADLINE", dateFmt.format(deadline))
     if (ageGroup != AgeGroup.OPEN) ReviewRow("AGE GROUP", ageGroup.displayName)
     val fee = entryFee.toDoubleOrNull()
-    if (fee != null && fee > 0) ReviewRow("ENTRY FEE", "$symbol${String.format("%.2f", fee)}", BrandPurple) else ReviewRow("ENTRY FEE", "Free", BrandPurple)
+    if (fee != null && fee > 0) ReviewRow("ENTRY FEE", "$symbol${String.format("%.2f", fee)}", WizardAccent) else ReviewRow("ENTRY FEE", "Free", WizardAccent)
     if (prizeInfo.isNotEmpty()) ReviewRow("PRIZES", prizeInfo, Color(0xFFFF9800))
     if (format.isDoubles && randomPairing) ReviewRow("PAIRING", "Random Assignment")
     formatConfig.maxParticipants?.let { ReviewRow("MAX PLAYERS", "$it") }
@@ -849,8 +842,8 @@ private fun SuccessScreen(title: String, onDone: () -> Unit) {
     ) {
         Spacer(Modifier.weight(1f))
         Box(contentAlignment = Alignment.Center) {
-            Surface(Modifier.size(100.dp), CircleShape, BrandPurple.copy(alpha = 0.15f)) {}
-            Surface(Modifier.size(72.dp), CircleShape, BrandPurple) {}
+            Surface(Modifier.size(100.dp), CircleShape, WizardAccent.copy(alpha = 0.15f)) {}
+            Surface(Modifier.size(72.dp), CircleShape, WizardAccent) {}
             Icon(Icons.Default.Celebration, null, Modifier.size(30.dp), tint = Color.White)
         }
         Spacer(Modifier.height(20.dp))
@@ -859,7 +852,7 @@ private fun SuccessScreen(title: String, onDone: () -> Unit) {
         Text("Successfully published \"$title\".", fontSize = 14.sp, color = Color.Gray)
         Spacer(Modifier.weight(1f))
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)) {
+            colors = ButtonDefaults.buttonColors(containerColor = WizardAccent)) {
             Text("DONE", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         }
     }
@@ -882,7 +875,7 @@ private fun ReviewRow(label: String, value: String, valueColor: Color? = null) {
 private fun PickerRow(text: String, icon: ImageVector? = null, onClick: () -> Unit) {
     Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = Color(0xFFF2F2F7)) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            icon?.let { Icon(it, null, Modifier.size(18.dp), tint = BrandPurple); Spacer(Modifier.width(10.dp)) }
+            icon?.let { Icon(it, null, Modifier.size(18.dp), tint = WizardAccent); Spacer(Modifier.width(10.dp)) }
             Text(text, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
             Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp), tint = Color.Gray)
         }
@@ -893,10 +886,10 @@ private fun PickerRow(text: String, icon: ImageVector? = null, onClick: () -> Un
 private fun ToggleRow(icon: ImageVector, title: String, subtitle: String, isOn: Boolean, onToggle: (Boolean) -> Unit) {
     Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFF2F2F7), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, Modifier.size(20.dp), tint = BrandPurple)
+            Icon(icon, null, Modifier.size(20.dp), tint = WizardAccent)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) { Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold); Text(subtitle, fontSize = 11.sp, color = Color.Gray) }
-            Switch(checked = isOn, onCheckedChange = onToggle, colors = SwitchDefaults.colors(checkedTrackColor = BrandPurple))
+            Switch(checked = isOn, onCheckedChange = onToggle, colors = SwitchDefaults.colors(checkedTrackColor = WizardAccent))
         }
     }
 }
