@@ -96,7 +96,9 @@ fun SimpleScoreEntryScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            val canSubmit = (scoreA.toIntOrNull() ?: -1) >= 0 && (scoreB.toIntOrNull() ?: -1) >= 0 && scoreA != scoreB
+            val a = scoreA.toIntOrNull()
+            val b = scoreB.toIntOrNull()
+            val canSubmit = a != null && b != null && a >= 0 && b >= 0 && a != b && (a > 0 || b > 0)
             Button(
                 onClick = { showCelebration = true },
                 enabled = canSubmit,

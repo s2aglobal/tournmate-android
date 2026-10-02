@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.domain.model
 
+import java.util.Calendar
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -27,6 +28,7 @@ data class Tournament(
     val ageGroupRaw: String = AgeGroup.OPEN.rawValue,
     val durationMinutes: Int? = null,
     val formatConfigData: String? = null,
+    val scoringConfigData: String? = null,
     val countryCode: String? = null,
     val postalCode: String? = null,
     val timeZone: String? = null,
@@ -44,11 +46,15 @@ data class Tournament(
     val ageGroup: AgeGroup
         get() = AgeGroup.fromRawValue(ageGroupRaw)
 
+    val formatConfig: FormatConfig
+        get() = FormatConfig.decode(formatConfigData, matchFormat)
+
+    val scoringConfig: ScoringConfig
+        get() = ScoringConfig.decodeOrNull(scoringConfigData) ?: sportType.scoringRules.defaultConfig
+
+    /** Matches iOS: the stored deadline is used as-is (missing ones are filled with `defaultDeadline` on read). */
     val effectiveDeadline: Date
-        get() {
-            val oneHourBefore = Date(date.time - TimeUnit.HOURS.toMillis(1))
-            return if (registrationDeadline.before(oneHourBefore)) registrationDeadline else oneHourBefore
-        }
+        get() = registrationDeadline
 
     val isRegistrationClosed: Boolean
         get() = Date().after(effectiveDeadline)
@@ -90,7 +96,27 @@ data class Tournament(
     companion object {
         const val CANCELLATION_CUTOFF_HOURS = 3.0
 
-        fun defaultDeadline(forDate: Date): Date =
-            Date(forDate.time - TimeUnit.HOURS.toMillis(1))
+        /**
+         * 11:59:59 PM the day before the tournament; if that has passed, 1 hour before
+         * the start (but never earlier than 15 minutes from now).
+         */
+        fun defaultDeadline(forDate: Date): Date {
+            val cal = Calendar.getInstance().apply {
+                time = forDate
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+                add(Calendar.DAY_OF_YEAR, -1)
+                set(Calendar.HOUR_OF_DAY, 23)
+                set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59)
+            }
+            val now = System.currentTimeMillis()
+            if (cal.timeInMillis > now) return cal.time
+            val oneHourBefore = forDate.time - TimeUnit.HOURS.toMillis(1)
+            val minimumDeadline = now + TimeUnit.MINUTES.toMillis(15)
+            return Date(maxOf(oneHourBefore, minimumDeadline))
+        }
     }
 }

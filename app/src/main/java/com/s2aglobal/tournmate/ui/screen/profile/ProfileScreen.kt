@@ -313,7 +313,7 @@ private fun SportCard(player: Player, vm: ProfileViewModel) {
         SectionHeader("My Sport", Icons.Default.SportsTennis)
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            listOf(SportType.BADMINTON, SportType.PICKLEBALL, SportType.TENNIS).forEach { sport ->
+            SportType.SELECTABLE.forEach { sport ->
                 SportChip(sport, player.preferredSport == sport, Modifier.weight(1f)) { vm.updateSport(sport) }
             }
         }

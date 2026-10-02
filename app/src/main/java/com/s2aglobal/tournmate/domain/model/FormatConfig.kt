@@ -52,9 +52,9 @@ data class FormatConfig(
             MatchFormat.DOUBLE_ELIMINATION -> FormatConfig(
                 seedingMode = SeedingMode.ELO_RANKED.rawValue,
                 allowByes = true,
-                consolationBracket = true,
             )
             MatchFormat.ROUND_ROBIN -> FormatConfig(
+                seedingMode = SeedingMode.RANDOM.rawValue,
                 pointsPerWin = 2,
                 pointsPerDraw = 1,
                 pointsPerLoss = 0,
@@ -70,7 +70,22 @@ data class FormatConfig(
             MatchFormat.SWISS -> FormatConfig(
                 swissRounds = 5,
             )
-            MatchFormat.MANUAL_DRAW -> FormatConfig()
+            MatchFormat.MANUAL_DRAW -> FormatConfig(seedingMode = SeedingMode.MANUAL.rawValue)
         }
+
+        fun decodeOrNull(json: String?): FormatConfig? {
+            if (json.isNullOrBlank()) return null
+            return try {
+                ConfigJson.decodeFromString(serializer(), json)
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        /** Decodes leniently, falling back to the match format's defaults. */
+        fun decode(json: String?, matchFormat: MatchFormat): FormatConfig =
+            decodeOrNull(json) ?: defaults(matchFormat)
     }
+
+    fun encode(): String = ConfigJson.encodeToString(serializer(), this)
 }

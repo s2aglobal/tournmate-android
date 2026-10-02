@@ -3,6 +3,7 @@ package com.s2aglobal.tournmate.service.court
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
+import com.s2aglobal.tournmate.domain.model.SportType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -31,26 +32,27 @@ class CourtSearchService(private val context: Context) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun searchCourts(query: String): List<CourtResult> = withContext(Dispatchers.IO) {
+    suspend fun searchCourts(query: String, sport: SportType): List<CourtResult> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         if (trimmed.length < 2) return@withContext emptyList()
 
         val isLikelyZip = trimmed.length <= 10 && trimmed.all { it.isDigit() || it == '-' || it == ' ' }
 
         if (isLikelyZip) {
-            searchByZipCode(trimmed)
+            searchByZipCode(trimmed, sport.inlineName)
         } else {
             searchByName(trimmed)
         }
     }
 
-    /** Searches for badminton courts near an explicit coordinate (e.g. the user's current location). */
+    /** Searches for courts for [sport] near an explicit coordinate (e.g. the user's current location). */
     suspend fun searchNearby(
         latitude: Double,
         longitude: Double,
+        sport: SportType,
         radiusMeters: Int = 25_000,
     ): List<CourtResult> = withContext(Dispatchers.IO) {
-        val queries = listOf("badminton court", "badminton", "sports recreation center")
+        val queries = sportQueries(sport.inlineName)
         for (q in queries) {
             val results = nearbySearch(q, latitude, longitude, radiusMeters)
             if (results.isNotEmpty()) return@withContext results
@@ -98,7 +100,9 @@ class CourtSearchService(private val context: Context) {
     }
 
     @Suppress("DEPRECATION")
-    private fun searchByZipCode(zipCode: String): List<CourtResult> {
+    private fun sportQueries(sport: String) = listOf("$sport court", sport, "sports recreation center")
+
+    private fun searchByZipCode(zipCode: String, sport: String): List<CourtResult> {
         // Step 1: Geocode zip to coordinates (like iOS CLGeocoder)
         var lat: Double? = null
         var lng: Double? = null
@@ -143,12 +147,12 @@ class CourtSearchService(private val context: Context) {
             }
         }
 
-        val finalLat = lat ?: return textSearchFallback(zipCode)
-        val finalLng = lng ?: return textSearchFallback(zipCode)
+        val finalLat = lat ?: return textSearchFallback(zipCode, sport)
+        val finalLng = lng ?: return textSearchFallback(zipCode, sport)
 
         // Step 2: Search nearby for sports venues (like iOS MKLocalSearch)
         android.util.Log.d("CourtSearch", "Searching nearby at $finalLat, $finalLng with apiKey=${apiKey.take(10)}...")
-        val queries = listOf("badminton court", "badminton", "sports recreation center")
+        val queries = sportQueries(sport)
         for (q in queries) {
             android.util.Log.d("CourtSearch", "Trying nearby search: '$q'")
             val results = nearbySearch(q, finalLat, finalLng, 25000)
@@ -158,12 +162,12 @@ class CourtSearchService(private val context: Context) {
 
         // Step 3: Fallback — text search
         android.util.Log.d("CourtSearch", "No nearby results, trying text search fallback")
-        return textSearchFallback(zipCode)
+        return textSearchFallback(zipCode, sport)
     }
 
-    private fun textSearchFallback(zipCode: String): List<CourtResult> {
+    private fun textSearchFallback(zipCode: String, sport: String): List<CourtResult> {
         if (apiKey.isBlank()) return emptyList()
-        val results = textSearch("badminton court near $zipCode")
+        val results = textSearch("$sport court near $zipCode")
         if (results.isNotEmpty()) return results
         val fallback = textSearch("recreation center near $zipCode")
         if (fallback.isNotEmpty()) return fallback
@@ -173,10 +177,8 @@ class CourtSearchService(private val context: Context) {
     private fun searchByName(name: String): List<CourtResult> {
         // Try text search first
         if (apiKey.isNotBlank()) {
-            val results = textSearch("$name badminton")
+            val results = textSearch(name)
             if (results.isNotEmpty()) return results
-            val fallback = textSearch(name)
-            if (fallback.isNotEmpty()) return fallback
         }
 
         // Fallback to geocoder
@@ -253,7 +255,7 @@ class CourtSearchService(private val context: Context) {
     @Suppress("DEPRECATION")
     private fun geocoderSearch(query: String): List<CourtResult> {
         val geocoder = Geocoder(context, Locale.getDefault())
-        val queries = listOf("$query badminton", "$query recreation center", query)
+        val queries = listOf(query, "$query recreation center")
         val results = mutableListOf<CourtResult>()
         val seen = mutableSetOf<String>()
 

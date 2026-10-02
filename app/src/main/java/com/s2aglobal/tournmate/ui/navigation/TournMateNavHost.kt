@@ -245,6 +245,7 @@ fun TournMateNavHost(
                 currentPlayerId = uiState.currentPlayerId,
                 hasRated = uiState.hasRated,
                 isLoading = uiState.isLoading,
+                viewerSport = uiState.viewerSport,
                 onBack = { navController.popBackStack() },
                 onRatePlayer = { viewModel.showRateSheet() },
             )

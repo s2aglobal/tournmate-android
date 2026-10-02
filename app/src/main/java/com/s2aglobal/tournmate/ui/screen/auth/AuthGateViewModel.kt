@@ -53,6 +53,8 @@ class AuthGateViewModel @Inject constructor(
             if (savedPlayerId != null) {
                 val player = playerRepo.findPlayerById(savedPlayerId)
                 if (player != null) {
+                    // Player doc is the source of truth for sport; local copy can be stale.
+                    currentUserStore.setPreferredSport(player.preferredSport)
                     notificationService.subscribeToHomeRegion(player)
                     val hasSeenOnboarding = currentUserStore.hasSeenOnboarding()
                     _authState.value = if (hasSeenOnboarding) AuthState.SIGNED_IN
@@ -65,6 +67,7 @@ class AuthGateViewModel @Inject constructor(
             if (player != null) {
                 currentUserStore.setCurrentPlayerId(player.id)
                 currentUserStore.setFirebaseUid(firebaseUser.uid)
+                currentUserStore.setPreferredSport(player.preferredSport)
                 notificationService.subscribeToHomeRegion(player)
                 val hasSeenOnboarding = currentUserStore.hasSeenOnboarding()
                 _authState.value = if (hasSeenOnboarding) AuthState.SIGNED_IN

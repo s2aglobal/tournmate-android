@@ -48,7 +48,7 @@ class FirestorePlayerRepository @Inject constructor(
             email = email.lowercase(),
             genderRaw = gender.rawValue,
             createdAt = Date(),
-            eloRatings = mapOf(preferredSport.rawValue to 1200.0),
+            eloRatings = mapOf(SportType.BADMINTON.rawValue to 1200.0),
             preferredSport = preferredSport,
             streak = 0,
             firebaseUid = firebaseUid,
@@ -113,6 +113,7 @@ class FirestorePlayerRepository @Inject constructor(
             "phone" to player.phone,
             "genderRaw" to player.genderRaw,
             "avatarId" to player.avatarId,
+            "preferredSport" to player.preferredSport.rawValue,
         )
         player.homeCountryCode?.let { allowedFields["homeCountryCode"] = it }
         player.homePostalCode?.let { allowedFields["homePostalCode"] = it }

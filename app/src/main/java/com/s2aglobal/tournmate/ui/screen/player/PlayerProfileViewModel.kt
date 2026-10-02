@@ -11,6 +11,7 @@ import com.s2aglobal.tournmate.data.repository.RegistrationRepository
 import com.s2aglobal.tournmate.domain.model.MatchStatus
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.PlayerRating
+import com.s2aglobal.tournmate.domain.model.SportType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,7 @@ data class PlayerProfileUiState(
     val errorMessage: String? = null,
     val showRateSheet: Boolean = false,
     val ratingSubmitted: Boolean = false,
+    val viewerSport: SportType = SportType.BADMINTON,
 )
 
 @HiltViewModel
@@ -50,6 +52,11 @@ class PlayerProfileViewModel @Inject constructor(
 
     init {
         load()
+        viewModelScope.launch {
+            currentUserStore.preferredSportFlow.collect { sport ->
+                _uiState.value = _uiState.value.copy(viewerSport = sport)
+            }
+        }
     }
 
     fun load() {

@@ -51,7 +51,6 @@ private val commonCurrencies = listOf(
     Triple("MYR", "RM", "Malaysian Ringgit"),
 )
 
-private val publishableSports = listOf(SportType.BADMINTON, SportType.PICKLEBALL, SportType.TENNIS)
 
 private data class MatchFormatItem(
     val format: MatchFormat,
@@ -487,7 +486,7 @@ private fun Step1BasicInfo(
 ) {
     SectionLabel("SPORT")
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        publishableSports.forEach { sport ->
+        SportType.SELECTABLE.forEach { sport ->
             val sel = sportType == sport
             Surface(
                 onClick = { onSportChange(sport) }, modifier = Modifier.weight(1f),

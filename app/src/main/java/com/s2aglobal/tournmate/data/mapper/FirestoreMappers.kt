@@ -8,6 +8,13 @@ import java.util.UUID
 
 fun DocumentSnapshot.toPlayer(): Player? {
     if (!exists()) return null
+    val legacyElo = getDouble("elo") ?: 1200.0
+    val storedRatings = (get("eloRatings") as? Map<*, *>)?.mapNotNull { (k, v) ->
+        val key = k as? String ?: return@mapNotNull null
+        val value = (v as? Number)?.toDouble() ?: return@mapNotNull null
+        key to value
+    }?.toMap() ?: emptyMap()
+    val preferredSport = SportType.fromRawValue(getString("preferredSport"))
     return Player(
         id = id.toUuidOrNull() ?: return null,
         name = getString("name") ?: "",
@@ -15,12 +22,8 @@ fun DocumentSnapshot.toPlayer(): Player? {
         email = getString("email") ?: "",
         genderRaw = getString("genderRaw") ?: Gender.PREFER_NOT_TO_SAY.rawValue,
         createdAt = getTimestamp("createdAt")?.toDate() ?: Date(),
-        eloRatings = (get("eloRatings") as? Map<*, *>)?.mapNotNull { (k, v) ->
-            val key = k as? String ?: return@mapNotNull null
-            val value = (v as? Number)?.toDouble() ?: return@mapNotNull null
-            key to value
-        }?.toMap() ?: mapOf("badminton" to (getDouble("elo") ?: 1200.0)),
-        preferredSport = SportType.fromRawValue(getString("preferredSport")),
+        eloRatings = resolveEloRatings(legacyElo, storedRatings, preferredSport),
+        preferredSport = preferredSport,
         streak = getLong("streak")?.toInt() ?: 0,
         firebaseUid = getString("firebaseUid"),
         avatarId = getString("avatarId") ?: PlayerAvatar.DEFAULT.id,
@@ -32,6 +35,22 @@ fun DocumentSnapshot.toPlayer(): Player? {
     )
 }
 
+/**
+ * Merges the legacy `elo` field and the `eloRatings` map. `elo` is the source of truth for
+ * badminton, unless it was written as the preferred sport's rating (older Android builds).
+ */
+fun resolveEloRatings(
+    legacyElo: Double,
+    stored: Map<String, Double>,
+    preferredSport: SportType,
+): Map<String, Double> {
+    val badmintonKey = SportType.BADMINTON.rawValue
+    val writtenAsPreferredSport = preferredSport != SportType.BADMINTON &&
+        stored[preferredSport.rawValue] == legacyElo &&
+        stored.containsKey(badmintonKey)
+    return if (writtenAsPreferredSport) stored else stored + (badmintonKey to legacyElo)
+}
+
 fun Player.toFirestoreMap(): Map<String, Any?> = buildMap {
     put("name", name)
     put("phone", phone)
@@ -39,7 +58,7 @@ fun Player.toFirestoreMap(): Map<String, Any?> = buildMap {
     put("genderRaw", genderRaw)
     put("createdAt", Timestamp(createdAt))
     put("eloRatings", eloRatings)
-    put("elo", elo)
+    put("elo", elo(SportType.BADMINTON))
     put("preferredSport", preferredSport.rawValue)
     put("streak", streak)
     put("avatarId", avatarId)
@@ -66,7 +85,8 @@ fun DocumentSnapshot.toTournament(): Tournament? {
         formatRaw = getString("formatRaw") ?: TournamentFormat.OPEN_DOUBLES.rawValue,
         matchFormatRaw = getString("matchFormatRaw") ?: MatchFormat.SINGLE_ELIMINATION.rawValue,
         randomPairing = getBoolean("randomPairing") ?: false,
-        registrationDeadline = getTimestamp("registrationDeadline")?.toDate() ?: Date(),
+        registrationDeadline = getTimestamp("registrationDeadline")?.toDate()
+            ?: Tournament.defaultDeadline(getTimestamp("date")?.toDate() ?: Date()),
         createdAt = getTimestamp("createdAt")?.toDate() ?: Date(),
         createdBy = getString("createdBy"),
         entryFee = getDouble("entryFee"),
@@ -76,6 +96,7 @@ fun DocumentSnapshot.toTournament(): Tournament? {
         ageGroupRaw = getString("ageGroupRaw") ?: AgeGroup.OPEN.rawValue,
         durationMinutes = getLong("durationMinutes")?.toInt(),
         formatConfigData = getString("formatConfigData"),
+        scoringConfigData = getString("scoringConfigData"),
         countryCode = getString("countryCode"),
         postalCode = getString("postalCode"),
         timeZone = getString("timeZone"),
@@ -105,6 +126,7 @@ fun Tournament.toFirestoreMap(): Map<String, Any?> = buildMap {
     put("ageGroupRaw", ageGroupRaw)
     durationMinutes?.let { put("durationMinutes", it) }
     formatConfigData?.let { put("formatConfigData", it) }
+    scoringConfigData?.let { put("scoringConfigData", it) }
     countryCode?.let { put("countryCode", it) }
     postalCode?.let { put("postalCode", it) }
     timeZone?.let { put("timeZone", it) }
@@ -146,10 +168,19 @@ fun DocumentSnapshot.toMatch(): Match? {
     if (!exists()) return null
     val setScoresRaw = get("setScores") as? List<*>
     val setScores = setScoresRaw?.mapNotNull { raw ->
-        val list = raw as? List<*> ?: return@mapNotNull null
-        val a = (list.getOrNull(0) as? Number)?.toInt() ?: return@mapNotNull null
-        val b = (list.getOrNull(1) as? Number)?.toInt() ?: return@mapNotNull null
-        SetScore(a, b)
+        when (raw) {
+            is Map<*, *> -> {
+                val a = (raw["teamAPoints"] as? Number)?.toInt() ?: return@mapNotNull null
+                val b = (raw["teamBPoints"] as? Number)?.toInt() ?: return@mapNotNull null
+                SetScore(a, b)
+            }
+            is List<*> -> {
+                val a = (raw.getOrNull(0) as? Number)?.toInt() ?: return@mapNotNull null
+                val b = (raw.getOrNull(1) as? Number)?.toInt() ?: return@mapNotNull null
+                SetScore(a, b)
+            }
+            else -> null
+        }
     } ?: emptyList()
 
     return Match(
@@ -227,7 +258,7 @@ fun DocumentSnapshot.toCalorieRecord(): CalorieRecord? {
         calories = getDouble("calories") ?: 0.0,
         source = CalorieSource.fromRawValue(getString("source")),
         weightUsedKg = getDouble("weightUsedKg") ?: 70.0,
-        durationMinutes = getLong("durationMinutes")?.toInt() ?: 0,
+        durationMinutes = getLong("durationMinutes")?.toInt() ?: 120,
         date = getTimestamp("date")?.toDate() ?: Date(),
         sessionTitle = getString("sessionTitle"),
         activityType = CalorieActivityType.fromRawValue(getString("activityType")),

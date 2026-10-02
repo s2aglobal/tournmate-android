@@ -23,7 +23,7 @@ enum class SportType(val rawValue: String) {
             FOOTBALL -> "Football"
             SOCCER -> "Soccer"
             CRICKET -> "Cricket"
-            GENERIC -> "Sport"
+            GENERIC -> "Other"
         }
 
     val icon: String
@@ -40,46 +40,57 @@ enum class SportType(val rawValue: String) {
             GENERIC -> "sports"
         }
 
+    val inlineName: String
+        get() = displayName.lowercase()
+
     val scoreUnitName: String
         get() = when (this) {
-            BADMINTON -> "points"
-            TENNIS -> "games"
-            TABLE_TENNIS -> "points"
-            PICKLEBALL -> "points"
+            SOCCER -> "goals"
+            CRICKET -> "runs"
             else -> "points"
         }
 
     val setName: String
         get() = when (this) {
-            BADMINTON -> "sets"
+            BADMINTON -> "games"
             TENNIS -> "sets"
             TABLE_TENNIS -> "games"
             PICKLEBALL -> "games"
-            else -> "sets"
+            VOLLEYBALL -> "sets"
+            BASKETBALL -> "quarters"
+            FOOTBALL -> "quarters"
+            SOCCER -> "halves"
+            CRICKET -> "innings"
+            GENERIC -> "sets"
+        }
+
+    val setNameSingular: String
+        get() = when (this) {
+            BADMINTON -> "game"
+            TENNIS -> "set"
+            TABLE_TENNIS -> "game"
+            PICKLEBALL -> "game"
+            VOLLEYBALL -> "set"
+            BASKETBALL -> "quarter"
+            FOOTBALL -> "quarter"
+            SOCCER -> "half"
+            CRICKET -> "innings"
+            GENERIC -> "set"
         }
 
     val usesSetScoring: Boolean
-        get() = this in listOf(BADMINTON, TENNIS, TABLE_TENNIS, PICKLEBALL)
+        get() = this in listOf(BADMINTON, TENNIS, TABLE_TENNIS, PICKLEBALL, VOLLEYBALL)
 
     val defaultBestOf: Int
-        get() = when (this) {
-            BADMINTON -> 3
-            TENNIS -> 3
-            TABLE_TENNIS -> 5
-            PICKLEBALL -> 3
-            else -> 1
-        }
+        get() = scoringRules.defaultConfig.gamesPerMatch
 
     val defaultPointsPerSet: Int
-        get() = when (this) {
-            BADMINTON -> 21
-            TENNIS -> 6
-            TABLE_TENNIS -> 11
-            PICKLEBALL -> 11
-            else -> 21
-        }
+        get() = scoringRules.defaultConfig.pointsToWin
 
     companion object {
+        /** Sports offered in pickers, in display order. */
+        val SELECTABLE: List<SportType> = listOf(PICKLEBALL, BADMINTON, TENNIS)
+
         fun fromRawValue(raw: String?): SportType =
             entries.firstOrNull { it.rawValue == raw } ?: BADMINTON
     }

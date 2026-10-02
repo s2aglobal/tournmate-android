@@ -34,12 +34,19 @@ data class OpenPlayListUiState(
     val currentPlayer: Player? = null,
     val currentPlayerId: String? = null,
     val firebaseUid: String? = null,
+    val preferredSport: SportType = SportType.BADMINTON,
 ) {
     val displaySessions: List<PlaySession>
         get() = when (filter) {
-            OpenPlayFilter.ALL_SESSIONS -> allUpcoming.filter { passesRegion(it) }
-            OpenPlayFilter.MY_SESSIONS -> allUpcoming.filter { isMine(it) }
-            OpenPlayFilter.COMPLETED -> allPast.filter { passesRegion(it) }
+            OpenPlayFilter.ALL_SESSIONS -> allUpcoming.filter {
+                passesSport(it) && passesRegion(it) && it.status == PlaySessionStatus.ACTIVE
+            }
+            OpenPlayFilter.MY_SESSIONS -> allUpcoming.filter {
+                isMine(it) && passesRegionOrMine(it) && it.status == PlaySessionStatus.ACTIVE
+            }
+            OpenPlayFilter.COMPLETED ->
+                allUpcoming.filter { it.status == PlaySessionStatus.COMPLETED && passesSport(it) && passesRegion(it) } +
+                    allPast.filter { passesSport(it) && passesRegion(it) }
         }
 
     val isEmpty: Boolean
@@ -50,6 +57,20 @@ data class OpenPlayListUiState(
         val pid = currentPlayerId ?: return false
         return session.hostId == uid || session.attendeeIds.contains(pid)
     }
+
+    private fun passesRegionOrMine(session: PlaySession): Boolean {
+        if (isMine(session)) return true
+        return RegionNormalizer.sessionMatchesPlayerRegion(
+            sessionCountry = session.countryCode,
+            sessionPostal = session.postalCode,
+            playerCountry = currentPlayer?.homeCountryCode,
+            playerPostal = currentPlayer?.homePostalCode,
+        )
+    }
+
+    // Applied to All Sessions and Completed; My Sessions shows every sport.
+    private fun passesSport(session: PlaySession): Boolean =
+        session.sportType == preferredSport
 
     private fun passesRegion(session: PlaySession): Boolean {
         val player = currentPlayer ?: return true
@@ -74,6 +95,11 @@ class OpenPlayListViewModel @Inject constructor(
 
     init {
         load()
+        viewModelScope.launch {
+            currentUserStore.preferredSportFlow.collect { sport ->
+                _uiState.value = _uiState.value.copy(preferredSport = sport)
+            }
+        }
     }
 
     fun load() {

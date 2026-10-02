@@ -48,6 +48,7 @@ class ProfileSetupViewModel @Inject constructor(
 
             currentUserStore.setCurrentPlayerId(player.id)
             currentUserStore.setFirebaseUid(uid)
+            currentUserStore.setPreferredSport(preferredSport)
             onComplete()
         }
     }

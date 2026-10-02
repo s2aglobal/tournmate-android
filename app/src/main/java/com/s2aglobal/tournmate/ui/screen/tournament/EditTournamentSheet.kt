@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
 import com.s2aglobal.tournmate.util.DatePickerUtils
-import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -72,12 +71,15 @@ fun EditTournamentSheet(
     }
     var editAgeGroup by remember { mutableStateOf(tournament.ageGroup) }
 
-    val existingConfig: FormatConfig = remember(tournament) {
-        try {
-            Json.decodeFromString<FormatConfig>(tournament.formatConfigData ?: "{}")
-        } catch (_: Exception) { FormatConfig() }
+    val existingConfig: FormatConfig? = remember(tournament) {
+        FormatConfig.decodeOrNull(tournament.formatConfigData)
     }
-    var editFormatConfig by remember { mutableStateOf(existingConfig) }
+    var editFormatConfig by remember {
+        mutableStateOf(existingConfig ?: FormatConfig.defaults(tournament.matchFormat))
+    }
+    // Only write the config when it was loaded or the organizer touched it, so an
+    // unreadable stored config is never replaced with blank defaults.
+    var formatConfigEdited by remember { mutableStateOf(false) }
 
     var showVenuePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -170,7 +172,10 @@ fun EditTournamentSheet(
                 }
 
                 // Format Config
-                EditFormatConfigSection(editMatchFormat, editFormatConfig) { editFormatConfig = it }
+                EditFormatConfigSection(editMatchFormat, editFormatConfig) {
+                    editFormatConfig = it
+                    formatConfigEdited = true
+                }
 
                 // Random Pairing
                 if (editFormat.isDoubles) {
@@ -390,7 +395,8 @@ fun EditTournamentSheet(
                                 editTitle.trim(), editDate,
                                 editVenueName, editVenueAddress,
                                 editVenueLatitude, editVenueLongitude,
-                                editFormat, editMatchFormat, editFormatConfig,
+                                editFormat, editMatchFormat,
+                                editFormatConfig.takeIf { existingConfig != null || formatConfigEdited },
                                 if (editFormat.isDoubles) editRandomPairing else false,
                                 editDeadline,
                                 editEntryFee.toDoubleOrNull(), editCurrency,
@@ -496,8 +502,11 @@ fun EditTournamentSheet(
                 selectedItem = editMatchFormat,
                 displayName = { it.displayName },
                 onSelect = {
-                    editMatchFormat = it
-                    editFormatConfig = FormatConfig()
+                    if (it != editMatchFormat) {
+                        editMatchFormat = it
+                        editFormatConfig = FormatConfig.defaults(it)
+                        formatConfigEdited = true
+                    }
                     showMatchFormatPicker = false
                 },
                 onDismiss = { showMatchFormatPicker = false },

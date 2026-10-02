@@ -191,9 +191,10 @@ object PairingService {
     }
 
     private fun avgElo(registration: Registration): Double {
-        val elo1 = registration.player.elo
+        val sport = registration.tournament.sportType
+        val elo1 = registration.player.elo(sport)
         val partner = registration.partner
-        return if (partner != null) (elo1 + partner.elo) / 2.0 else elo1
+        return if (partner != null) (elo1 + partner.elo(sport)) / 2.0 else elo1
     }
 
     private fun nextPowerOf2(n: Int): Int {

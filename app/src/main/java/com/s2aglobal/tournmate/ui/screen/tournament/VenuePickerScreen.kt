@@ -63,7 +63,7 @@ fun VenuePickerScreen(
             focusManager.clearFocus()
             isSearching = true
             hasSearched = true
-            results = try { courtSearchService.searchCourts(trimmed) } catch (_: Exception) { emptyList() }
+            results = try { courtSearchService.searchCourts(trimmed, sportType) } catch (_: Exception) { emptyList() }
             isSearching = false
         }
     }

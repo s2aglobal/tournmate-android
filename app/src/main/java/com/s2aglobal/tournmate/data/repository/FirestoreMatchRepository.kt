@@ -255,20 +255,23 @@ class FirestoreMatchRepository @Inject constructor(
         val winners = listOfNotNull(winnerReg.player, winnerReg.partner)
         val losers = listOfNotNull(loserReg.player, loserReg.partner)
 
-        val updatedPlayers = mutableListOf<Player>()
+        val current = linkedMapOf<UUID, Player>()
+        (winners + losers).forEach { current[it.id] = it }
         for (w in winners) {
             for (l in losers) {
-                val (newW, newL) = EloEngine.applyResult(w, l, match.sportType)
-                updatedPlayers.add(newW.copy(streak = maxOf(newW.streak, 0) + 1))
-                updatedPlayers.add(newL.copy(streak = minOf(newL.streak, 0) - 1))
+                val (newW, newL) = EloEngine.applyResult(current.getValue(w.id), current.getValue(l.id), match.sportType)
+                current[w.id] = newW
+                current[l.id] = newL
             }
         }
+        winners.forEach { w -> current[w.id] = current.getValue(w.id).let { it.copy(streak = maxOf(it.streak, 0) + 1) } }
+        losers.forEach { l -> current[l.id] = current.getValue(l.id).let { it.copy(streak = minOf(it.streak, 0) - 1) } }
 
-        for (player in updatedPlayers) {
+        for (player in current.values) {
             try {
                 playerRepo.updatePlayerFields(player.id, mapOf(
                     "eloRatings" to player.eloRatings,
-                    "elo" to player.elo,
+                    "elo" to player.elo(SportType.BADMINTON),
                     "streak" to player.streak,
                 ))
             } catch (_: Exception) { }

@@ -25,6 +25,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.SeedTier
+import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,6 +36,7 @@ fun PlayerDirectoryScreen(
     onBack: () -> Unit,
     onPlayerClick: (String) -> Unit,
     onSearch: (String) -> Unit,
+    viewerSport: SportType = SportType.BADMINTON,
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -102,6 +104,7 @@ fun PlayerDirectoryScreen(
                     items(players, key = { it.id }) { player ->
                         PlayerRow(
                             player = player,
+                            sport = viewerSport,
                             onClick = { onPlayerClick(player.id.toString().uppercase()) },
                         )
                     }
@@ -114,9 +117,11 @@ fun PlayerDirectoryScreen(
 @Composable
 private fun PlayerRow(
     player: Player,
+    sport: SportType,
     onClick: () -> Unit,
 ) {
-    val tier = SeedTier.fromElo(player.elo)
+    val elo = player.elo(sport)
+    val tier = SeedTier.fromElo(elo)
 
     Card(
         onClick = onClick,
@@ -154,7 +159,7 @@ private fun PlayerRow(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "ELO ${player.elo.toInt()}",
+                        "ELO ${elo.toInt()}",
                         fontSize = 12.sp,
                         color = Color.Gray,
                     )

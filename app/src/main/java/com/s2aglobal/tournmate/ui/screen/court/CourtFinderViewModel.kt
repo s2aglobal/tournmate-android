@@ -13,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -113,7 +114,7 @@ class CourtFinderViewModel @Inject constructor(
                 it.copy(isLoading = true, errorMessage = null, hasSearched = true, courts = emptyList())
             }
 
-            val results = runCatching { searchService.searchCourts(trimmed) }.getOrElse { emptyList() }
+            val results = runCatching { searchService.searchCourts(trimmed, currentUserStore.preferredSportFlow.first()) }.getOrElse { emptyList() }
             _uiState.update { it.copy(courts = results, isLoading = false) }
         }
     }
@@ -150,7 +151,7 @@ class CourtFinderViewModel @Inject constructor(
                 it.copy(isLoading = true, errorMessage = null, hasSearched = true, courts = emptyList())
             }
 
-            val results = runCatching { searchService.searchNearby(latitude, longitude) }.getOrElse { emptyList() }
+            val results = runCatching { searchService.searchNearby(latitude, longitude, currentUserStore.preferredSportFlow.first()) }.getOrElse { emptyList() }
             _uiState.update { it.copy(courts = results, isLoading = false) }
         }
     }

@@ -15,10 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.Date
 import java.util.UUID
 import javax.inject.Inject
@@ -42,14 +39,14 @@ data class TournamentListUiState(
 ) {
     val upcomingTournaments: List<Tournament>
         get() = when (filter) {
-            TournamentFilter.ALL -> allUpcoming.filter { passesRegion(it) }
+            TournamentFilter.ALL -> allUpcoming.filter { passesSport(it) && passesRegion(it) }
             TournamentFilter.MINE -> allUpcoming.filter { isMine(it) && passesRegionOrMine(it) }
             TournamentFilter.COMPLETED -> emptyList()
         }
 
     val inProgressTournaments: List<Tournament>
         get() = when (filter) {
-            TournamentFilter.ALL -> allUpcoming.filter { it.isRegistrationClosed && !it.isPast && passesRegion(it) }
+            TournamentFilter.ALL -> allUpcoming.filter { it.isRegistrationClosed && !it.isPast && passesSport(it) && passesRegion(it) }
             TournamentFilter.MINE -> allUpcoming.filter { it.isRegistrationClosed && !it.isPast && isMine(it) }
             TournamentFilter.COMPLETED -> emptyList()
         }
@@ -76,7 +73,7 @@ data class TournamentListUiState(
         get() = when (filter) {
             TournamentFilter.ALL -> emptyList()
             TournamentFilter.MINE -> emptyList()
-            TournamentFilter.COMPLETED -> allPast.filter { passesRegion(it) }
+            TournamentFilter.COMPLETED -> allPast.filter { passesSport(it) && passesRegion(it) }
         }
 
     val isEmpty: Boolean
@@ -110,10 +107,9 @@ data class TournamentListUiState(
         )
     }
 
-    private fun passesSport(tournament: Tournament): Boolean {
-        if (isMine(tournament)) return true
-        return tournament.sportType == preferredSport
-    }
+    // Applied to All and Completed; My Tournaments shows every sport.
+    private fun passesSport(tournament: Tournament): Boolean =
+        tournament.sportType == preferredSport
 }
 
 @HiltViewModel
@@ -129,6 +125,11 @@ class TournamentListViewModel @Inject constructor(
 
     init {
         load()
+        viewModelScope.launch {
+            currentUserStore.preferredSportFlow.collect { sport ->
+                _uiState.value = _uiState.value.copy(preferredSport = sport)
+            }
+        }
     }
 
     fun load() {
@@ -139,7 +140,6 @@ class TournamentListViewModel @Inject constructor(
                 val past = tournamentRepo.listPastTournaments()
                 val playerId = currentUserStore.currentPlayerId()
                 val firebaseUid = currentUserStore.firebaseUid()
-                val preferredSport = currentUserStore.preferredSportFlow.first()
 
                 var player: Player? = null
                 var registeredIds: Set<UUID> = emptySet()
@@ -157,7 +157,6 @@ class TournamentListViewModel @Inject constructor(
                     currentPlayer = player,
                     myRegisteredTournamentIds = registeredIds,
                     firebaseUid = firebaseUid,
-                    preferredSport = preferredSport,
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

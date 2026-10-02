@@ -106,6 +106,11 @@ class AnalyticsService @Inject constructor(
         PROFILE_SETUP_COMPLETE("profile_setup_complete"),
         ONBOARDING_COMPLETE("onboarding_complete"),
         PROFILE_UPDATED("profile_updated"),
+        PREFERRED_SPORT_CHANGED("preferred_sport_changed"),
+
+        // App version
+        UPDATE_REQUIRED_SHOWN("update_required_shown"),
+        UPDATE_TAPPED("update_tapped"),
 
         // Tournaments
         TOURNAMENT_CREATED("tournament_created"),
@@ -185,6 +190,9 @@ class AnalyticsService @Inject constructor(
         const val GAME_TYPE       = "game_type"
         const val SKILL_LEVEL     = "skill_level"
         const val DEEP_LINK_TYPE  = "deep_link_type"
+        const val SPORT           = "sport"
+        const val CURRENT_VERSION = "current_version"
+        const val MINIMUM_VERSION = "minimum_version"
     }
 }
 

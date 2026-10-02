@@ -122,6 +122,7 @@ class LoginViewModel @Inject constructor(
         val player = playerRepo.findPlayerByFirebaseUid(uid)
         if (player != null) {
             currentUserStore.setCurrentPlayerId(player.id)
+            currentUserStore.setPreferredSport(player.preferredSport)
         }
         _uiState.value = _uiState.value.copy(isLoading = false)
         onSuccess(player == null)

@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.s2aglobal.tournmate.domain.model.BadmintonRules
+import com.s2aglobal.tournmate.domain.model.rulebook
 import com.s2aglobal.tournmate.domain.model.RuleSection
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.theme.BrandPurple
@@ -57,7 +57,11 @@ fun DiscoverScreen(
 
     val activeRule = selectedRule
     if (activeRule != null) {
-        RuleDetailScreen(section = activeRule, onBack = { selectedRule = null })
+        RuleDetailScreen(
+            section = activeRule,
+            source = sport.rulebook?.source ?: "Official governing body",
+            onBack = { selectedRule = null },
+        )
         return
     }
 
@@ -125,13 +129,15 @@ private fun DiscoverContent(
             },
         )
 
-        GridSection(
-            title = "Badminton Rules",
-            icon = Icons.Filled.MenuBook,
-            items = BadmintonRules.sections.map { section ->
-                GridCardData(section.icon, section.title, section.subtitle) { onRuleClick(section) }
-            },
-        )
+        sport.rulebook?.let { rulebook ->
+            GridSection(
+                title = "${sport.displayName} Rules",
+                icon = Icons.Filled.MenuBook,
+                items = rulebook.sections.map { section ->
+                    GridCardData(section.icon, section.title, section.subtitle) { onRuleClick(section) }
+                },
+            )
+        }
 
         Spacer(Modifier.height(80.dp))
         }
@@ -384,7 +390,7 @@ private fun GridCard(data: GridCardData, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RuleDetailScreen(section: RuleSection, onBack: () -> Unit) {
+private fun RuleDetailScreen(section: RuleSection, source: String, onBack: () -> Unit) {
     BackHandler { onBack() }
 
     Scaffold(
@@ -445,7 +451,7 @@ private fun RuleDetailScreen(section: RuleSection, onBack: () -> Unit) {
             }
 
             Text(
-                "Source: BWF Laws of Badminton",
+                "Source: $source",
                 fontSize = 11.sp,
                 color = Color.Gray,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),

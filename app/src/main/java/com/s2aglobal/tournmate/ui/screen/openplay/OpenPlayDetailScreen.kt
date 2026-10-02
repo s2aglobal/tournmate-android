@@ -657,6 +657,7 @@ private fun AttendeesCard(
                 attendees.forEach { player ->
                     AttendeeRow(
                         player = player,
+                        sport = session.sportType,
                         isHost = player.firebaseUid == session.hostId,
                         onClick = { onPlayerClick(player.id.toString().uppercase()) },
                     )
@@ -797,6 +798,7 @@ private fun StatusMessageRow(
 @Composable
 private fun AttendeeRow(
     player: Player,
+    sport: SportType,
     isHost: Boolean,
     onClick: () -> Unit,
 ) {
@@ -850,7 +852,7 @@ private fun AttendeeRow(
                         }
                     }
                 }
-                Text("Elo: ${player.elo.toInt()}", fontSize = 11.sp, color = Color.Gray)
+                Text("Elo: ${player.elo(sport).toInt()}", fontSize = 11.sp, color = Color.Gray)
             }
             Icon(
                 Icons.Default.ChevronRight,

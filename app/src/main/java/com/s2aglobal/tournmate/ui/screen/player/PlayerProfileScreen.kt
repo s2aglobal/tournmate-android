@@ -37,6 +37,7 @@ fun PlayerProfileScreen(
     currentPlayerId: String?,
     hasRated: Boolean,
     isLoading: Boolean,
+    viewerSport: SportType,
     onBack: () -> Unit,
     onRatePlayer: () -> Unit,
 ) {
@@ -48,7 +49,8 @@ fun PlayerProfileScreen(
         return
     }
 
-    val tier = SeedTier.fromElo(player.elo)
+    val elo = player.elo(viewerSport)
+    val tier = SeedTier.fromElo(elo)
     val isOwnProfile = currentPlayerId == player.id.toString().uppercase()
 
     Scaffold(
@@ -150,7 +152,7 @@ fun PlayerProfileScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                         ) {
-                            StatColumn("Rating", "${player.elo.toInt()}", BrandPurple)
+                            StatColumn("Rating", "${elo.toInt()}", BrandPurple)
                             StatColumn("Tier", tier.displayName, tier.color)
                             StatColumn("Streak", "${player.streak}", Color(0xFF34C759))
                         }

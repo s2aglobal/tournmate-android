@@ -214,7 +214,6 @@ private fun ProfileInfoStep(
     onNext: () -> Unit,
     isNextEnabled: Boolean,
 ) {
-    val sportOptions = listOf(SportType.BADMINTON, SportType.PICKLEBALL, SportType.TENNIS)
 
     Column(
         modifier = Modifier
@@ -280,7 +279,7 @@ private fun ProfileInfoStep(
             SectionLabel("Your Sport")
             Spacer(modifier = Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                sportOptions.forEach { sport ->
+                SportType.SELECTABLE.forEach { sport ->
                     SportCard(sport, selectedSport == sport, { onSportChange(sport) }, Modifier.weight(1f))
                 }
             }

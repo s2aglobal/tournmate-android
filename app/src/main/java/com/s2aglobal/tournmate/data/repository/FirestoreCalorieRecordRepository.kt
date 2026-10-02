@@ -17,7 +17,7 @@ class FirestoreCalorieRecordRepository @Inject constructor(
     private val collection get() = db.collection("calorieRecords")
 
     override suspend fun save(record: CalorieRecord) {
-        val data = mapOf(
+        val data = mutableMapOf<String, Any>(
             "sessionId" to record.sessionId.toString().uppercase(),
             "playerId" to record.playerId.toString().uppercase(),
             "calories" to record.calories,
@@ -25,16 +25,16 @@ class FirestoreCalorieRecordRepository @Inject constructor(
             "weightUsedKg" to record.weightUsedKg,
             "durationMinutes" to record.durationMinutes,
             "date" to Timestamp(record.date),
-            "sessionTitle" to record.sessionTitle,
             "activityType" to record.activityType.rawValue,
         )
+        record.sessionTitle?.let { data["sessionTitle"] = it }
         collection.document(record.id).set(data).await()
     }
 
     override suspend fun findRecord(sessionId: UUID, playerId: UUID): CalorieRecord? =
         collection
-            .whereEqualTo("sessionId", sessionId.toString())
-            .whereEqualTo("playerId", playerId.toString())
+            .whereEqualTo("sessionId", sessionId.toString().uppercase())
+            .whereEqualTo("playerId", playerId.toString().uppercase())
             .limit(1)
             .get()
             .await()

@@ -112,9 +112,7 @@ data class TournamentDetailUiState(
 
     val isSwissComplete: Boolean
         get() {
-            val maxRounds = tournament?.let {
-                try { kotlinx.serialization.json.Json.decodeFromString<FormatConfig>(it.formatConfigData ?: "{}") } catch (_: Exception) { FormatConfig() }
-            }?.swissRounds ?: 5
+            val maxRounds = tournament?.formatConfig?.swissRounds ?: 5
             return currentSwissRound >= maxRounds && isCurrentSwissRoundComplete
         }
 
@@ -294,7 +292,7 @@ class TournamentDetailViewModel @Inject constructor(
             if (state.matches.isNotEmpty()) { setStatus("Group matches already generated."); return@launch }
 
             _uiState.value = state.copy(isLoading = true)
-            val config = try { kotlinx.serialization.json.Json.decodeFromString<FormatConfig>(tournament.formatConfigData ?: "{}") } catch (_: Exception) { FormatConfig() }
+            val config = tournament.formatConfig
             val schedule = PairingService.generateGroupStageSchedule(teams, config.groupCount, config.advancingPerGroup)
             val entries = schedule.map { GroupMatchEntry(it.teamA, it.teamB, it.round, it.group) }
             try {
@@ -347,7 +345,7 @@ class TournamentDetailViewModel @Inject constructor(
             if (!state.isGroupStageComplete) { setStatus("Group stage not complete."); return@launch }
             if (state.hasKnockoutMatches) { setStatus("Knockout already generated."); return@launch }
 
-            val config = try { kotlinx.serialization.json.Json.decodeFromString<FormatConfig>(tournament.formatConfigData ?: "{}") } catch (_: Exception) { FormatConfig() }
+            val config = tournament.formatConfig
             val standings = computeGroupStandings(state)
             val regMap = state.registrations.associateBy { it.id.toString().uppercase() }
             val advancingTeams = mutableListOf<Registration>()
@@ -380,7 +378,7 @@ class TournamentDetailViewModel @Inject constructor(
             val teams = state.formedTeams
             if (teams.size < 2) { setStatus("Need at least 2 teams."); return@launch }
 
-            val config = try { kotlinx.serialization.json.Json.decodeFromString<FormatConfig>(tournament.formatConfigData ?: "{}") } catch (_: Exception) { FormatConfig() }
+            val config = tournament.formatConfig
             val nextRound = state.currentSwissRound + 1
             if (nextRound > 1 && !state.isCurrentSwissRoundComplete) { setStatus("Current round not complete."); return@launch }
             if (nextRound > config.swissRounds) { setStatus("All Swiss rounds completed."); return@launch }
@@ -509,9 +507,7 @@ class TournamentDetailViewModel @Inject constructor(
     private fun setStatus(msg: String?) { _uiState.value = _uiState.value.copy(statusMessage = msg, isLoading = false) }
 
     fun computeGroupStandings(state: TournamentDetailUiState): Map<String, List<StandingsEntry>> {
-        val config = try {
-            kotlinx.serialization.json.Json.decodeFromString<FormatConfig>(state.tournament?.formatConfigData ?: "{}")
-        } catch (_: Exception) { FormatConfig() }
+        val config = state.tournament?.formatConfig ?: FormatConfig()
 
         val groupMatches = state.matches.filter { it.groupLabel != null && it.status == MatchStatus.FINISHED }
         val entriesByGroup = mutableMapOf<String, MutableMap<String, StandingsEntry>>()
@@ -547,9 +543,7 @@ class TournamentDetailViewModel @Inject constructor(
     }
 
     fun computeRRStandings(state: TournamentDetailUiState): List<StandingsEntry> {
-        val config = try {
-            kotlinx.serialization.json.Json.decodeFromString<FormatConfig>(state.tournament?.formatConfigData ?: "{}")
-        } catch (_: Exception) { FormatConfig() }
+        val config = state.tournament?.formatConfig ?: FormatConfig()
 
         val entries = mutableMapOf<String, StandingsEntry>()
         for (reg in state.formedTeams) {

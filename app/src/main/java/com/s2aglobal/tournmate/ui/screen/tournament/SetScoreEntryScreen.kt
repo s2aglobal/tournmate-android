@@ -39,7 +39,7 @@ fun SetScoreEntryScreen(
     val parsedSets = sets.mapNotNull { (a, b) ->
         val aInt = a.toIntOrNull() ?: return@mapNotNull null
         val bInt = b.toIntOrNull() ?: return@mapNotNull null
-        if (aInt == bInt) return@mapNotNull null
+        if (aInt < 0 || bInt < 0 || aInt == bInt) return@mapNotNull null
         SetScore(aInt, bInt)
     }
 

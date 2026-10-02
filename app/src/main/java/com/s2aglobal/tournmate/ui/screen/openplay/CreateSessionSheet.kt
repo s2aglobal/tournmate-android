@@ -172,9 +172,34 @@ fun CreateSessionSheet(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("Post Open Play", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("Invite others to play casual badminton", fontSize = 13.sp, color = Color.Gray)
+                Text("Invite others to play casual ${sportType.inlineName}", fontSize = 13.sp, color = Color.Gray)
 
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // Sport
+                FormSection("Sport") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SportType.SELECTABLE.forEach { sport ->
+                            val selected = sportType == sport
+                            Surface(
+                                onClick = { sportType = sport },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (selected) BrandPurple else Color.White,
+                                shadowElevation = 2.dp,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(
+                                    sport.displayName,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (selected) Color.White else Color.Gray,
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Session Title
                 FormSection("Session Title") {
