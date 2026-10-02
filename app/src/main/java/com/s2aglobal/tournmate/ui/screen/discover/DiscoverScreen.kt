@@ -160,7 +160,7 @@ private fun HeaderSection(sport: SportType) {
             modifier = Modifier.size(72.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(sportIconPainter(sport, R.drawable.ic_badminton), null, Modifier.size(34.dp), tint = AppAccent)
+            Icon(sportIconPainter(sport), null, Modifier.size(34.dp), tint = AppAccent)
         }
         Text("Your ${sport.displayName} Hub", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(

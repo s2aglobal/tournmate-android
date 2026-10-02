@@ -410,7 +410,7 @@ private fun LoadingState() {
                         color = AppAccent.copy(alpha = alpha),
                     ) {}
                 }
-                Icon(sportIconPainter(CurrentSport.sport, R.drawable.ic_badminton), null, Modifier.size(32.dp), tint = AppAccent)
+                Icon(sportIconPainter(CurrentSport.sport), null, Modifier.size(32.dp), tint = AppAccent)
             }
             Spacer(Modifier.height(24.dp))
             Text("Searching for courts…", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -533,7 +533,7 @@ private fun ResultsList(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Icon(sportIconPainter(CurrentSport.sport, R.drawable.ic_badminton), null, Modifier.size(12.dp), tint = AppAccent)
+                    Icon(sportIconPainter(CurrentSport.sport), null, Modifier.size(12.dp), tint = AppAccent)
                     Text("${courts.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                 }
             }
@@ -731,7 +731,7 @@ private fun CourtsHero() {
             Box(Modifier.size(70.dp, 1.5.dp).background(AppAccent.copy(alpha = 0.1f)))
         }
         Icon(
-            sportIconPainter(CurrentSport.sport, R.drawable.ic_badminton), null,
+            sportIconPainter(CurrentSport.sport), null,
             Modifier.size(56.dp).graphicsLayer { scaleX = 0.3f + 0.7f * p; scaleY = scaleX; alpha = p },
             tint = AppAccent,
         )

@@ -29,10 +29,15 @@ import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 
+/** Outline icon when unselected, filled when selected — same as the iOS SF Symbol pairs. */
 private data class TabItem(
     val titleRes: Int,
     @DrawableRes val iconRes: Int,
+    @DrawableRes val selectedIconRes: Int = iconRes,
 )
+
+private val TabUnselected = Color(0xFF1C1C1E)
+private val TabHighlight = Color(0xFFE9E9EE)
 
 @Composable
 fun MainScreen(
@@ -45,10 +50,10 @@ fun MainScreen(
 ) {
     val tabs = remember {
         listOf(
-            TabItem(R.string.tab_play, R.drawable.ic_badminton),
-            TabItem(R.string.tab_courts, R.drawable.ic_sportscourt),
-            TabItem(R.string.tab_discover, R.drawable.ic_safari),
-            TabItem(R.string.tab_profile, R.drawable.ic_person_circle),
+            TabItem(R.string.tab_play, R.drawable.ic_figure_badminton),
+            TabItem(R.string.tab_courts, R.drawable.ic_sportscourt, R.drawable.ic_sportscourt_fill),
+            TabItem(R.string.tab_discover, R.drawable.ic_safari, R.drawable.ic_safari_fill),
+            TabItem(R.string.tab_profile, R.drawable.ic_person_circle_outline, R.drawable.ic_person_circle),
         )
     }
 
@@ -67,7 +72,11 @@ fun MainScreen(
                         icon = {
                             Icon(
                                 // Play tab icon follows the user's sport.
-                                painter = if (index == 0) sportIconPainter(CurrentSport.sport, R.drawable.ic_badminton) else painterResource(tab.iconRes),
+                                painter = when {
+                                    index == 0 -> sportIconPainter(CurrentSport.sport)
+                                    selectedTab == index -> painterResource(tab.selectedIconRes)
+                                    else -> painterResource(tab.iconRes)
+                                },
                                 contentDescription = stringResource(tab.titleRes),
                                 modifier = Modifier.size(22.dp),
                             )
@@ -82,9 +91,11 @@ fun MainScreen(
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = AppAccent,
                             selectedTextColor = AppAccent,
-                            unselectedIconColor = Color.Gray,
-                            unselectedTextColor = Color.Gray,
-                            indicatorColor = Color.Transparent,
+                            // iOS tab bar: unselected items use the primary label colour, and the
+                            // selected item sits on a soft grey highlight.
+                            unselectedIconColor = TabUnselected,
+                            unselectedTextColor = TabUnselected,
+                            indicatorColor = TabHighlight,
                         ),
                     )
                 }

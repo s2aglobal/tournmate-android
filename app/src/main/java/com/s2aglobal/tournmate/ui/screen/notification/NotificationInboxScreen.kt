@@ -161,7 +161,7 @@ private fun NotificationRow(
             ) {
                 when (iconStyle.useSportIcon) {
                     true -> Icon(
-                        painter = sportIconPainter(CurrentSport.sport, R.drawable.ic_badminton),
+                        painter = sportIconPainter(CurrentSport.sport),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                         tint = iconStyle.color,
