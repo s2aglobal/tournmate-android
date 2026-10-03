@@ -26,6 +26,8 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.outlined.EmojiEvents as EmojiEventsOutlined
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -95,11 +97,15 @@ fun NotificationInboxScreen(
                 .padding(padding),
         ) {
             when {
-                state.isLoading -> {
-                    CircularProgressIndicator(
+                state.isLoading && state.notifications.isEmpty() -> {
+                    Column(
                         modifier = Modifier.align(Alignment.Center),
-                        color = AppAccent,
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(color = AppAccent)
+                        Text("Loading...", fontSize = 14.sp, color = Color.Gray)
+                    }
                 }
 
                 state.notifications.isEmpty() -> {
@@ -113,15 +119,16 @@ fun NotificationInboxScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(state.notifications, key = { it.id }) { item ->
-                            NotificationRow(
-                                item = item,
-                                onClick = {
-                                    viewModel.markAsRead(item)
-                                    item.tournamentId?.let { onNavigateToTournament(it) }
-                                        ?: item.sessionId?.let { onNavigateToSession(it) }
-                                },
-                                onDelete = { viewModel.delete(item) },
-                            )
+                            SwipeToDeleteRow(onDelete = { viewModel.delete(item) }) {
+                                NotificationRow(
+                                    item = item,
+                                    onClick = {
+                                        viewModel.markAsRead(item)
+                                        item.tournamentId?.let { onNavigateToTournament(it) }
+                                            ?: item.sessionId?.let { onNavigateToSession(it) }
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -130,11 +137,40 @@ fun NotificationInboxScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                true
+            } else false
+        },
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFE53935))
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+            }
+        },
+    ) { content() }
+}
+
 @Composable
 private fun NotificationRow(
     item: NotificationItem,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     val iconStyle = notificationIconStyle(item.type)
 
@@ -189,7 +225,8 @@ private fun NotificationRow(
                     text = item.body,
                     fontSize = 13.sp,
                     color = Color.Gray,
-                    maxLines = 3,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     lineHeight = 18.sp,
                 )
 
@@ -246,14 +283,14 @@ private data class NotificationIconStyle(
 
 private fun notificationIconStyle(type: String): NotificationIconStyle = when (type) {
     "new_registration" -> NotificationIconStyle(Icons.Default.PersonAdd, Color(0xFF4CAF50))
-    "tournament_reminder" -> NotificationIconStyle(Icons.Default.Schedule, Color(0xFFFF9800))
-    "tournament_created" -> NotificationIconStyle(Icons.Default.EmojiEvents, AppAccent)
+    "tournament_reminder" -> NotificationIconStyle(Icons.Default.Event, Color(0xFFFF9800))
+    "tournament_created" -> NotificationIconStyle(Icons.Outlined.EmojiEventsOutlined, AppAccent)
     "match_finished" -> NotificationIconStyle(Icons.Default.EmojiEvents, Color(0xFFFFC107))
     "tournament_cancelled" -> NotificationIconStyle(Icons.Default.Cancel, Color(0xFFE53935))
     "session_created" -> NotificationIconStyle(Icons.Default.SportsHandball, Color(0xFF2196F3), useSportIcon = true)
     "session_joined" -> NotificationIconStyle(Icons.Default.People, Color(0xFF4CAF50))
     "session_left" -> NotificationIconStyle(Icons.Default.PersonRemove, Color(0xFFFF9800))
-    "session_finished" -> NotificationIconStyle(Icons.Default.Flag, Color(0xFF4CAF50))
+    "session_finished" -> NotificationIconStyle(Icons.Default.SportsScore, Color(0xFF4CAF50))
     "player_unregistered" -> NotificationIconStyle(Icons.Default.PersonRemove, Color(0xFFE53935))
     else -> NotificationIconStyle(Icons.Default.Notifications, AppAccent)
 }

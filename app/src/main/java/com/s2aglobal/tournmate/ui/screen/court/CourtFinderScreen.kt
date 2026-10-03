@@ -36,15 +36,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.NearMe
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SearchOff
-import androidx.compose.material.icons.filled.SportsTennis
-import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -80,6 +83,7 @@ import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import java.net.URLEncoder
 
 private val GroupedBg = Color(0xFFF2F2F7)
+private val CallBlue = Color(0xFF2196F3)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -176,11 +180,6 @@ fun CourtFinderScreen(
                 WelcomeHero(
                     state = uiState,
                     onUseCurrentLocation = { onUseCurrentLocation() },
-                    onExampleClick = {
-                        viewModel.onZipCodeChange(it)
-                        focusManager.clearFocus()
-                        viewModel.searchByZipCode()
-                    },
                 )
             }
             else -> ResultsList(
@@ -249,7 +248,7 @@ private fun SearchBar(
                 }
                 if (query.isNotEmpty()) {
                     IconButton(onClick = onClear, modifier = Modifier.size(20.dp)) {
-                        Icon(Icons.Filled.Close, "Clear", Modifier.size(18.dp), tint = Color.Gray)
+                        Icon(Icons.Filled.Cancel, "Clear", Modifier.size(18.dp), tint = Color.Gray)
                     }
                 }
             }
@@ -279,7 +278,6 @@ private fun SearchBar(
 private fun WelcomeHero(
     state: CourtFinderUiState,
     onUseCurrentLocation: () -> Unit,
-    onExampleClick: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -303,16 +301,16 @@ private fun WelcomeHero(
 
         Spacer(Modifier.height(24.dp))
 
-        FeatureRow(Icons.Filled.SportsTennis, AppAccent, "Courts & Clubs", "${CurrentSport.sport.displayName} courts, clubs, and sports facilities")
+        FeatureRow(painterResource(R.drawable.ic_sportscourt_fill), AppAccent, "Courts & Clubs", "${CurrentSport.sport.displayName} courts, clubs, and sports facilities")
         Spacer(Modifier.height(10.dp))
-        FeatureRow(Icons.Filled.LocationOn, Color(0xFF2196F3), "Distance Info", "See how far each court is from your area")
+        FeatureRow(rememberVectorPainter(Icons.Filled.NearMe), Color(0xFF2196F3), "Distance Info", "See how far each court is from your area")
         Spacer(Modifier.height(10.dp))
-        FeatureRow(Icons.Filled.Directions, Color(0xFFFF9800), "Quick Actions", "Get directions or search their website")
+        FeatureRow(rememberVectorPainter(Icons.Filled.Phone), Color(0xFFFF9800), "Quick Actions", "Get directions, call, or visit their website")
         Spacer(Modifier.height(10.dp))
         if (state.usesHomeRegion) {
-            FeatureRow(Icons.Filled.Public, AppAccent, "Region Aligned", "Matches your Profile home country for open play and tournaments")
+            FeatureRow(rememberVectorPainter(Icons.Filled.Home), AppAccent, "Region Aligned", "Matches your Profile home country for open play and tournaments")
         } else {
-            FeatureRow(Icons.Filled.Public, AppAccent, "Set Your Region", "Add home country and postal in Profile for regional discovery")
+            FeatureRow(rememberVectorPainter(Icons.Filled.Public), AppAccent, "Set Your Region", "Add home country and postal in Profile for regional discovery")
         }
 
         Spacer(Modifier.height(20.dp))
@@ -328,34 +326,25 @@ private fun WelcomeHero(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.MyLocation, null, Modifier.size(16.dp), tint = Color.White)
+                Icon(Icons.Filled.NearMe, null, Modifier.size(16.dp), tint = Color.White)
                 Spacer(Modifier.width(8.dp))
                 Text("Use Current Location", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
 
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "Or enter a postal code (e.g. ${state.zipExamples.take(2).joinToString(", ")})",
-            fontSize = 12.sp,
-            color = Color.Gray,
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            state.popularExamples.forEach { ex ->
-                Surface(
-                    onClick = { onExampleClick(ex.zip) },
-                    shape = CircleShape,
-                    color = AppAccent.copy(alpha = 0.08f),
-                ) {
-                    Text(
-                        ex.zip,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppAccent,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                    )
-                }
+        Spacer(Modifier.height(12.dp))
+        Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.7f)) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(Icons.Filled.Lightbulb, null, Modifier.size(12.dp), tint = Color(0xFFFF9800))
+                Text(
+                    "Or enter a postal code (e.g. ${state.zipExamples.take(2).joinToString(", ")})",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                )
             }
         }
         Spacer(Modifier.height(80.dp))
@@ -363,7 +352,7 @@ private fun WelcomeHero(
 }
 
 @Composable
-private fun FeatureRow(icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, title: String, subtitle: String) {
+private fun FeatureRow(icon: Painter, color: Color, title: String, subtitle: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -432,11 +421,28 @@ private fun ErrorState(message: String, onDismiss: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(horizontal = 40.dp),
         ) {
-            Icon(Icons.Outlined.WarningAmber, null, Modifier.size(52.dp), tint = Color(0xFFFF9800))
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(180.dp, 130.dp).background(AppAccent.copy(alpha = 0.05f), RoundedCornerShape(16.dp)).padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        repeat(4) { Box(Modifier.fillMaxWidth().height(1.dp).background(AppAccent.copy(alpha = 0.06f))) }
+                    }
+                }
+                Icon(sportIconPainter(CurrentSport.sport), null, Modifier.size(48.dp), tint = AppAccent.copy(alpha = 0.6f))
+                Icon(
+                    Icons.Filled.Warning, null,
+                    Modifier.offset(x = 35.dp, y = (-30).dp).size(26.dp),
+                    tint = Color(0xFFFFCC00),
+                )
+            }
             Spacer(Modifier.height(16.dp))
-            Text("Search Error", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text(message, fontSize = 14.sp, color = Color.Gray, textAlign = TextAlign.Center, lineHeight = 20.sp)
+            Text("Search Error", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(16.dp))
+            Text(message, fontSize = 15.sp, color = Color.Gray, textAlign = TextAlign.Center, lineHeight = 20.sp)
+            Spacer(Modifier.height(16.dp))
+            Text("Try another ZIP code.", fontSize = 12.sp, color = Color.Gray)
             Spacer(Modifier.height(20.dp))
             Surface(
                 onClick = onDismiss,
@@ -469,7 +475,10 @@ private fun NoResultsState(examples: List<String>, onExampleClick: (String) -> U
             .padding(horizontal = 40.dp, vertical = 60.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(Icons.Filled.SearchOff, null, Modifier.size(48.dp), tint = Color.Gray.copy(alpha = 0.3f))
+        Box(Modifier.size(110.dp).background(AppAccent.copy(alpha = 0.06f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(painterResource(R.drawable.ic_sportscourt), null, Modifier.size(44.dp), tint = AppAccent.copy(alpha = 0.3f))
+            Icon(Icons.Filled.Search, null, Modifier.offset(x = 25.dp, y = (-25).dp).size(22.dp), tint = Color.Gray)
+        }
         Spacer(Modifier.height(16.dp))
         Text("No Courts Found", fontSize = 17.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
@@ -581,8 +590,7 @@ private fun CourtCard(court: CourtResult, apiKey: String) {
                     Surface(
                         modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
                         shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.92f),
-                        shadowElevation = 2.dp,
+                        color = Color.White.copy(alpha = 0.8f),
                     ) {
                         Text(
                             CourtSearchService.formatDistance(dist),
@@ -616,14 +624,24 @@ private fun CourtCard(court: CourtResult, apiKey: String) {
                         Text(court.address, fontSize = 12.sp, color = Color.Gray, maxLines = 2, lineHeight = 16.sp)
                     }
                 }
+                court.phone?.takeIf { it.isNotBlank() }?.let { phone ->
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Filled.Phone, null, Modifier.size(12.dp), tint = CallBlue.copy(alpha = 0.6f))
+                        Text(phone, fontSize = 12.sp, color = Color.Gray)
+                    }
+                }
 
                 Spacer(Modifier.height(12.dp))
                 HorizontalDivider(color = GroupedBg)
                 Spacer(Modifier.height(12.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionPill(Icons.Filled.Directions, "Directions", AppAccent) { openDirections(context, court) }
-                    ActionPill(Icons.Filled.Public, "Website", Color(0xFF9C27B0)) { searchWebsite(context, court) }
+                    ActionPill(rememberVectorPainter(Icons.Filled.Directions), "Directions", AppAccent) { openDirections(context, court) }
+                    court.phone?.takeIf { it.isNotBlank() }?.let { phone ->
+                        ActionPill(rememberVectorPainter(Icons.Filled.Phone), "Call", CallBlue) { callPhone(context, phone) }
+                    }
+                    ActionPill(painterResource(R.drawable.ic_safari_fill), "Website", AppAccent) { searchWebsite(context, court) }
                 }
             }
         }
@@ -631,7 +649,7 @@ private fun CourtCard(court: CourtResult, apiKey: String) {
 }
 
 @Composable
-private fun ActionPill(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit) {
+private fun ActionPill(icon: Painter, label: String, tint: Color, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = CircleShape,
@@ -683,6 +701,14 @@ private fun openDirections(context: Context, court: CourtResult) {
         context,
         "https://www.google.com/maps/dir/?api=1&destination=${court.latitude},${court.longitude}",
     )
+}
+
+private fun callPhone(context: Context, phone: String) {
+    val digits = phone.filter { it.isDigit() }
+    try {
+        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$digits")))
+    } catch (_: Exception) {
+    }
 }
 
 private fun searchWebsite(context: Context, court: CourtResult) {

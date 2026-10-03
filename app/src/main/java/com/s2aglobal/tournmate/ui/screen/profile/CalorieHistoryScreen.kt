@@ -1,9 +1,11 @@
 package com.s2aglobal.tournmate.ui.screen.profile
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,102 +19,112 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Divider
+import androidx.compose.material.icons.outlined.LocalFireDepartment
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.CalorieActivityType
 import com.s2aglobal.tournmate.domain.model.CalorieRecord
 import com.s2aglobal.tournmate.domain.model.CalorieSource
+import com.s2aglobal.tournmate.ui.screen.player.InfoBlue
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val HistoryBg = Color(0xFFF2F2F7)
+
+private data class CalorieDayGroup(val date: Date, val records: List<CalorieRecord>) {
+    val totalCalories: Double get() = records.sumOf { it.calories }
+}
+
+private fun groupByDate(records: List<CalorieRecord>): List<CalorieDayGroup> =
+    records.groupBy { record ->
+        Calendar.getInstance().apply {
+            time = record.date
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.time
+    }
+        .map { (day, list) -> CalorieDayGroup(day, list.sortedByDescending { it.date }) }
+        .sortedByDescending { it.date }
+
+private val CalorieActivityType.badge: String
+    get() = when (this) {
+        CalorieActivityType.OPEN_PLAY -> "Open Play"
+        CalorieActivityType.TOURNAMENT -> "Tournament"
+        CalorieActivityType.QUICK_PLAY -> "Quick Play"
+    }
+
+private val CalorieActivityType.badgeColor: Color
+    get() = when (this) {
+        CalorieActivityType.OPEN_PLAY -> AppAccent
+        CalorieActivityType.TOURNAMENT -> WarningOrange
+        CalorieActivityType.QUICK_PLAY -> InfoBlue
+    }
+
+/** Pushed "Calorie History" screen (iOS `CalorieHistoryView`). */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun CalorieHistorySheet(
+fun CalorieHistoryScreen(
     records: List<CalorieRecord>,
-    totalCalories: Double,
-    onDismiss: () -> Unit,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val dateFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-    val dayFormat = SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
+    val groups = remember(records) { groupByDate(records) }
+    val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    val dayFormat = remember { SimpleDateFormat("EEEE, MMM d", Locale.getDefault()) }
 
-    // Group records by day
-    val grouped = records.groupBy { record ->
-        val cal = Calendar.getInstance().apply { time = record.date }
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.time
-    }.toSortedMap(compareByDescending { it })
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-    ) {
-        Column(Modifier.fillMaxSize()) {
-            // Header
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Calorie History", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Close", Modifier.size(18.dp), tint = Color.Gray) }
+    Scaffold(
+        modifier = modifier,
+        containerColor = HistoryBg,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Calorie History", fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = AppAccent) }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = HistoryBg),
+            )
+        },
+    ) { padding ->
+        when {
+            isLoading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AppAccent)
             }
-
-            Divider(color = Color(0xFFF2F2F7))
-
-            if (records.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.LocalFireDepartment, null, Modifier.size(48.dp), tint = Color.LightGray)
-                        Spacer(Modifier.height(12.dp))
-                        Text("No calorie records yet", fontSize = 16.sp, color = Color.Gray)
-                    }
-                }
-            } else {
-                LazyColumn(Modifier.padding(horizontal = 16.dp)) {
-                    grouped.forEach { (day, dayRecords) ->
-                        val dayCalories = dayRecords.sumOf { it.calories }
-                        item {
-                            Spacer(Modifier.height(16.dp))
-                            // Day header
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                                Column {
-                                    Text(dayFormat.format(day), fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                    Text("${dayRecords.size} session${if (dayRecords.size != 1) "s" else ""}", fontSize = 12.sp, color = Color.Gray)
-                                }
-                                Text("${dayCalories.toInt()} kcal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = WarningOrange)
-                            }
-                            Spacer(Modifier.height(8.dp))
-                        }
-
-                        items(dayRecords) { record ->
-                            RecordCard(record, dateFormat)
-                            Spacer(Modifier.height(6.dp))
-                        }
-
-                        item { Divider(Modifier.padding(vertical = 8.dp), color = Color(0xFFF2F2F7)) }
-                    }
-                    item { Spacer(Modifier.height(32.dp)) }
+            groups.isEmpty() -> EmptyHistory(Modifier.padding(padding))
+            else -> LazyColumn(
+                Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                groups.forEach { group ->
+                    stickyHeader(key = "h_${group.date.time}") { DateHeader(group, dayFormat) }
+                    items(group.records, key = { it.id }) { record -> RecordRow(record, timeFormat) }
                 }
             }
         }
@@ -120,58 +132,107 @@ fun CalorieHistorySheet(
 }
 
 @Composable
-private fun RecordCard(record: CalorieRecord, timeFormat: SimpleDateFormat) {
-    val isHealthConnect = record.source == CalorieSource.HEALTH_CONNECT
-    val activityLabel = when (record.activityType) {
-        CalorieActivityType.QUICK_PLAY -> "Quick Play"
-        CalorieActivityType.TOURNAMENT -> "Tournament"
-        CalorieActivityType.OPEN_PLAY -> "Open Play"
+private fun DateHeader(group: CalorieDayGroup, dayFormat: SimpleDateFormat) {
+    val count = group.records.size
+    Row(
+        Modifier.fillMaxWidth().background(HistoryBg.copy(alpha = 0.95f)).padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(dayFormat.format(group.date), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text("$count session${if (count == 1) "" else "s"}", fontSize = 11.sp, color = Color.Gray)
+        }
+        Text("${Math.round(group.totalCalories)} kcal", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = WarningOrange)
     }
-    val sourceColor = if (isHealthConnect) Color(0xFFE53935) else AppAccent
-    val sourceLabel = if (isHealthConnect) "Health" else "Estimated"
+}
+
+@Composable
+private fun RecordRow(record: CalorieRecord, timeFormat: SimpleDateFormat) {
+    val fromHealth = record.source == CalorieSource.HEALTH_CONNECT
+    val sourceColor = if (fromHealth) Color.Red else InfoBlue
+    val type = record.activityType
 
     Surface(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         RoundedCornerShape(14.dp),
-        Color(0xFFFAFAFA),
+        Color.White,
+        shadowElevation = 2.dp,
     ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Fire icon
-            Surface(Modifier.size(40.dp), CircleShape, WarningOrange.copy(alpha = 0.12f)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.LocalFireDepartment, null, Modifier.size(18.dp), tint = WarningOrange)
-                }
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(42.dp).background(Brush.linearGradient(listOf(WarningOrange, Color.Red.copy(alpha = 0.8f))), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.LocalFireDepartment, null, Modifier.size(20.dp), tint = Color.White)
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
 
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(record.sessionTitle ?: activityLabel, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                    // Activity type badge
                     Text(
-                        activityLabel,
+                        record.sessionTitle ?: "Session", fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Text(
+                        type.badge,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = WarningOrange,
+                        color = type.badgeColor,
                         modifier = Modifier
-                            .background(WarningOrange.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 5.dp, vertical = 2.dp),
+                            .background(type.badgeColor.copy(alpha = 0.15f), RoundedCornerShape(50))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Default.Timer, null, Modifier.size(10.dp), tint = Color.Gray)
-                    Text(timeFormat.format(record.date), fontSize = 11.sp, color = Color.Gray)
-                    Text("·", fontSize = 11.sp, color = Color.Gray)
-                    Icon(Icons.Default.Timer, null, Modifier.size(10.dp), tint = Color.Gray)
-                    Text("${record.durationMinutes} min", fontSize = 11.sp, color = Color.Gray)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MetaLabel(Icons.Filled.Schedule, timeFormat.format(record.date))
+                    MetaLabel(Icons.Filled.Timer, "${record.durationMinutes} min")
                 }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text("${record.calories.toInt()} kcal", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(sourceLabel, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = sourceColor)
+            Spacer(Modifier.width(8.dp))
+
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("${Math.round(record.calories)} kcal", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (fromHealth) "Health" else "Estimated",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = sourceColor,
+                    modifier = Modifier
+                        .background(sourceColor.copy(alpha = 0.12f), RoundedCornerShape(50))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun MetaLabel(icon: ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Icon(icon, null, Modifier.size(11.dp), tint = Color.Gray)
+        Text(text, fontSize = 11.sp, color = Color.Gray)
+    }
+}
+
+@Composable
+private fun EmptyHistory(modifier: Modifier) {
+    Column(
+        modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(Modifier.size(80.dp).background(WarningOrange.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.LocalFireDepartment, null, Modifier.size(32.dp), tint = WarningOrange.copy(alpha = 0.5f))
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("No Calorie Records Yet", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "Join an Open Play session and log your burn to see your history here.",
+            fontSize = 15.sp, color = Color.Gray, textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 48.dp),
+        )
     }
 }

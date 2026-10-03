@@ -115,7 +115,7 @@ class CourtFinderViewModel @Inject constructor(
                 it.copy(isLoading = true, errorMessage = null, hasSearched = true, courts = emptyList())
             }
 
-            val results = runCatching { searchService.searchCourts(trimmed, currentUserStore.preferredSportFlow.first()) }.getOrElse { emptyList() }
+            val results = runCatching { searchService.searchCourts(trimmed, currentUserStore.preferredSportFlow.first(), includePhone = true) }.getOrElse { emptyList() }
             _uiState.update { it.copy(courts = results, isLoading = false) }
         }
     }
@@ -152,7 +152,7 @@ class CourtFinderViewModel @Inject constructor(
                 it.copy(isLoading = true, errorMessage = null, hasSearched = true, courts = emptyList())
             }
 
-            val results = runCatching { searchService.searchNearby(latitude, longitude, currentUserStore.preferredSportFlow.first()) }.getOrElse { emptyList() }
+            val results = runCatching { searchService.searchNearby(latitude, longitude, currentUserStore.preferredSportFlow.first(), includePhone = true) }.getOrElse { emptyList() }
             _uiState.update { it.copy(courts = results, isLoading = false) }
         }
     }
