@@ -5,6 +5,9 @@ import android.content.pm.PackageManager
 import android.location.Geocoder
 import com.s2aglobal.tournmate.domain.model.SportType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -20,6 +23,8 @@ data class CourtResult(
     val latitude: Double,
     val longitude: Double,
     val distanceMeters: Double? = null,
+    val placeId: String? = null,
+    val phone: String? = null,
 )
 
 class CourtSearchService(private val context: Context) {
@@ -32,17 +37,18 @@ class CourtSearchService(private val context: Context) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun searchCourts(query: String, sport: SportType): List<CourtResult> = withContext(Dispatchers.IO) {
+    suspend fun searchCourts(query: String, sport: SportType, includePhone: Boolean = false): List<CourtResult> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         if (trimmed.length < 2) return@withContext emptyList()
 
         val isLikelyZip = trimmed.length <= 10 && trimmed.all { it.isDigit() || it == '-' || it == ' ' }
 
-        if (isLikelyZip) {
+        val results = if (isLikelyZip) {
             searchByZipCode(trimmed, sport.inlineName)
         } else {
             searchByName(trimmed)
         }
+        if (includePhone) withPhoneNumbers(results) else results
     }
 
     /** Searches for courts for [sport] near an explicit coordinate (e.g. the user's current location). */
@@ -51,13 +57,45 @@ class CourtSearchService(private val context: Context) {
         longitude: Double,
         sport: SportType,
         radiusMeters: Int = 25_000,
+        includePhone: Boolean = false,
     ): List<CourtResult> = withContext(Dispatchers.IO) {
         val queries = sportQueries(sport.inlineName)
         for (q in queries) {
             val results = nearbySearch(q, latitude, longitude, radiusMeters)
-            if (results.isNotEmpty()) return@withContext results
+            if (results.isNotEmpty()) return@withContext if (includePhone) withPhoneNumbers(results) else results
         }
         emptyList()
+    }
+
+    /** Places search responses carry no phone, so fill it from Place Details (iOS gets it from MKMapItem). */
+    private suspend fun withPhoneNumbers(results: List<CourtResult>): List<CourtResult> = coroutineScope {
+        if (apiKey.isBlank()) return@coroutineScope results
+        results.map { court ->
+            async {
+                val id = court.placeId ?: return@async court
+                court.copy(phone = fetchPhone(id))
+            }
+        }.awaitAll()
+    }
+
+    private fun fetchPhone(placeId: String): String? {
+        val encoded = URLEncoder.encode(placeId, "UTF-8")
+        val url = URL(
+            "https://maps.googleapis.com/maps/api/place/details/json" +
+                "?place_id=$encoded&fields=formatted_phone_number,international_phone_number&key=$apiKey"
+        )
+        val conn = url.openConnection() as HttpURLConnection
+        conn.connectTimeout = 10_000
+        conn.readTimeout = 10_000
+        return try {
+            if (conn.responseCode !in 200..299) return null
+            val response = json.decodeFromString<PlaceDetailsResponse>(conn.inputStream.bufferedReader().readText())
+            (response.result?.formatted_phone_number ?: response.result?.international_phone_number)?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
+        } finally {
+            conn.disconnect()
+        }
     }
 
     /**
@@ -240,6 +278,7 @@ class CourtSearchService(private val context: Context) {
                     latitude = place.geometry.location.lat,
                     longitude = place.geometry.location.lng,
                     distanceMeters = distance,
+                    placeId = place.place_id,
                 )
             }.let { results ->
                 if (centerLat != null) results.sortedBy { it.distanceMeters ?: Double.MAX_VALUE }
@@ -314,6 +353,7 @@ private data class PlacesResponse(
 
 @Serializable
 private data class PlaceResult(
+    val place_id: String? = null,
     val name: String = "",
     val formatted_address: String? = null,
     val vicinity: String? = null,
@@ -358,4 +398,16 @@ private data class AddressComponent(
     val short_name: String = "",
     val long_name: String = "",
     val types: List<String> = emptyList(),
+)
+
+@Serializable
+private data class PlaceDetailsResponse(
+    val result: PlaceDetails? = null,
+    val status: String = "",
+)
+
+@Serializable
+private data class PlaceDetails(
+    val formatted_phone_number: String? = null,
+    val international_phone_number: String? = null,
 )

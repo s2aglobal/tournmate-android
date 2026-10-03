@@ -43,6 +43,7 @@ import com.s2aglobal.tournmate.domain.model.rulebook
 import com.s2aglobal.tournmate.domain.model.RuleSection
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.theme.AppAccentTint
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.util.openInBrowser
 
@@ -393,7 +394,7 @@ private fun RuleDetailScreen(section: RuleSection, source: String, onBack: () ->
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(section.title, fontWeight = FontWeight.SemiBold) },
+                title = { Text(section.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = AppAccent)
@@ -410,50 +411,46 @@ private fun RuleDetailScreen(section: RuleSection, source: String, onBack: () ->
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Spacer(Modifier.height(4.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 Box(
-                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(AppAccent.copy(alpha = 0.10f)),
+                    modifier = Modifier.size(60.dp).clip(CircleShape).background(AppAccentTint),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(section.icon, null, Modifier.size(24.dp), tint = AppAccent)
+                    Icon(section.icon, null, Modifier.size(26.dp), tint = AppAccent)
                 }
-                Text(section.subtitle, fontSize = 14.sp, color = Color.Gray)
+                Text(section.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(section.subtitle, fontSize = 15.sp, color = Color.Gray, textAlign = TextAlign.Center)
             }
 
             section.rules.forEachIndexed { index, rule ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = Color.White,
                     shadowElevation = 2.dp,
                 ) {
                     Column(Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Box(
-                                modifier = Modifier.size(26.dp).clip(CircleShape).background(AppAccent),
+                                modifier = Modifier.size(24.dp).clip(CircleShape).background(AppAccentTint),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("${index + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("${index + 1}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                             }
-                            Text(rule.title, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(rule.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Spacer(Modifier.height(10.dp))
-                        Text(rule.content, fontSize = 14.sp, color = Color(0xFF3A3A3C), lineHeight = 21.sp)
+                        Text(rule.content, fontSize = 16.sp, color = Color.Black.copy(alpha = 0.85f), lineHeight = 24.sp)
                     }
                 }
             }
 
-            Text(
-                "Source: $source",
-                fontSize = 11.sp,
-                color = Color.Gray,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                textAlign = TextAlign.Center,
-            )
             Spacer(Modifier.height(20.dp))
         }
     }
