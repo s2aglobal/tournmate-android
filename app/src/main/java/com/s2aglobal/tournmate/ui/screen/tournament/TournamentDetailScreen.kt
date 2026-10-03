@@ -107,7 +107,7 @@ fun TournamentDetailScreen(
             tournament = tournament,
             onSave = { title, date, location, locationAddress, locationLatitude, locationLongitude,
                        format, matchFormat, formatConfig, randomPairing, registrationDeadline,
-                       entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup ->
+                       entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, scoringConfig ->
                 viewModel.updateTournament(
                     title = title, date = date,
                     location = location, locationAddress = locationAddress,
@@ -116,10 +116,12 @@ fun TournamentDetailScreen(
                     randomPairing = randomPairing, registrationDeadline = registrationDeadline,
                     entryFee = entryFee, currency = currency, paymentInfo = paymentInfo,
                     prizeInfo = prizeInfo, durationMinutes = durationMinutes, ageGroup = ageGroup,
+                    scoringConfig = scoringConfig,
                 )
                 showEditSheet = false
             },
             onCancel = { showEditSheet = false },
+            canEditScoring = state.matches.isEmpty(),
         )
         return
     }
@@ -534,13 +536,14 @@ private fun StickyFooter(
         Box(Modifier.weight(1f)) {
             val dimmed = Color.White.copy(alpha = 0.6f)
             when {
+                // Cancelled wins over every other state, including registered (matches iOS).
+                tournament.status == TournamentStatus.CANCELLED -> FooterPill(Color.Gray) {
+                    Text("CANCELLED", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = dimmed)
+                }
                 isRegistered -> FooterPill(AppAccent) {
                     Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp), tint = Color.White)
                     Spacer(Modifier.width(8.dp))
                     Text("REGISTERED", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
-                tournament.status == TournamentStatus.CANCELLED -> FooterPill(Color.Gray) {
-                    Text("CANCELLED", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = dimmed)
                 }
                 tournament.isRegistrationClosed || isGuest -> FooterPill(Color.Gray) {
                     Text(if (isGuest) "SIGN IN TO REGISTER" else "REGISTRATION CLOSED", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = dimmed)

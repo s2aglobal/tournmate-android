@@ -20,6 +20,10 @@ data class Player(
     val fcmToken: String? = null,
     val weightKg: Double? = null,
     val dateOfBirth: Date? = null,
+    /** Dominant hand from profile setup ("left" / "right"); null if never set. */
+    val playingHand: String? = null,
+    /** Self-reported level from profile setup ("beginner" / "intermediate" / "advanced" / "pro"). */
+    val skillLevel: String? = null,
 ) {
     val gender: Gender
         get() = Gender.fromRawValue(genderRaw)

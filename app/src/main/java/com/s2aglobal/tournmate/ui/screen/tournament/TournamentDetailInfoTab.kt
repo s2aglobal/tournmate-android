@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
+import com.s2aglobal.tournmate.ui.component.ScoringDescription
+import com.s2aglobal.tournmate.ui.component.SportBadge
 import com.s2aglobal.tournmate.ui.theme.*
 import kotlinx.coroutines.delay
 import java.text.DateFormat
@@ -64,6 +66,8 @@ internal fun InfoTabContent(
             InfoGridCard(Icons.Default.EmojiEvents, "FORMAT", tournament.matchFormat.displayName, Modifier.weight(1f))
             InfoGridCard(Icons.Default.Stadium, "EVENT TYPE", tournament.format.displayName, Modifier.weight(1f))
         }
+        if (tournament.enforcesScoringRules) ScoringRulesCard(tournament)
+
         val duration = tournament.formattedDuration
         if (tournament.ageGroup != AgeGroup.OPEN || duration != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -165,6 +169,30 @@ private fun CoachsCornerCard() {
             fontSize = 14.sp, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic,
             color = Color.White, lineHeight = 21.sp,
         )
+    }
+}
+
+/** How matches are scored in this tournament (games, target, win-by, system). */
+@Composable
+private fun ScoringRulesCard(tournament: Tournament) {
+    val config = tournament.scoringConfig
+    val sport = tournament.sportType
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.Gray.copy(alpha = 0.05f))
+            .border(1.dp, Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        SportBadge(sport, size = 40.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("SCORING", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp, color = Color.Gray)
+            Text(ScoringDescription.summary(config, sport), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+            Text(ScoringDescription.detail(config, sport), fontSize = 13.sp, color = Color.Gray, lineHeight = 18.sp)
+        }
     }
 }
 

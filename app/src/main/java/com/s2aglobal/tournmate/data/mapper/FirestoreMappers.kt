@@ -32,6 +32,8 @@ fun DocumentSnapshot.toPlayer(): Player? {
         fcmToken = getString("fcmToken"),
         weightKg = getDouble("weightKg"),
         dateOfBirth = getTimestamp("dateOfBirth")?.toDate(),
+        playingHand = getString("playingHand"),
+        skillLevel = getString("skillLevel"),
     )
 }
 
@@ -68,6 +70,8 @@ fun Player.toFirestoreMap(): Map<String, Any?> = buildMap {
     fcmToken?.let { put("fcmToken", it) }
     weightKg?.let { put("weightKg", it) }
     dateOfBirth?.let { put("dateOfBirth", Timestamp(it)) }
+    playingHand?.let { put("playingHand", it) }
+    skillLevel?.let { put("skillLevel", it) }
 }
 
 fun DocumentSnapshot.toTournament(): Tournament? {

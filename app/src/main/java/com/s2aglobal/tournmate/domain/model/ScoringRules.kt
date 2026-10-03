@@ -140,18 +140,25 @@ sealed class ScoreValidationError {
     data class MatchNotDecided(val gamesToWin: Int) : ScoreValidationError()
     data object GamesAfterMatchDecided : ScoreValidationError()
 
-    val message: String
-        get() = when (this) {
+    val message: String get() = message(SportType.BADMINTON)
+
+    /** User-facing text. Tennis sets are scored in games, so it says "games" / "Set". */
+    fun message(sport: SportType): String {
+        val scoreWord = if (sport == SportType.TENNIS) "games" else "points"
+        val scoreWordSingular = if (sport == SportType.TENNIS) "game" else "point"
+        val unit = sport.setNameSingular.replaceFirstChar { it.uppercase() }
+        return when (this) {
             Negative -> "Scores can't be negative"
-            Tied -> "A game can't end in a tie"
-            is BelowTarget -> "Winner needs at least $target points"
+            Tied -> "A ${sport.setNameSingular} can't end in a tie"
+            is BelowTarget -> "Winner needs at least $target $scoreWord"
             is MarginTooSmall -> "Must win by $winBy"
-            is GameShouldHaveEnded -> "Game ends at $target with a $winBy-point lead"
+            is GameShouldHaveEnded -> "$unit ends at $target with a $winBy-$scoreWordSingular lead"
             is ExceedsCap -> "Max score is $cap"
             is TooManyGames -> "A match has at most $max games"
-            is MatchNotDecided -> "One side must win $gamesToWin game${if (gamesToWin == 1) "" else "s"}"
-            GamesAfterMatchDecided -> "Match was already won before the last game"
+            is MatchNotDecided -> "One side must win $gamesToWin ${sport.setNameSingular}${if (gamesToWin == 1) "" else "s"}"
+            GamesAfterMatchDecided -> "Match was already won before the last ${sport.setNameSingular}"
         }
+    }
 }
 
 data class MatchValidationResult(

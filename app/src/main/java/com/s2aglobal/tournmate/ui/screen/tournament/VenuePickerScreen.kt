@@ -36,12 +36,13 @@ import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.court.CourtSearchService
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
 fun VenuePickerScreen(
-    sportType: SportType = SportType.BADMINTON,
+    sportType: SportType = CurrentSport.sport,
     onVenueSelected: (name: String, address: String, latitude: Double, longitude: Double) -> Unit,
     onCancel: () -> Unit,
 ) {

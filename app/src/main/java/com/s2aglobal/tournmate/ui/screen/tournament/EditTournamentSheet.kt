@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
+import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.util.DatePickerUtils
 import java.text.SimpleDateFormat
@@ -43,8 +44,11 @@ fun EditTournamentSheet(
         registrationDeadline: Date,
         entryFee: Double?, currency: String, paymentInfo: String?,
         prizeInfo: String?, durationMinutes: Int?, ageGroup: AgeGroup,
+        scoringConfig: ScoringConfig?,
     ) -> Unit,
     onCancel: () -> Unit,
+    /** Scoring is locked once matches exist so results stay consistent. */
+    canEditScoring: Boolean = true,
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -80,6 +84,7 @@ fun EditTournamentSheet(
     // Only write the config when it was loaded or the organizer touched it, so an
     // unreadable stored config is never replaced with blank defaults.
     var formatConfigEdited by remember { mutableStateOf(false) }
+    var editScoringConfig by remember { mutableStateOf(tournament.scoringConfig) }
 
     var showVenuePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -171,6 +176,18 @@ fun EditTournamentSheet(
                     Column(Modifier.weight(1f)) {
                         SectionLabel("MATCH FORMAT")
                         PickerButton(editMatchFormat.displayName) { showMatchFormatPicker = true }
+                    }
+                }
+
+                if (canEditScoring) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SectionLabel("SCORING")
+                        ScoringConfigEditor(
+                            sport = tournament.sportType,
+                            config = editScoringConfig,
+                            onConfigChange = { editScoringConfig = it },
+                            singleGameOnly = editMatchFormat == MatchFormat.ROUND_ROBIN,
+                        )
                     }
                 }
 
@@ -411,6 +428,13 @@ fun EditTournamentSheet(
                                 editPrizeInfo.ifBlank { null },
                                 editDurationMinutes.toIntOrNull(),
                                 editAgeGroup,
+                                // Round robin is always a single game.
+                                // Legacy tournaments (no stored scoring) stay lenient unless the
+                                // organizer actually changed the scoring here.
+                                editScoringConfig
+                                    .let { if (editMatchFormat == MatchFormat.ROUND_ROBIN) it.copy(gamesPerMatch = 1) else it }
+                                    .takeIf { canEditScoring }
+                                    ?.takeIf { tournament.enforcesScoringRules || editScoringConfig != tournament.scoringConfig },
                             )
                         },
                         modifier = Modifier.fillMaxWidth().height(56.dp),

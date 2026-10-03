@@ -111,7 +111,7 @@ class FirestoreTournamentRepository @Inject constructor(
             ageGroupRaw = ageGroup.rawValue,
             durationMinutes = durationMinutes,
             formatConfigData = configJson,
-            scoringConfigData = scoringConfig?.encode(),
+            scoringConfigData = (scoringConfig ?: sportType.scoringRules.defaultConfig).encode(),
             countryCode = countryCode,
             postalCode = postalCode,
             timeZone = java.util.TimeZone.getDefault().id,

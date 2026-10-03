@@ -17,6 +17,9 @@ import com.s2aglobal.tournmate.service.AnalyticsService
 import com.s2aglobal.tournmate.service.auth.AuthService
 import com.s2aglobal.tournmate.service.calorie.HealthConnectCalorieResult
 import com.s2aglobal.tournmate.service.calorie.HealthConnectService
+import com.s2aglobal.tournmate.service.calorie.METEstimator
+import com.s2aglobal.tournmate.service.calorie.PlayIntensity
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.service.notification.NotificationService
 import com.s2aglobal.tournmate.service.region.RegionNormalizer
 import com.s2aglobal.tournmate.service.sport.PreferredSportUpdater
@@ -203,7 +206,7 @@ class ProfileViewModel @Inject constructor(
     /** A recent Health Connect workout, or null when Health Connect is unavailable or not permitted. */
     suspend fun checkHealthConnect(durationMinutes: Int): HealthConnectCalorieResult? = try {
         if (healthConnectService.isAvailable && healthConnectService.hasPermissions()) {
-            healthConnectService.queryWorkoutCalories(durationMinutes)
+            healthConnectService.queryWorkoutCalories(durationMinutes, CurrentSport.sport)
         } else null
     } catch (_: Exception) {
         null
@@ -235,7 +238,7 @@ class ProfileViewModel @Inject constructor(
             }
 
             val fromHealth = healthResult != null && healthResult.fromHealthConnect && healthResult.calories > 0
-            val calories = if (fromHealth) healthResult!!.calories else 5.5 * weightKg * (durationMinutes / 60.0)
+            val calories = if (fromHealth) healthResult!!.calories else METEstimator.estimate(durationMinutes, weightKg, PlayIntensity.CASUAL, CurrentSport.sport)
             val record = CalorieRecord(
                 id = quickPlayRecordId(player),
                 sessionId = UUID.randomUUID(),

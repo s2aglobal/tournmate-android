@@ -23,6 +23,8 @@ fun friendlyAuthError(error: Throwable): String {
     return when ((error as? FirebaseAuthException)?.errorCode) {
         "ERROR_WRONG_PASSWORD" -> "Incorrect password. Please try again."
         "ERROR_USER_NOT_FOUND" -> "No account found with this email."
+        // Returned instead of wrong-password / user-not-found when email-enumeration protection is on.
+        "ERROR_INVALID_CREDENTIAL" -> "Incorrect email or password. Please try again."
         "ERROR_EMAIL_ALREADY_IN_USE" -> "An account with this email already exists. Try signing in."
         "ERROR_WEAK_PASSWORD" -> "Password must be at least 6 characters."
         "ERROR_TOO_MANY_REQUESTS" -> "Too many failed attempts. Please try again later."

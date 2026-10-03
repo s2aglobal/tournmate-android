@@ -40,6 +40,8 @@ class FirestorePlayerRepository @Inject constructor(
         firebaseUid: String?,
         dateOfBirth: Date?,
         preferredSport: SportType,
+        playingHand: String?,
+        skillLevel: String?,
     ): Player {
         val player = Player(
             id = UUID.randomUUID(),
@@ -56,6 +58,8 @@ class FirestorePlayerRepository @Inject constructor(
             homeCountryCode = homeCountryCode,
             homePostalCode = homePostalCode,
             dateOfBirth = dateOfBirth,
+            playingHand = playingHand,
+            skillLevel = skillLevel,
         )
         collection.document(player.id.toString().uppercase())
             .set(player.toFirestoreMap())
@@ -120,6 +124,8 @@ class FirestorePlayerRepository @Inject constructor(
         player.weightKg?.let { allowedFields["weightKg"] = it }
         player.dateOfBirth?.let { allowedFields["dateOfBirth"] = com.google.firebase.Timestamp(it) }
         player.fcmToken?.let { allowedFields["fcmToken"] = it }
+        player.playingHand?.let { allowedFields["playingHand"] = it }
+        player.skillLevel?.let { allowedFields["skillLevel"] = it }
 
         collection.document(player.id.toString().uppercase())
             .update(allowedFields as Map<String, Any>)

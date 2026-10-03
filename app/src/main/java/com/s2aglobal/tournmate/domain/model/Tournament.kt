@@ -49,6 +49,10 @@ data class Tournament(
     val formatConfig: FormatConfig
         get() = FormatConfig.decode(formatConfigData, matchFormat)
 
+    /** `true` when the organizer chose scoring rules; older tournaments keep the lenient score checks. */
+    val enforcesScoringRules: Boolean
+        get() = scoringConfigData != null
+
     val scoringConfig: ScoringConfig
         get() = ScoringConfig.decodeOrNull(scoringConfigData) ?: sportType.scoringRules.defaultConfig
 

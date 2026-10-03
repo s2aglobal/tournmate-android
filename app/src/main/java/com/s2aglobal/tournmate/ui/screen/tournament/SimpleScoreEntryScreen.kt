@@ -12,6 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Match
+import com.s2aglobal.tournmate.domain.model.ScoreValidator
+import com.s2aglobal.tournmate.domain.model.SetScore
 
 @Composable
 fun SimpleScoreEntryScreen(
@@ -29,7 +31,14 @@ fun SimpleScoreEntryScreen(
     val teamBName = registrationFullName(match.teamB)
     val a = scoreA.toIntOrNull()
     val b = scoreB.toIntOrNull()
-    val isValid = a != null && b != null && a >= 0 && b >= 0 && a != b && (a > 0 || b > 0)
+    val tournament = match.tournament
+    val sport = tournament.sportType
+    // Round-robin matches are a single game played to the tournament's target.
+    val gameConfig = tournament.scoringConfig.copy(gamesPerMatch = 1)
+    val gameError = if (tournament.enforcesScoringRules && a != null && b != null) {
+        ScoreValidator.validateGame(SetScore(a, b), gameConfig)?.message(sport)
+    } else null
+    val isValid = a != null && b != null && a >= 0 && b >= 0 && a != b && (a > 0 || b > 0) && gameError == null
 
     FullScreenSheet(onDismiss = { if (winnerName == null) onDismiss() }) {
         val winner = winnerName
@@ -55,8 +64,13 @@ fun SimpleScoreEntryScreen(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         NumberBadge("1")
                         Text("Game Score", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.weight(1f))
+                        if (tournament.enforcesScoringRules) {
+                            ScoringHint(sport, gameConfig, badgeSize = 14.dp, fontSize = 11, modifier = Modifier.weight(1f, fill = false))
+                        }
                     }
-                    ScoreFieldPair(scoreA, scoreB, onA = { scoreA = it }, onB = { scoreB = it })
+                    ScoreFieldPair(scoreA, scoreB, onA = { scoreA = it }, onB = { scoreB = it }, isError = gameError != null)
+                    gameError?.let { GameErrorRow(it) }
                 }
             }
             ScoreSubmitBar(if (isCreator) "FINALIZE SCORE" else "SUBMIT SCORE", isValid) {

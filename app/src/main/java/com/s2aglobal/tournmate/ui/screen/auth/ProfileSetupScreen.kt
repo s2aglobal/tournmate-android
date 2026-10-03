@@ -276,6 +276,8 @@ fun ProfileSetupScreen(
                             homePostalRaw = postalCode,
                             dateOfBirth = selectedDateOfBirth,
                             preferredSport = selectedSport,
+                            playingHand = playingHand.name.lowercase(),
+                            skillLevel = skillLevel.name.lowercase(),
                             onComplete = { showSuccess = true },
                         )
                     },

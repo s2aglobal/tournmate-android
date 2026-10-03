@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
+import com.s2aglobal.tournmate.ui.component.ScoringDescription
 import com.s2aglobal.tournmate.ui.component.SportPickerRow
 import com.s2aglobal.tournmate.ui.theme.theme
 import androidx.compose.ui.Alignment
@@ -94,6 +96,7 @@ fun PublishTournamentScreen(
         randomPairing: Boolean, registrationDeadline: Date?, createdBy: String?,
         entryFee: Double?, currency: String, paymentInfo: String?, prizeInfo: String?,
         durationMinutes: Int?, ageGroup: AgeGroup, sportType: SportType,
+        scoringConfig: ScoringConfig,
         onResult: (Boolean) -> Unit,
     ) -> Unit,
     onDismiss: () -> Unit,
@@ -120,6 +123,9 @@ fun PublishTournamentScreen(
     var newAgeGroup by remember { mutableStateOf(AgeGroup.OPEN) }
     var newSportType by remember { mutableStateOf(preferredSport) }
     var newFormatConfig by remember { mutableStateOf(FormatConfig.defaults(MatchFormat.SINGLE_ELIMINATION)) }
+    var newScoringConfig by remember { mutableStateOf(preferredSport.scoringRules.defaultConfig) }
+    // Scoring as it will be saved (round robin is always a single game).
+    val reviewScoringConfig = if (newMatchFormat == MatchFormat.ROUND_ROBIN) newScoringConfig.copy(gamesPerMatch = 1) else newScoringConfig
 
     var venueName by remember { mutableStateOf("") }
     var venueAddress by remember { mutableStateOf("") }
@@ -347,7 +353,8 @@ fun PublishTournamentScreen(
                 ) {
                     when (wizardStep) {
                         1 -> Step1BasicInfo(
-                            sportType = newSportType, onSportChange = { newSportType = it },
+                            sportType = newSportType,
+                            onSportChange = { newSportType = it; newScoringConfig = it.scoringRules.defaultConfig },
                             title = newTitle, onTitleChange = { newTitle = it }, titleError = titleError,
                             format = newFormat, onEventTypeClick = { showEventTypeSheet = true },
                             randomPairing = newRandomPairing, onRandomPairingChange = { newRandomPairing = it },
@@ -361,6 +368,8 @@ fun PublishTournamentScreen(
                             matchFormat = newMatchFormat,
                             onMatchFormatChange = { newMatchFormat = it; newFormatConfig = FormatConfig.defaults(it) },
                             ageGroup = newAgeGroup, onAgeGroupClick = { showAgeGroupSheet = true },
+                            sportType = newSportType,
+                            scoringConfig = newScoringConfig, onScoringConfigChange = { newScoringConfig = it },
                             formatConfig = newFormatConfig, onFormatConfigChange = { newFormatConfig = it },
                         )
                         3 -> Step3RulesLogistics(
@@ -376,7 +385,7 @@ fun PublishTournamentScreen(
                         else -> Step4Review(
                             sportType = newSportType, title = newTitle,
                             format = newFormat, matchFormat = newMatchFormat,
-                            formatConfig = newFormatConfig, venueName = venueName,
+                            formatConfig = newFormatConfig, scoringConfig = reviewScoringConfig, venueName = venueName,
                             date = newDate, deadline = newDeadline,
                             ageGroup = newAgeGroup, entryFee = newEntryFee,
                             currency = newCurrency, prizeInfo = newPrizeInfo,
@@ -399,6 +408,7 @@ fun PublishTournamentScreen(
                             newEntryFee.toDoubleOrNull(), newCurrency,
                             newPaymentInfo.ifBlank { null }, newPrizeInfo.ifBlank { null },
                             newDurationMinutes.toIntOrNull(), newAgeGroup, newSportType,
+                            reviewScoringConfig,
                         ) { ok ->
                             isPublishing = false
                             if (ok) showSuccess = true
@@ -624,6 +634,8 @@ private fun Step1BasicInfo(
 private fun Step2FormatRules(
     matchFormat: MatchFormat, onMatchFormatChange: (MatchFormat) -> Unit,
     ageGroup: AgeGroup, onAgeGroupClick: () -> Unit,
+    sportType: SportType,
+    scoringConfig: ScoringConfig, onScoringConfigChange: (ScoringConfig) -> Unit,
     formatConfig: FormatConfig, onFormatConfigChange: (FormatConfig) -> Unit,
 ) {
     SectionLabel("MATCH FORMAT")
@@ -656,6 +668,15 @@ private fun Step2FormatRules(
     Spacer(Modifier.height(4.dp))
     SectionLabel("AGE GROUP")
     PickerRow(text = ageGroup.displayName, icon = Icons.Default.Badge, trailing = Icons.Default.ChevronRight, onClick = onAgeGroupClick)
+
+    SectionLabel("SCORING")
+    ScoringConfigEditor(
+        sport = sportType,
+        config = scoringConfig,
+        onConfigChange = onScoringConfigChange,
+        accent = WizardAccent,
+        singleGameOnly = matchFormat == MatchFormat.ROUND_ROBIN,
+    )
 
     // Format-specific config
     FormatConfigSection(matchFormat, formatConfig, onFormatConfigChange)
@@ -884,7 +905,7 @@ private fun Step3RulesLogistics(
 @Composable
 private fun Step4Review(
     sportType: SportType, title: String, format: TournamentFormat, matchFormat: MatchFormat,
-    formatConfig: FormatConfig, venueName: String, date: Date, deadline: Date,
+    formatConfig: FormatConfig, scoringConfig: ScoringConfig, venueName: String, date: Date, deadline: Date,
     ageGroup: AgeGroup, entryFee: String, currency: String, prizeInfo: String,
     randomPairing: Boolean, dateFmt: SimpleDateFormat, timeFmt: SimpleDateFormat,
 ) {
@@ -910,6 +931,7 @@ private fun Step4Review(
     Spacer(Modifier.height(8.dp))
     ReviewRow("SPORT", sportType.displayName); ReviewRow("TOURNAMENT", title)
     ReviewRow("EVENT TYPE", format.displayName); ReviewRow("FORMAT", matchFormat.displayName)
+    ReviewRow("SCORING", ScoringDescription.summary(scoringConfig, sportType))
     ReviewRow("SEEDING", seedingLabel(SeedingMode.fromRawValue(formatConfig.seedingMode)))
     FormatRulesReviewRows(matchFormat, formatConfig)
     ReviewRow("VENUE", venueName)

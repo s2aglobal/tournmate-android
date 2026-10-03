@@ -12,8 +12,8 @@ import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.data.repository.RegistrationRepository
 import com.s2aglobal.tournmate.data.repository.TournamentRepository
 import com.s2aglobal.tournmate.domain.model.*
-import com.s2aglobal.tournmate.service.calorie.BadmintonIntensity
 import com.s2aglobal.tournmate.service.calorie.METEstimator
+import com.s2aglobal.tournmate.service.calorie.PlayIntensity
 import com.s2aglobal.tournmate.service.pairing.PairingService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -429,7 +429,7 @@ class TournamentDetailViewModel @Inject constructor(
             val record = CalorieRecord(
                 sessionId = tournament.id,
                 playerId = player.id,
-                calories = METEstimator.estimate(duration, weight, BadmintonIntensity.COMPETITIVE),
+                calories = METEstimator.estimate(duration, weight, PlayIntensity.COMPETITIVE, tournament.sportType),
                 source = CalorieSource.ESTIMATED,
                 weightUsedKg = weight,
                 durationMinutes = duration,
@@ -855,6 +855,7 @@ class TournamentDetailViewModel @Inject constructor(
         registrationDeadline: java.util.Date,
         entryFee: Double?, currency: String, paymentInfo: String?,
         prizeInfo: String?, durationMinutes: Int?, ageGroup: AgeGroup,
+        scoringConfig: ScoringConfig? = null,
     ) {
         viewModelScope.launch {
             val tournament = _uiState.value.tournament ?: return@launch
@@ -871,6 +872,7 @@ class TournamentDetailViewModel @Inject constructor(
                     randomPairing = randomPairing, registrationDeadline = registrationDeadline,
                     entryFee = entryFee, currency = currency, paymentInfo = paymentInfo,
                     prizeInfo = prizeInfo, durationMinutes = durationMinutes, ageGroup = ageGroup,
+                    scoringConfig = scoringConfig,
                 )
                 reload()
                 setStatus("Tournament updated successfully!")

@@ -171,7 +171,7 @@ fun PlayTabScreen(
                               format, matchFormat, formatConfig,
                               randomPairing, registrationDeadline, createdBy,
                               entryFee, currency, paymentInfo, prizeInfo,
-                              durationMinutes, ageGroup, sportType, onResult ->
+                              durationMinutes, ageGroup, sportType, scoringConfig, onResult ->
                     tournamentListVM.create(
                         title = title, date = date,
                         location = location, locationAddress = locationAddress,
@@ -181,7 +181,7 @@ fun PlayTabScreen(
                         createdBy = createdBy, entryFee = entryFee, currency = currency,
                         paymentInfo = paymentInfo, prizeInfo = prizeInfo,
                         durationMinutes = durationMinutes, ageGroup = ageGroup, sportType = sportType,
-                        onResult = onResult,
+                        scoringConfig = scoringConfig, onResult = onResult,
                     )
                 },
                 onDismiss = { showPublish = false },

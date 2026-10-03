@@ -16,9 +16,9 @@ import com.s2aglobal.tournmate.data.repository.CalorieRecordRepository
 import com.s2aglobal.tournmate.domain.model.CalorieActivityType
 import com.s2aglobal.tournmate.domain.model.CalorieRecord
 import com.s2aglobal.tournmate.domain.model.CalorieSource
-import com.s2aglobal.tournmate.service.calorie.BadmintonIntensity
 import com.s2aglobal.tournmate.service.calorie.HealthConnectService
 import com.s2aglobal.tournmate.service.calorie.METEstimator
+import com.s2aglobal.tournmate.service.calorie.PlayIntensity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import kotlin.math.roundToInt
@@ -131,7 +131,7 @@ class OpenPlayDetailViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isFetchingHealthConnect = true)
         val plannedEnd = session.date.time + (session.durationMinutes ?: 120) * 60_000L
         val end = Instant.ofEpochMilli(maxOf(plannedEnd, System.currentTimeMillis()))
-        val calories = healthConnectService.queryCalories(Instant.ofEpochMilli(session.date.time), end)
+        val calories = healthConnectService.queryCalories(Instant.ofEpochMilli(session.date.time), end, session.sportType)
         healthConnectChecked = true
         _uiState.value = _uiState.value.copy(isFetchingHealthConnect = false, healthConnectCalories = calories)
         if (calories != null) logCaloriesInternal()
@@ -165,7 +165,8 @@ class OpenPlayDetailViewModel @Inject constructor(
         val calories = hcCalories ?: METEstimator.estimate(
             durationMinutes = duration,
             weightKg = weight,
-            intensity = if (session.gameType == CasualGameType.SINGLES) BadmintonIntensity.COMPETITIVE else BadmintonIntensity.CASUAL,
+            intensity = if (session.gameType == CasualGameType.SINGLES) PlayIntensity.COMPETITIVE else PlayIntensity.CASUAL,
+            sport = session.sportType,
         )
         val record = CalorieRecord(
             sessionId = session.id,

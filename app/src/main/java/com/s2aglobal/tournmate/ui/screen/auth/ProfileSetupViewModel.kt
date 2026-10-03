@@ -49,6 +49,8 @@ class ProfileSetupViewModel @Inject constructor(
         homePostalRaw: String,
         dateOfBirth: Date?,
         preferredSport: SportType,
+        playingHand: String?,
+        skillLevel: String?,
         onComplete: () -> Unit,
     ) {
         if (_uiState.value.isSaving) return
@@ -90,6 +92,8 @@ class ProfileSetupViewModel @Inject constructor(
                     firebaseUid = uid,
                     dateOfBirth = dateOfBirth,
                     preferredSport = preferredSport,
+                    playingHand = playingHand,
+                    skillLevel = skillLevel,
                 )
 
                 currentUserStore.setCurrentPlayerId(player.id)

@@ -20,5 +20,10 @@ val SportType.rulebook: Rulebook?
             source = "USA Pickleball Official Rulebook",
             sections = PickleballRules.sections,
         )
+        SportType.TENNIS -> Rulebook(
+            title = "Rules of Tennis",
+            source = "ITF Rules of Tennis",
+            sections = TennisRules.sections,
+        )
         else -> null
     }

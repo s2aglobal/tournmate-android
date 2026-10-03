@@ -133,6 +133,8 @@ import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.PlayerAvatar
 import com.s2aglobal.tournmate.domain.model.SeedTierRules
 import com.s2aglobal.tournmate.service.calorie.HealthConnectCalorieResult
+import com.s2aglobal.tournmate.service.calorie.METEstimator
+import com.s2aglobal.tournmate.service.calorie.PlayIntensity
 import com.s2aglobal.tournmate.ui.component.BottomSheetPicker
 import com.s2aglobal.tournmate.ui.component.SportPickerRow
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
@@ -874,7 +876,7 @@ private fun QuickPlaySheet(playerWeight: Double, viewModel: ProfileViewModel, on
                             Slider(value = weight, onValueChange = { weight = Math.round(it).toFloat() }, valueRange = 30f..200f, colors = SliderDefaults.colors(thumbColor = WarningOrange, activeTrackColor = WarningOrange))
                         }
 
-                        val estimatedCal = Math.round(5.5 * weight * (durationMinutes / 60.0))
+                        val estimatedCal = Math.round(METEstimator.estimate(durationMinutes.toInt(), weight.toDouble(), PlayIntensity.CASUAL, CurrentSport.sport))
                         Text("Estimated: ~$estimatedCal kcal", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = WarningOrange)
 
                         savedMessage?.let { Text(it, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent) }
