@@ -4,11 +4,12 @@ import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.domain.model.SportType
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -32,10 +33,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -59,15 +66,26 @@ fun WelcomeScreen(
     onContinueAsGuest: () -> Unit,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "bounce")
-    val bounceOffset by infiniteTransition.animateFloat(
+    val bounce by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = -8f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(800),
+            animation = tween(800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "bounceY",
+        label = "bounce",
     )
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { contentVisible = true }
+    val content by animateFloatAsState(
+        targetValue = if (contentVisible) 1f else 0f,
+        animationSpec = tween(700, delayMillis = 200, easing = FastOutSlowInEasing),
+        label = "contentVisible",
+    )
+    fun Modifier.entrance(distance: Float) = graphicsLayer {
+        alpha = content
+        translationY = (1f - content) * distance.dp.toPx()
+    }
 
     Box(
         modifier = Modifier
@@ -91,7 +109,8 @@ fun WelcomeScreen(
             Surface(
                 modifier = Modifier
                     .size(56.dp)
-                    .offset(y = bounceOffset.dp)
+                    .offset(y = (-8f * bounce).dp)
+                    .rotate(-2f + 4f * bounce)
                     .shadow(12.dp, RoundedCornerShape(16.dp), ambientColor = TournmatePurple.copy(alpha = 0.4f)),
                 shape = RoundedCornerShape(16.dp),
                 color = TournmatePurple,
@@ -100,7 +119,7 @@ fun WelcomeScreen(
                     Icon(
                         painter = if (CurrentSport.sport == SportType.BADMINTON) rememberVectorPainter(Icons.Default.SportsHandball) else sportIconPainter(CurrentSport.sport),
                         contentDescription = null,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(24.dp),
                         tint = Color.White,
                     )
                 }
@@ -111,6 +130,7 @@ fun WelcomeScreen(
             // Green accent bar
             Surface(
                 modifier = Modifier
+                    .entrance(20f)
                     .width(36.dp)
                     .height(5.dp),
                 shape = RoundedCornerShape(50),
@@ -126,6 +146,7 @@ fun WelcomeScreen(
                 fontWeight = FontWeight.Black,
                 color = Color.White,
                 lineHeight = 52.sp,
+                modifier = Modifier.entrance(20f),
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -136,6 +157,7 @@ fun WelcomeScreen(
                 fontWeight = FontWeight.Normal,
                 color = Color.White.copy(alpha = 0.5f),
                 lineHeight = 24.sp,
+                modifier = Modifier.entrance(15f),
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -144,6 +166,7 @@ fun WelcomeScreen(
             TextButton(
                 onClick = onStartJourney,
                 modifier = Modifier
+                    .entrance(10f)
                     .fillMaxWidth()
                     .height(56.dp)
                     .background(LimeAccent, RoundedCornerShape(28.dp)),
@@ -173,7 +196,7 @@ fun WelcomeScreen(
 
             // LOG IN + GUEST — side by side
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.entrance(10f).fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 TextButton(

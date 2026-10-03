@@ -3,6 +3,7 @@ package com.s2aglobal.tournmate.service.auth
 import android.content.Context
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -44,8 +45,10 @@ class FirebaseAuthService @Inject constructor(
             val firebaseCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
             val authResult = auth.signInWithCredential(firebaseCredential).await()
 
-            authResult.user?.let { AuthResult.Success(it) }
+            authResult.user?.let { AuthResult.Success(it, googleIdTokenCredential.displayName ?: it.displayName) }
                 ?: AuthResult.Error("Sign-in succeeded but no user returned")
+        } catch (e: GetCredentialCancellationException) {
+            AuthResult.Cancelled
         } catch (e: Exception) {
             AuthResult.Error(e.localizedMessage ?: "Google sign-in failed")
         }
@@ -57,7 +60,7 @@ class FirebaseAuthService @Inject constructor(
             result.user?.let { AuthResult.Success(it) }
                 ?: AuthResult.Error("Sign-in succeeded but no user returned")
         } catch (e: Exception) {
-            AuthResult.Error(e.localizedMessage ?: "Email sign-in failed")
+            AuthResult.Error(friendlyAuthError(e))
         }
     }
 
@@ -67,7 +70,7 @@ class FirebaseAuthService @Inject constructor(
             result.user?.let { AuthResult.Success(it) }
                 ?: AuthResult.Error("Account creation succeeded but no user returned")
         } catch (e: Exception) {
-            AuthResult.Error(e.localizedMessage ?: "Account creation failed")
+            AuthResult.Error(friendlyAuthError(e))
         }
     }
 

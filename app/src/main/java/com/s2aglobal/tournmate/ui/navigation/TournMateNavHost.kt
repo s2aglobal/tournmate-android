@@ -18,6 +18,8 @@ import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.screen.MainScreen
 import com.s2aglobal.tournmate.ui.screen.auth.AuthGateViewModel
 import com.s2aglobal.tournmate.ui.screen.auth.AuthGateScreen
+import com.s2aglobal.tournmate.ui.screen.auth.AuthState
+import com.s2aglobal.tournmate.ui.screen.auth.EmailVerificationScreen
 import com.s2aglobal.tournmate.ui.screen.auth.LoginScreen
 import com.s2aglobal.tournmate.ui.screen.auth.OnboardingScreen
 import com.s2aglobal.tournmate.ui.screen.auth.ProfileSetupScreen
@@ -30,6 +32,15 @@ import com.s2aglobal.tournmate.ui.screen.player.RatePlayerSheet
 import com.s2aglobal.tournmate.ui.screen.notification.NotificationInboxScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentDetailScreen
 
+private val authFlowRoutes = setOf(
+    Routes.AUTH_GATE,
+    Routes.WELCOME,
+    Routes.LOGIN,
+    Routes.EMAIL_VERIFICATION,
+    Routes.PROFILE_SETUP,
+    Routes.ONBOARDING,
+)
+
 @Composable
 fun TournMateNavHost(
     pendingDeepLink: DeepLinkParser.Target? = null,
@@ -39,46 +50,44 @@ fun TournMateNavHost(
     val authGateViewModel: AuthGateViewModel = hiltViewModel()
     val isGuestMode by authGateViewModel.isGuestMode.collectAsStateWithLifecycle()
 
+    // The auth gate drives the auth/onboarding flow (mirrors iOS AuthGateView): every
+    // resolved state maps to one destination and replaces the back stack.
+    LaunchedEffect(authGateViewModel) {
+        authGateViewModel.authState.collect { state ->
+            val target = when (state) {
+                AuthState.LOADING -> return@collect
+                AuthState.SIGNED_OUT -> Routes.WELCOME
+                AuthState.NEEDS_VERIFICATION -> Routes.EMAIL_VERIFICATION
+                AuthState.NEEDS_PROFILE -> Routes.PROFILE_SETUP
+                AuthState.NEEDS_ONBOARDING -> Routes.ONBOARDING
+                AuthState.SIGNED_IN -> Routes.MAIN
+            }
+            val current = navController.currentDestination?.route
+            val alreadyThere = current == target ||
+                (state == AuthState.SIGNED_OUT && current == Routes.LOGIN) ||
+                (state == AuthState.SIGNED_IN && current !in authFlowRoutes)
+            if (alreadyThere) return@collect
+            val route = if (target == Routes.PROFILE_SETUP) Routes.profileSetup() else target
+            navController.navigate(route) {
+                popUpTo(navController.graph.id) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Routes.AUTH_GATE,
     ) {
         composable(Routes.AUTH_GATE) {
-            AuthGateScreen(
-                viewModel = authGateViewModel,
-                onNavigateToWelcome = {
-                    navController.navigate(Routes.WELCOME) {
-                        popUpTo(Routes.AUTH_GATE) { inclusive = true }
-                    }
-                },
-                onNavigateToProfileSetup = {
-                    navController.navigate(Routes.profileSetup()) {
-                        popUpTo(Routes.AUTH_GATE) { inclusive = true }
-                    }
-                },
-                onNavigateToOnboarding = {
-                    navController.navigate(Routes.ONBOARDING) {
-                        popUpTo(Routes.ONBOARDING) { inclusive = true }
-                    }
-                },
-                onNavigateToMain = {
-                    navController.navigate(Routes.MAIN) {
-                        popUpTo(Routes.AUTH_GATE) { inclusive = true }
-                    }
-                },
-            )
+            AuthGateScreen()
         }
 
         composable(Routes.WELCOME) {
             WelcomeScreen(
                 onStartJourney = { navController.navigate(Routes.login(createMode = true)) },
                 onLogIn = { navController.navigate(Routes.login(createMode = false)) },
-                onContinueAsGuest = {
-                    authGateViewModel.continueAsGuest()
-                    navController.navigate(Routes.MAIN) {
-                        popUpTo(Routes.WELCOME) { inclusive = true }
-                    }
-                },
+                onContinueAsGuest = { authGateViewModel.continueAsGuest() },
             )
         }
 
@@ -86,16 +95,17 @@ fun TournMateNavHost(
             val createMode = backStackEntry.arguments?.getString("createMode")?.toBoolean() ?: false
             LoginScreen(
                 initialCreateMode = createMode,
-                onSignInSuccess = { needsProfile, displayName ->
-                    if (needsProfile) {
-                        navController.navigate(Routes.profileSetup(displayName))
-                    } else {
-                        navController.navigate(Routes.MAIN) {
-                            popUpTo(Routes.WELCOME) { inclusive = true }
-                        }
-                    }
-                },
+                onSignInSuccess = { authGateViewModel.checkAuthState() },
                 onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.EMAIL_VERIFICATION) {
+            EmailVerificationScreen(
+                email = authGateViewModel.currentUserEmail,
+                onCheckVerified = { authGateViewModel.checkEmailVerification() },
+                onResend = { authGateViewModel.resendVerificationEmail() },
+                onSignOut = { authGateViewModel.signOut() },
             )
         }
 
@@ -107,28 +117,16 @@ fun TournMateNavHost(
                     defaultValue = ""
                 },
             ),
-        ) { backStackEntry ->
-            val initialName = java.net.URLDecoder.decode(
-                backStackEntry.arguments?.getString("name") ?: "", "UTF-8"
-            )
+        ) {
             ProfileSetupScreen(
-                initialName = initialName,
-                onBack = { navController.popBackStack() },
-                onComplete = {
-                    navController.navigate(Routes.ONBOARDING) {
-                        popUpTo(Routes.PROFILE_SETUP) { inclusive = true }
-                    }
-                },
+                onSignOut = { authGateViewModel.signOut() },
+                onComplete = { authGateViewModel.onProfileComplete() },
             )
         }
 
         composable(Routes.ONBOARDING) {
             OnboardingScreen(
-                onComplete = {
-                    navController.navigate(Routes.MAIN) {
-                        popUpTo(Routes.ONBOARDING) { inclusive = true }
-                    }
-                },
+                onComplete = { authGateViewModel.onOnboardingComplete() },
             )
         }
 

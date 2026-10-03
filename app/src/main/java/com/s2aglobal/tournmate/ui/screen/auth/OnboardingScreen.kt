@@ -2,6 +2,8 @@ package com.s2aglobal.tournmate.ui.screen.auth
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -148,6 +150,15 @@ fun OnboardingScreen(
                     .fillMaxSize()
                     .background(Brush.verticalGradient(page.backgroundGradient)),
             ) {
+                val watermarkModifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = (-40).dp)
+                    .size(200.dp)
+                if (page.usesSportIcon) {
+                    Icon(sportIconPainter(CurrentSport.sport), null, watermarkModifier, tint = Color.White.copy(alpha = 0.06f))
+                } else {
+                    Icon(page.icon, null, watermarkModifier, tint = Color.White.copy(alpha = 0.06f))
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -179,35 +190,25 @@ fun OnboardingScreen(
                             }
                         }
 
-                        TextButton(onClick = { viewModel.markOnboardingSeen(onComplete) }) {
-                            Text("SKIP", color = Color.White.copy(alpha = 0.8f), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                    }
-
-                    // Icon in center
-                    Spacer(modifier = Modifier.weight(1f))
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (page.usesSportIcon) {
-                            Icon(
-                                painter = sportIconPainter(CurrentSport.sport),
-                                contentDescription = null,
-                                modifier = Modifier.size(140.dp),
-                                tint = Color.White.copy(alpha = 0.15f),
+                        if (pageIndex < pages.size - 1) {
+                            Text(
+                                "SKIP",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color.White.copy(alpha = 0.1f))
+                                    .clickable { viewModel.markOnboardingSeen(onComplete) }
+                                    .padding(horizontal = 18.dp, vertical = 10.dp),
                             )
                         } else {
-                            Icon(
-                                imageVector = page.icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(140.dp),
-                                tint = Color.White.copy(alpha = 0.15f),
-                            )
+                            Spacer(Modifier.height(38.dp))
                         }
                     }
-                    Spacer(modifier = Modifier.weight(1f))
 
+                    Spacer(modifier = Modifier.weight(1f))
                     // Text content
                     Text(
                         page.category,

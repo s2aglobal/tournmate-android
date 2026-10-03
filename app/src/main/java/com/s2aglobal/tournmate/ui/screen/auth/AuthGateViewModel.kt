@@ -4,18 +4,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
+import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.service.auth.AuthService
+import com.s2aglobal.tournmate.service.auth.requiresEmailVerification
 import com.s2aglobal.tournmate.service.notification.NotificationService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 enum class AuthState {
     LOADING,
     SIGNED_OUT,
+    NEEDS_VERIFICATION,
     NEEDS_PROFILE,
     NEEDS_ONBOARDING,
     SIGNED_IN,
@@ -35,10 +39,13 @@ class AuthGateViewModel @Inject constructor(
     private val _isGuestMode = MutableStateFlow(false)
     val isGuestMode: StateFlow<Boolean> = _isGuestMode.asStateFlow()
 
+    val currentUserEmail: String get() = authService.currentUser?.email.orEmpty()
+
     init {
         checkAuthState()
     }
 
+    /** Re-resolves the auth state; call after any sign-in. */
     fun checkAuthState() {
         viewModelScope.launch {
             _authState.value = AuthState.LOADING
@@ -48,36 +55,89 @@ class AuthGateViewModel @Inject constructor(
                 _authState.value = AuthState.SIGNED_OUT
                 return@launch
             }
+            currentUserStore.setFirebaseUid(firebaseUser.uid)
 
-            val savedPlayerId = currentUserStore.currentPlayerId()
-            if (savedPlayerId != null) {
-                val player = playerRepo.findPlayerById(savedPlayerId)
-                if (player != null) {
-                    // Player doc is the source of truth for sport; local copy can be stale.
-                    currentUserStore.setPreferredSport(player.preferredSport)
-                    notificationService.subscribeToHomeRegion(player)
-                    val hasSeenOnboarding = currentUserStore.hasSeenOnboarding()
-                    _authState.value = if (hasSeenOnboarding) AuthState.SIGNED_IN
-                    else AuthState.NEEDS_ONBOARDING
+            if (requiresEmailVerification) {
+                authService.reloadCurrentUser()
+                if (authService.currentUser?.isEmailVerified != true) {
+                    _authState.value = AuthState.NEEDS_VERIFICATION
                     return@launch
                 }
             }
 
-            val player = playerRepo.findPlayerByFirebaseUid(firebaseUser.uid)
-            if (player != null) {
-                currentUserStore.setCurrentPlayerId(player.id)
-                currentUserStore.setFirebaseUid(firebaseUser.uid)
-                currentUserStore.setPreferredSport(player.preferredSport)
-                notificationService.subscribeToHomeRegion(player)
-                val hasSeenOnboarding = currentUserStore.hasSeenOnboarding()
-                _authState.value = if (hasSeenOnboarding) AuthState.SIGNED_IN
-                else AuthState.NEEDS_ONBOARDING
-            } else {
-                currentUserStore.setFirebaseUid(firebaseUser.uid)
-                _authState.value = AuthState.NEEDS_PROFILE
-            }
+            _authState.value = resolvePlayer(firebaseUser.uid)
         }
     }
+
+    private suspend fun resolvePlayer(uid: String): AuthState {
+        // Fast path: verify the cached player still exists.
+        currentUserStore.currentPlayerId()?.let { cachedId ->
+            val player = runCatching { playerRepo.findPlayerById(cachedId) }.getOrNull()
+            if (player != null) {
+                adopt(player)
+                return if (currentUserStore.hasSeenOnboarding()) AuthState.SIGNED_IN
+                else AuthState.NEEDS_ONBOARDING
+            }
+            currentUserStore.setCurrentPlayerId(null)
+        }
+
+        // Slow path: look up by Firebase UID, falling back to profile setup after 6s.
+        val existing = withTimeoutOrNull(6_000) {
+            runCatching { playerRepo.findPlayerByFirebaseUid(uid) }.getOrNull()
+        }
+        if (existing != null) {
+            currentUserStore.setCurrentPlayerId(existing.id)
+            adopt(existing)
+            return AuthState.SIGNED_IN
+        }
+        return AuthState.NEEDS_PROFILE
+    }
+
+    /** Player doc is the source of truth for sport; the local copy can be stale. */
+    private suspend fun adopt(player: Player) {
+        currentUserStore.setPreferredSport(player.preferredSport)
+        notificationService.subscribeToHomeRegion(player)
+    }
+
+    fun onProfileComplete() {
+        viewModelScope.launch {
+            _authState.value = if (currentUserStore.hasSeenOnboarding()) AuthState.SIGNED_IN
+            else AuthState.NEEDS_ONBOARDING
+        }
+    }
+
+    fun onOnboardingComplete() {
+        viewModelScope.launch {
+            currentUserStore.setHasSeenOnboarding(true)
+            _authState.value = AuthState.SIGNED_IN
+        }
+    }
+
+    /** Re-checks verification; advances to profile setup / main once verified. */
+    fun checkEmailVerification() {
+        viewModelScope.launch {
+            authService.reloadCurrentUser()
+            val user = authService.currentUser ?: return@launch
+            if (!user.isEmailVerified) return@launch
+
+            currentUserStore.currentPlayerId()?.let { id ->
+                runCatching { playerRepo.findPlayerById(id) }.getOrNull()?.let {
+                    adopt(it)
+                    _authState.value = AuthState.SIGNED_IN
+                    return@launch
+                }
+            }
+            runCatching { playerRepo.findPlayerByFirebaseUid(user.uid) }.getOrNull()?.let {
+                currentUserStore.setCurrentPlayerId(it.id)
+                adopt(it)
+                _authState.value = AuthState.SIGNED_IN
+                return@launch
+            }
+            _authState.value = AuthState.NEEDS_PROFILE
+        }
+    }
+
+    suspend fun resendVerificationEmail(): Result<Unit> = authService.sendEmailVerification()
 
     fun continueAsGuest() {
         _isGuestMode.value = true
