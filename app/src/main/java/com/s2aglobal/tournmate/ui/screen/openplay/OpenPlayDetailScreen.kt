@@ -1237,7 +1237,7 @@ private fun EditSessionSheet(
                 }
 
                 FormSection("Preferred Age Group") {
-                    AgeGroupDropdown(selected = ageGroup, onSelected = { ageGroup = it })
+                    AgeGroupDropdown(selected = ageGroup, options = session.sportType.ageGroupsIncluding(session.preferredAgeGroup), onSelected = { ageGroup = it })
                 }
 
                 FormSection("Cost per Person (Optional)") {

@@ -107,7 +107,7 @@ fun TournamentDetailScreen(
             tournament = tournament,
             onSave = { title, date, location, locationAddress, locationLatitude, locationLongitude,
                        format, matchFormat, formatConfig, randomPairing, registrationDeadline,
-                       entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, scoringConfig ->
+                       entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, scoringConfig, skillDivision ->
                 viewModel.updateTournament(
                     title = title, date = date,
                     location = location, locationAddress = locationAddress,
@@ -116,7 +116,7 @@ fun TournamentDetailScreen(
                     randomPairing = randomPairing, registrationDeadline = registrationDeadline,
                     entryFee = entryFee, currency = currency, paymentInfo = paymentInfo,
                     prizeInfo = prizeInfo, durationMinutes = durationMinutes, ageGroup = ageGroup,
-                    scoringConfig = scoringConfig,
+                    scoringConfig = scoringConfig, skillDivision = skillDivision,
                 )
                 showEditSheet = false
             },
@@ -436,7 +436,7 @@ private fun HeaderSection(tournament: Tournament, isCreator: Boolean, onBack: ()
             HeaderPill(statusText, statusColor, null)
             HeaderPill(tournament.format.displayName.uppercase(), Color.White.copy(alpha = 0.1f), Color.White.copy(alpha = 0.2f))
             if (tournament.ageGroup != AgeGroup.OPEN) {
-                HeaderPill(tournament.ageGroup.ageShortLabel.uppercase(), Color(0xFFFF9500).copy(alpha = 0.2f), Color(0xFFFF9500).copy(alpha = 0.4f))
+                HeaderPill(tournament.ageGroup.shortName.uppercase(), Color(0xFFFF9500).copy(alpha = 0.2f), Color(0xFFFF9500).copy(alpha = 0.4f))
             }
         }
 

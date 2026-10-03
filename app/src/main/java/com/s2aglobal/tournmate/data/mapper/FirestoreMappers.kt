@@ -101,6 +101,7 @@ fun DocumentSnapshot.toTournament(): Tournament? {
         durationMinutes = getLong("durationMinutes")?.toInt(),
         formatConfigData = getString("formatConfigData"),
         scoringConfigData = getString("scoringConfigData"),
+        skillDivision = getString("skillDivision"),
         countryCode = getString("countryCode"),
         postalCode = getString("postalCode"),
         timeZone = getString("timeZone"),
@@ -131,6 +132,7 @@ fun Tournament.toFirestoreMap(): Map<String, Any?> = buildMap {
     durationMinutes?.let { put("durationMinutes", it) }
     formatConfigData?.let { put("formatConfigData", it) }
     scoringConfigData?.let { put("scoringConfigData", it) }
+    skillDivision?.let { put("skillDivision", it) }
     countryCode?.let { put("countryCode", it) }
     postalCode?.let { put("postalCode", it) }
     timeZone?.let { put("timeZone", it) }

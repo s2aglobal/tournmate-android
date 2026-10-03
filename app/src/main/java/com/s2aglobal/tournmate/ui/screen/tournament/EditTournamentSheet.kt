@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
+import com.s2aglobal.tournmate.ui.component.SkillDivisionPicker
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.util.DatePickerUtils
 import java.text.SimpleDateFormat
@@ -44,7 +45,7 @@ fun EditTournamentSheet(
         registrationDeadline: Date,
         entryFee: Double?, currency: String, paymentInfo: String?,
         prizeInfo: String?, durationMinutes: Int?, ageGroup: AgeGroup,
-        scoringConfig: ScoringConfig?,
+        scoringConfig: ScoringConfig?, skillDivision: String?,
     ) -> Unit,
     onCancel: () -> Unit,
     /** Scoring is locked once matches exist so results stay consistent. */
@@ -74,6 +75,7 @@ fun EditTournamentSheet(
         mutableStateOf(tournament.durationMinutes?.toString() ?: "")
     }
     var editAgeGroup by remember { mutableStateOf(tournament.ageGroup) }
+    var editSkillDivision by remember { mutableStateOf(tournament.skillDivision) }
 
     val existingConfig: FormatConfig? = remember(tournament) {
         FormatConfig.decodeOrNull(tournament.formatConfigData)
@@ -176,6 +178,19 @@ fun EditTournamentSheet(
                     Column(Modifier.weight(1f)) {
                         SectionLabel("MATCH FORMAT")
                         PickerButton(editMatchFormat.displayName) { showMatchFormatPicker = true }
+                    }
+                }
+
+                // Division
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionLabel("DIVISION")
+                    EditAgeGroupDropdown(editAgeGroup, tournament.sportType.ageGroupsIncluding(tournament.ageGroup)) { editAgeGroup = it }
+                    if (tournament.sportType.skillDivisions.isNotEmpty()) {
+                        SkillDivisionPicker(
+                            sport = tournament.sportType,
+                            selection = editSkillDivision,
+                            onSelectionChange = { editSkillDivision = it },
+                        )
                     }
                 }
 
@@ -435,6 +450,7 @@ fun EditTournamentSheet(
                                     .let { if (editMatchFormat == MatchFormat.ROUND_ROBIN) it.copy(gamesPerMatch = 1) else it }
                                     .takeIf { canEditScoring }
                                     ?.takeIf { tournament.enforcesScoringRules || editScoringConfig != tournament.scoringConfig },
+                                editSkillDivision,
                             )
                         },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -614,6 +630,45 @@ private fun PickerButton(text: String, onClick: () -> Unit) {
         ) {
             Text(text, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1)
             Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun EditAgeGroupDropdown(selected: AgeGroup, options: List<AgeGroup>, onSelect: (AgeGroup) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Surface(
+            onClick = { expanded = true },
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFF2F2F7),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Badge, null, tint = AppAccent, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(selected.displayName, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1)
+                Icon(Icons.Default.UnfoldMore, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { group ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            group.displayName,
+                            fontWeight = if (group == selected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (group == selected) AppAccent else Color.Black,
+                        )
+                    },
+                    trailingIcon = if (group == selected) {
+                        { Icon(Icons.Default.Check, null, tint = AppAccent, modifier = Modifier.size(18.dp)) }
+                    } else null,
+                    onClick = { onSelect(group); expanded = false },
+                )
+            }
         }
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
 import com.s2aglobal.tournmate.ui.component.ScoringDescription
+import com.s2aglobal.tournmate.ui.component.SkillDivisionPicker
 import com.s2aglobal.tournmate.ui.component.SportPickerRow
 import com.s2aglobal.tournmate.ui.theme.theme
 import androidx.compose.ui.Alignment
@@ -96,7 +97,7 @@ fun PublishTournamentScreen(
         randomPairing: Boolean, registrationDeadline: Date?, createdBy: String?,
         entryFee: Double?, currency: String, paymentInfo: String?, prizeInfo: String?,
         durationMinutes: Int?, ageGroup: AgeGroup, sportType: SportType,
-        scoringConfig: ScoringConfig,
+        scoringConfig: ScoringConfig, skillDivision: String?,
         onResult: (Boolean) -> Unit,
     ) -> Unit,
     onDismiss: () -> Unit,
@@ -124,6 +125,7 @@ fun PublishTournamentScreen(
     var newSportType by remember { mutableStateOf(preferredSport) }
     var newFormatConfig by remember { mutableStateOf(FormatConfig.defaults(MatchFormat.SINGLE_ELIMINATION)) }
     var newScoringConfig by remember { mutableStateOf(preferredSport.scoringRules.defaultConfig) }
+    var newSkillDivision by remember { mutableStateOf<String?>(null) }
     // Scoring as it will be saved (round robin is always a single game).
     val reviewScoringConfig = if (newMatchFormat == MatchFormat.ROUND_ROBIN) newScoringConfig.copy(gamesPerMatch = 1) else newScoringConfig
 
@@ -297,7 +299,7 @@ fun PublishTournamentScreen(
     if (showAgeGroupSheet) {
         ListBottomSheet(
             title = "AGE GROUP",
-            items = AgeGroup.entries.toList(),
+            items = newSportType.ageGroups,
             selectedItem = newAgeGroup,
             itemLabel = { it.displayName },
             onItemSelected = { newAgeGroup = it; showAgeGroupSheet = false },
@@ -354,7 +356,12 @@ fun PublishTournamentScreen(
                     when (wizardStep) {
                         1 -> Step1BasicInfo(
                             sportType = newSportType,
-                            onSportChange = { newSportType = it; newScoringConfig = it.scoringRules.defaultConfig },
+                            onSportChange = {
+                                newSportType = it
+                                newScoringConfig = it.scoringRules.defaultConfig
+                                newSkillDivision = null
+                                if (newAgeGroup !in it.ageGroups) newAgeGroup = AgeGroup.OPEN
+                            },
                             title = newTitle, onTitleChange = { newTitle = it }, titleError = titleError,
                             format = newFormat, onEventTypeClick = { showEventTypeSheet = true },
                             randomPairing = newRandomPairing, onRandomPairingChange = { newRandomPairing = it },
@@ -368,6 +375,7 @@ fun PublishTournamentScreen(
                             matchFormat = newMatchFormat,
                             onMatchFormatChange = { newMatchFormat = it; newFormatConfig = FormatConfig.defaults(it) },
                             ageGroup = newAgeGroup, onAgeGroupClick = { showAgeGroupSheet = true },
+                            skillDivision = newSkillDivision, onSkillDivisionChange = { newSkillDivision = it },
                             sportType = newSportType,
                             scoringConfig = newScoringConfig, onScoringConfigChange = { newScoringConfig = it },
                             formatConfig = newFormatConfig, onFormatConfigChange = { newFormatConfig = it },
@@ -387,7 +395,7 @@ fun PublishTournamentScreen(
                             format = newFormat, matchFormat = newMatchFormat,
                             formatConfig = newFormatConfig, scoringConfig = reviewScoringConfig, venueName = venueName,
                             date = newDate, deadline = newDeadline,
-                            ageGroup = newAgeGroup, entryFee = newEntryFee,
+                            ageGroup = newAgeGroup, skillDivision = newSkillDivision, entryFee = newEntryFee,
                             currency = newCurrency, prizeInfo = newPrizeInfo,
                             randomPairing = newRandomPairing, dateFmt = dateFmt, timeFmt = timeFmt,
                         )
@@ -408,7 +416,7 @@ fun PublishTournamentScreen(
                             newEntryFee.toDoubleOrNull(), newCurrency,
                             newPaymentInfo.ifBlank { null }, newPrizeInfo.ifBlank { null },
                             newDurationMinutes.toIntOrNull(), newAgeGroup, newSportType,
-                            reviewScoringConfig,
+                            reviewScoringConfig, newSkillDivision,
                         ) { ok ->
                             isPublishing = false
                             if (ok) showSuccess = true
@@ -634,6 +642,7 @@ private fun Step1BasicInfo(
 private fun Step2FormatRules(
     matchFormat: MatchFormat, onMatchFormatChange: (MatchFormat) -> Unit,
     ageGroup: AgeGroup, onAgeGroupClick: () -> Unit,
+    skillDivision: String?, onSkillDivisionChange: (String?) -> Unit,
     sportType: SportType,
     scoringConfig: ScoringConfig, onScoringConfigChange: (ScoringConfig) -> Unit,
     formatConfig: FormatConfig, onFormatConfigChange: (FormatConfig) -> Unit,
@@ -668,6 +677,11 @@ private fun Step2FormatRules(
     Spacer(Modifier.height(4.dp))
     SectionLabel("AGE GROUP")
     PickerRow(text = ageGroup.displayName, icon = Icons.Default.Badge, trailing = Icons.Default.ChevronRight, onClick = onAgeGroupClick)
+
+    if (sportType.skillDivisions.isNotEmpty()) {
+        SectionLabel("SKILL LEVEL (OPTIONAL)")
+        SkillDivisionPicker(sport = sportType, selection = skillDivision, onSelectionChange = onSkillDivisionChange, accent = WizardAccent)
+    }
 
     SectionLabel("SCORING")
     ScoringConfigEditor(
@@ -906,7 +920,7 @@ private fun Step3RulesLogistics(
 private fun Step4Review(
     sportType: SportType, title: String, format: TournamentFormat, matchFormat: MatchFormat,
     formatConfig: FormatConfig, scoringConfig: ScoringConfig, venueName: String, date: Date, deadline: Date,
-    ageGroup: AgeGroup, entryFee: String, currency: String, prizeInfo: String,
+    ageGroup: AgeGroup, skillDivision: String?, entryFee: String, currency: String, prizeInfo: String,
     randomPairing: Boolean, dateFmt: SimpleDateFormat, timeFmt: SimpleDateFormat,
 ) {
     val symbol = commonCurrencies.firstOrNull { it.first == currency }?.second ?: currency
@@ -938,6 +952,7 @@ private fun Step4Review(
     ReviewRow("DATE", "${dateFmt.format(date)}, ${timeFmt.format(date)}")
     ReviewRow("DEADLINE", "${dateFmt.format(deadline)}, ${timeFmt.format(deadline)}")
     if (ageGroup != AgeGroup.OPEN) ReviewRow("AGE GROUP", ageGroup.displayName)
+    skillDivision?.let { ReviewRow("SKILL LEVEL", it) }
     val fee = entryFee.toDoubleOrNull()
     if (fee != null && fee > 0) ReviewRow("ENTRY FEE", "$symbol${String.format("%.2f", fee)}", WizardAccent) else ReviewRow("ENTRY FEE", "Free", WizardAccent)
     if (prizeInfo.isNotEmpty()) ReviewRow("PRIZES", prizeInfo, Color(0xFFFF9800))

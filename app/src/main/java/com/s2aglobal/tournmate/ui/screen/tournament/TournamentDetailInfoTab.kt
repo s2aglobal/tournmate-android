@@ -68,14 +68,21 @@ internal fun InfoTabContent(
         }
         if (tournament.enforcesScoringRules) ScoringRulesCard(tournament)
 
-        val duration = tournament.formattedDuration
-        if (tournament.ageGroup != AgeGroup.OPEN || duration != null) {
+        val division = tournament.skillDivision
+        if (division != null || tournament.ageGroup != AgeGroup.OPEN) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                division?.let { InfoGridCard(Icons.Default.BarChart, "SKILL LEVEL", it, Modifier.weight(1f)) }
                 if (tournament.ageGroup != AgeGroup.OPEN) {
-                    InfoGridCard(Icons.Default.Badge, "AGE GROUP", tournament.ageGroup.ageShortLabel, Modifier.weight(1f))
+                    InfoGridCard(Icons.Default.Badge, "AGE GROUP", tournament.ageGroup.shortName, Modifier.weight(1f))
                 }
-                duration?.let { InfoGridCard(Icons.Default.HourglassEmpty, "DURATION", it, Modifier.weight(1f)) }
-                if (tournament.ageGroup == AgeGroup.OPEN || duration == null) Spacer(Modifier.weight(1f))
+                if (division == null || tournament.ageGroup == AgeGroup.OPEN) Spacer(Modifier.weight(1f))
+            }
+        }
+
+        tournament.formattedDuration?.let { duration ->
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                InfoGridCard(Icons.Default.HourglassEmpty, "DURATION", duration, Modifier.weight(1f))
+                Spacer(Modifier.weight(1f))
             }
         }
 
@@ -133,21 +140,6 @@ internal fun InfoTabContent(
         }
     }
 }
-
-internal val AgeGroup.ageShortLabel: String
-    get() = when (this) {
-        AgeGroup.OPEN -> "Open"
-        AgeGroup.U13 -> "U-13"
-        AgeGroup.U15 -> "U-15"
-        AgeGroup.U17 -> "U-17"
-        AgeGroup.U19 -> "U-19"
-        AgeGroup.U24 -> "U-24"
-        AgeGroup.SENIOR -> "Senior"
-        AgeGroup.VETERANS_35 -> "35+"
-        AgeGroup.MASTERS_40 -> "40+"
-        AgeGroup.MASTERS_50 -> "50+"
-        AgeGroup.GRAND_MASTERS_55 -> "55+"
-    }
 
 @Composable
 private fun CoachsCornerCard() {

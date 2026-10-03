@@ -856,6 +856,7 @@ class TournamentDetailViewModel @Inject constructor(
         entryFee: Double?, currency: String, paymentInfo: String?,
         prizeInfo: String?, durationMinutes: Int?, ageGroup: AgeGroup,
         scoringConfig: ScoringConfig? = null,
+        skillDivision: String? = null,
     ) {
         viewModelScope.launch {
             val tournament = _uiState.value.tournament ?: return@launch
@@ -873,6 +874,7 @@ class TournamentDetailViewModel @Inject constructor(
                     entryFee = entryFee, currency = currency, paymentInfo = paymentInfo,
                     prizeInfo = prizeInfo, durationMinutes = durationMinutes, ageGroup = ageGroup,
                     scoringConfig = scoringConfig,
+                    skillDivision = skillDivision,
                 )
                 reload()
                 setStatus("Tournament updated successfully!")

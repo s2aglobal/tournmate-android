@@ -95,3 +95,41 @@ enum class SportType(val rawValue: String) {
             entries.firstOrNull { it.rawValue == raw } ?: BADMINTON
     }
 }
+
+/** Age divisions organizers can pick for this sport, in display order (BWF / USA Pickleball / USTA). */
+val SportType.ageGroups: List<AgeGroup>
+    get() = when (this) {
+        SportType.PICKLEBALL -> listOf(
+            AgeGroup.OPEN, AgeGroup.U12, AgeGroup.U14, AgeGroup.U16, AgeGroup.U18, AgeGroup.SENIOR,
+            AgeGroup.VETERANS_35, AgeGroup.MASTERS_50, AgeGroup.GRAND_MASTERS_55, AgeGroup.AGE_60,
+            AgeGroup.AGE_65, AgeGroup.AGE_70, AgeGroup.AGE_75, AgeGroup.AGE_80,
+        )
+        SportType.TENNIS -> listOf(
+            AgeGroup.OPEN, AgeGroup.U12, AgeGroup.U14, AgeGroup.U16, AgeGroup.U18, AgeGroup.ADULT_18,
+            AgeGroup.MASTERS_40, AgeGroup.GRAND_MASTERS_55, AgeGroup.AGE_65,
+        )
+        else -> listOf(
+            AgeGroup.OPEN, AgeGroup.U13, AgeGroup.U15, AgeGroup.U17, AgeGroup.U19, AgeGroup.U24, AgeGroup.SENIOR,
+            AgeGroup.VETERANS_35, AgeGroup.MASTERS_40, AgeGroup.MASTERS_50, AgeGroup.GRAND_MASTERS_55,
+        )
+    }
+
+/** Self-rated skill divisions (DUPR / USA Pickleball, NTRP). Empty when the sport doesn't use them. */
+val SportType.skillDivisions: List<String>
+    get() = when (this) {
+        SportType.PICKLEBALL -> listOf("2.5", "3.0", "3.5", "4.0", "4.5", "5.0+", "Pro")
+        SportType.TENNIS -> listOf("2.5", "3.0", "3.5", "4.0", "4.5", "5.0+")
+        else -> emptyList()
+    }
+
+/** Name of the rating scale behind [skillDivisions]. */
+val SportType.skillRatingName: String
+    get() = when (this) {
+        SportType.PICKLEBALL -> "DUPR / USA Pickleball rating"
+        SportType.TENNIS -> "NTRP rating"
+        else -> "Skill rating"
+    }
+
+/** `ageGroups` plus [current] when an older event uses a group outside this sport's list. */
+fun SportType.ageGroupsIncluding(current: AgeGroup): List<AgeGroup> =
+    if (current in ageGroups) ageGroups else ageGroups + current

@@ -207,6 +207,7 @@ class TournamentListViewModel @Inject constructor(
         ageGroup: AgeGroup,
         sportType: SportType,
         scoringConfig: ScoringConfig? = null,
+        skillDivision: String? = null,
         onResult: (Boolean) -> Unit = {},
     ) {
         if (_uiState.value.isCreating) return
@@ -216,6 +217,7 @@ class TournamentListViewModel @Inject constructor(
                 title, date, location, locationAddress, locationLatitude, locationLongitude,
                 format, matchFormat, formatConfig, randomPairing, registrationDeadline, createdBy,
                 entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, sportType, scoringConfig,
+                skillDivision,
             )
             _uiState.value = _uiState.value.copy(isCreating = false)
             onResult(ok)
@@ -243,6 +245,7 @@ class TournamentListViewModel @Inject constructor(
         ageGroup: AgeGroup,
         sportType: SportType,
         scoringConfig: ScoringConfig?,
+        skillDivision: String?,
     ): Boolean {
         val state = _uiState.value
 
@@ -301,6 +304,7 @@ class TournamentListViewModel @Inject constructor(
                 ageGroup = ageGroup,
                 sportType = sportType,
                 scoringConfig = scoringConfig,
+                skillDivision = skillDivision,
             )
 
             EventRateLimiter.recordCreation(EventType.TOURNAMENT)

@@ -29,6 +29,7 @@ data class Tournament(
     val durationMinutes: Int? = null,
     val formatConfigData: String? = null,
     val scoringConfigData: String? = null,
+    val skillDivision: String? = null,
     val countryCode: String? = null,
     val postalCode: String? = null,
     val timeZone: String? = null,

@@ -174,7 +174,10 @@ fun CreateSessionSheet(
 
                 // Sport
                 FormSection("Sport") {
-                    SportPickerRow(selection = sportType, onSelect = { sportType = it })
+                    SportPickerRow(selection = sportType, onSelect = {
+                        sportType = it
+                        if (ageGroup !in it.ageGroups) ageGroup = AgeGroup.OPEN
+                    })
                 }
 
                 // Session Title
@@ -301,7 +304,7 @@ fun CreateSessionSheet(
 
                 // Age Group dropdown
                 FormSection("Preferred Age Group") {
-                    AgeGroupDropdown(selected = ageGroup, onSelected = { ageGroup = it })
+                    AgeGroupDropdown(selected = ageGroup, options = sportType.ageGroups, onSelected = { ageGroup = it })
                 }
 
                 // Cost
@@ -490,7 +493,7 @@ internal fun FormTextField(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AgeGroupDropdown(selected: AgeGroup, onSelected: (AgeGroup) -> Unit) {
+internal fun AgeGroupDropdown(selected: AgeGroup, options: List<AgeGroup>, onSelected: (AgeGroup) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
         Surface(
@@ -505,7 +508,7 @@ internal fun AgeGroupDropdown(selected: AgeGroup, onSelected: (AgeGroup) -> Unit
             }
         }
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            AgeGroup.entries.forEach { group ->
+            options.forEach { group ->
                 DropdownMenuItem(
                     text = {
                         Row {

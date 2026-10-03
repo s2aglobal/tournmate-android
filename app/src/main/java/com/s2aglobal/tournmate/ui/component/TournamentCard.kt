@@ -41,6 +41,7 @@ import com.s2aglobal.tournmate.ui.theme.PrizeGold
 import com.s2aglobal.tournmate.ui.theme.PrizeGoldLight
 import com.s2aglobal.tournmate.ui.theme.SuccessGreen
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
+import com.s2aglobal.tournmate.ui.theme.theme
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -91,6 +92,10 @@ fun TournamentCard(
                             tournament.format.shortName, Color.Gray,
                             fontSize = 10, weight = FontWeight.Bold, background = Color(0xFFF2F2F7),
                         )
+                        tournament.skillDivision?.let { division ->
+                            val theme = tournament.sportType.theme
+                            Badge(division, theme.primary, fontSize = 10, weight = FontWeight.Bold, background = theme.tint)
+                        }
                         Badge(
                             tournament.matchFormat.displayName, AppAccent,
                             fontSize = 10, weight = FontWeight.Bold, background = AppAccent.copy(alpha = 0.1f),

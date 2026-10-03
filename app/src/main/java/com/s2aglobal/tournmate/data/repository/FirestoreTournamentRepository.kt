@@ -1,6 +1,7 @@
 package com.s2aglobal.tournmate.data.repository
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.s2aglobal.tournmate.data.mapper.toFirestoreMap
 import com.s2aglobal.tournmate.data.mapper.toTournament
@@ -85,6 +86,7 @@ class FirestoreTournamentRepository @Inject constructor(
         ageGroup: AgeGroup,
         sportType: SportType,
         scoringConfig: ScoringConfig?,
+        skillDivision: String?,
     ) {
         val configJson = formatConfig?.encode()
         val deadline = registrationDeadline ?: Tournament.defaultDeadline(date)
@@ -116,6 +118,7 @@ class FirestoreTournamentRepository @Inject constructor(
             postalCode = postalCode,
             timeZone = java.util.TimeZone.getDefault().id,
             sportType = sportType,
+            skillDivision = skillDivision,
         )
 
         collection.document(tournament.id.toString().uppercase())
@@ -145,6 +148,7 @@ class FirestoreTournamentRepository @Inject constructor(
         durationMinutes: Int?,
         ageGroup: AgeGroup,
         scoringConfig: ScoringConfig?,
+        skillDivision: String?,
     ) {
         val configJson = formatConfig?.encode() ?: tournament.formatConfigData
 
@@ -169,10 +173,13 @@ class FirestoreTournamentRepository @Inject constructor(
             ageGroupRaw = ageGroup.rawValue,
             formatConfigData = configJson,
             scoringConfigData = scoringConfig?.encode() ?: tournament.scoringConfigData,
+            skillDivision = skillDivision,
         )
+        // Merge writes skip absent keys, so clear a removed division explicitly.
+        val data = updated.toFirestoreMap() + ("skillDivision" to (skillDivision ?: FieldValue.delete()))
 
         collection.document(tournament.id.toString().uppercase())
-            .set(updated.toFirestoreMap(), com.google.firebase.firestore.SetOptions.merge())
+            .set(data, com.google.firebase.firestore.SetOptions.merge())
             .await()
     }
 
