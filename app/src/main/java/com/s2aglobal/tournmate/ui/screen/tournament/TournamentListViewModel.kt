@@ -32,6 +32,9 @@ data class TournamentListUiState(
     val filter: TournamentFilter = TournamentFilter.ALL,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    /** Create / cancel / delete failures — shown as the "Unable to Post" alert, never as the load-error state. */
+    val createError: String? = null,
+    val isCreating: Boolean = false,
     val currentPlayer: Player? = null,
     val myRegisteredTournamentIds: Set<UUID> = emptySet(),
     val firebaseUid: String? = null,
@@ -133,37 +136,41 @@ class TournamentListViewModel @Inject constructor(
     }
 
     fun load() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            try {
-                val upcoming = tournamentRepo.listTournaments()
-                val past = tournamentRepo.listPastTournaments()
-                val playerId = currentUserStore.currentPlayerId()
-                val firebaseUid = currentUserStore.firebaseUid()
+        viewModelScope.launch { loadInternal() }
+    }
 
-                var player: Player? = null
-                var registeredIds: Set<UUID> = emptySet()
+    suspend fun refresh() = loadInternal()
 
-                if (playerId != null) {
-                    player = playerRepo.findPlayerById(playerId)
-                    registeredIds = registrationRepo.tournamentIds(playerId)
-                }
+    private suspend fun loadInternal() {
+        _uiState.value = _uiState.value.copy(isLoading = true)
+        try {
+            val upcoming = tournamentRepo.listTournaments()
+            val past = tournamentRepo.listPastTournaments()
+            val playerId = currentUserStore.currentPlayerId()
+            val firebaseUid = currentUserStore.firebaseUid()
 
-                _uiState.value = _uiState.value.copy(
-                    allUpcoming = upcoming,
-                    allPast = past,
-                    isLoading = false,
-                    errorMessage = null,
-                    currentPlayer = player,
-                    myRegisteredTournamentIds = registeredIds,
-                    firebaseUid = firebaseUid,
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = e.message ?: "Failed to load tournaments",
-                )
+            var player: Player? = null
+            var registeredIds: Set<UUID> = emptySet()
+
+            if (playerId != null) {
+                player = playerRepo.findPlayerById(playerId)
+                registeredIds = registrationRepo.tournamentIds(playerId)
             }
+
+            _uiState.value = _uiState.value.copy(
+                allUpcoming = upcoming,
+                allPast = past,
+                isLoading = false,
+                errorMessage = null,
+                currentPlayer = player,
+                myRegisteredTournamentIds = registeredIds,
+                firebaseUid = firebaseUid,
+            )
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = e.message ?: "Failed to load tournaments",
+            )
         }
     }
 
@@ -173,6 +180,10 @@ class TournamentListViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
+
+    fun clearCreateError() {
+        _uiState.value = _uiState.value.copy(createError = null)
     }
 
     fun create(
@@ -195,71 +206,106 @@ class TournamentListViewModel @Inject constructor(
         durationMinutes: Int?,
         ageGroup: AgeGroup,
         sportType: SportType,
+        onResult: (Boolean) -> Unit = {},
     ) {
+        if (_uiState.value.isCreating) return
+        _uiState.value = _uiState.value.copy(isCreating = true)
         viewModelScope.launch {
-            val state = _uiState.value
+            val ok = createInternal(
+                title, date, location, locationAddress, locationLatitude, locationLongitude,
+                format, matchFormat, formatConfig, randomPairing, registrationDeadline, createdBy,
+                entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, sportType,
+            )
+            _uiState.value = _uiState.value.copy(isCreating = false)
+            onResult(ok)
+        }
+    }
 
-            val profileCheck = EventRateLimiter.hasCompleteProfile(state.currentPlayer)
-            if (!profileCheck.isValid) { setError(profileCheck.errorMessage); return@launch }
+    private suspend fun createInternal(
+        title: String,
+        date: Date,
+        location: String,
+        locationAddress: String,
+        locationLatitude: Double?,
+        locationLongitude: Double?,
+        format: TournamentFormat,
+        matchFormat: MatchFormat,
+        formatConfig: FormatConfig?,
+        randomPairing: Boolean,
+        registrationDeadline: Date?,
+        createdBy: String?,
+        entryFee: Double?,
+        currency: String,
+        paymentInfo: String?,
+        prizeInfo: String?,
+        durationMinutes: Int?,
+        ageGroup: AgeGroup,
+        sportType: SportType,
+    ): Boolean {
+        val state = _uiState.value
 
-            val cooldownCheck = EventRateLimiter.canCreate(EventType.TOURNAMENT)
-            if (!cooldownCheck.isValid) { setError(cooldownCheck.errorMessage); return@launch }
+        val profileCheck = EventRateLimiter.hasCompleteProfile(state.currentPlayer)
+        if (!profileCheck.isValid) { setCreateError(profileCheck.errorMessage); return false }
 
-            val dailyCheck = EventRateLimiter.checkDailyLimit(EventType.TOURNAMENT)
-            if (!dailyCheck.isValid) { setError(dailyCheck.errorMessage); return@launch }
+        val cooldownCheck = EventRateLimiter.canCreate(EventType.TOURNAMENT)
+        if (!cooldownCheck.isValid) { setCreateError(cooldownCheck.errorMessage); return false }
 
-            val titleCheck = InputValidator.validateEventTitle(title)
-            if (!titleCheck.isValid) { setError(titleCheck.errorMessage); return@launch }
+        val dailyCheck = EventRateLimiter.checkDailyLimit(EventType.TOURNAMENT)
+        if (!dailyCheck.isValid) { setCreateError(dailyCheck.errorMessage); return false }
 
-            val venueCheck = InputValidator.validateEventVenue(location)
-            if (!venueCheck.isValid) { setError(venueCheck.errorMessage); return@launch }
+        val titleCheck = InputValidator.validateEventTitle(title)
+        if (!titleCheck.isValid) { setCreateError(titleCheck.errorMessage); return false }
 
-            val feeCheck = InputValidator.validateEntryFee(entryFee)
-            if (!feeCheck.isValid) { setError(feeCheck.errorMessage); return@launch }
+        val venueCheck = InputValidator.validateEventVenue(location)
+        if (!venueCheck.isValid) { setCreateError(venueCheck.errorMessage); return false }
 
-            val paymentCheck = InputValidator.validatePaymentInfo(paymentInfo)
-            if (!paymentCheck.isValid) { setError(paymentCheck.errorMessage); return@launch }
+        val feeCheck = InputValidator.validateEntryFee(entryFee)
+        if (!feeCheck.isValid) { setCreateError(feeCheck.errorMessage); return false }
 
-            val prizeCheck = InputValidator.validatePrizeInfo(prizeInfo)
-            if (!prizeCheck.isValid) { setError(prizeCheck.errorMessage); return@launch }
+        val paymentCheck = InputValidator.validatePaymentInfo(paymentInfo)
+        if (!paymentCheck.isValid) { setCreateError(paymentCheck.errorMessage); return false }
 
-            val minimumLeadTimeMs = 3 * 3600 * 1000L
-            if (date.time <= System.currentTimeMillis() + minimumLeadTimeMs) {
-                setError("Tournament must be at least 3 hours from now.")
-                return@launch
-            }
+        val prizeCheck = InputValidator.validatePrizeInfo(prizeInfo)
+        if (!prizeCheck.isValid) { setCreateError(prizeCheck.errorMessage); return false }
 
-            if (registrationDeadline != null && registrationDeadline.before(Date())) {
-                setError("Registration deadline must be in the future.")
-                return@launch
-            }
+        val minimumLeadTimeMs = 3 * 3600 * 1000L
+        if (date.time <= System.currentTimeMillis() + minimumLeadTimeMs) {
+            setCreateError("Tournament must be at least 3 hours from now.")
+            return false
+        }
 
-            try {
-                val countryCode = RegionNormalizer.normalizeCountryCode(null)
-                val postalCode = RegionNormalizer.normalizePostal(null, null)
+        if (registrationDeadline != null && registrationDeadline.before(Date())) {
+            setCreateError("Registration deadline must be in the future.")
+            return false
+        }
 
-                tournamentRepo.createTournament(
-                    title = title, date = date,
-                    location = location, locationAddress = locationAddress,
-                    locationLatitude = locationLatitude, locationLongitude = locationLongitude,
-                    countryCode = countryCode, postalCode = postalCode,
-                    format = format, matchFormat = matchFormat,
-                    formatConfig = formatConfig,
-                    randomPairing = randomPairing,
-                    registrationDeadline = registrationDeadline,
-                    createdBy = createdBy,
-                    entryFee = entryFee, currency = currency, paymentInfo = paymentInfo,
-                    prizeInfo = prizeInfo,
-                    durationMinutes = durationMinutes,
-                    ageGroup = ageGroup,
-                    sportType = sportType,
-                )
+        try {
+            val countryCode = RegionNormalizer.normalizeCountryCode(null)
+            val postalCode = RegionNormalizer.normalizePostal(null, null)
 
-                EventRateLimiter.recordCreation(EventType.TOURNAMENT)
-                load()
-            } catch (e: Exception) {
-                setError(e.message)
-            }
+            tournamentRepo.createTournament(
+                title = title, date = date,
+                location = location, locationAddress = locationAddress,
+                locationLatitude = locationLatitude, locationLongitude = locationLongitude,
+                countryCode = countryCode, postalCode = postalCode,
+                format = format, matchFormat = matchFormat,
+                formatConfig = formatConfig,
+                randomPairing = randomPairing,
+                registrationDeadline = registrationDeadline,
+                createdBy = createdBy,
+                entryFee = entryFee, currency = currency, paymentInfo = paymentInfo,
+                prizeInfo = prizeInfo,
+                durationMinutes = durationMinutes,
+                ageGroup = ageGroup,
+                sportType = sportType,
+            )
+
+            EventRateLimiter.recordCreation(EventType.TOURNAMENT)
+            loadInternal()
+            return true
+        } catch (e: Exception) {
+            setCreateError(e.message ?: "Failed to publish tournament")
+            return false
         }
     }
 
@@ -269,7 +315,7 @@ class TournamentListViewModel @Inject constructor(
                 tournamentRepo.cancelTournament(tournament)
                 load()
             } catch (e: Exception) {
-                setError(e.message)
+                setCreateError(e.message)
             }
         }
     }
@@ -280,12 +326,12 @@ class TournamentListViewModel @Inject constructor(
                 tournamentRepo.deleteTournament(tournament)
                 load()
             } catch (e: Exception) {
-                setError(e.message)
+                setCreateError(e.message)
             }
         }
     }
 
-    private fun setError(message: String?) {
-        _uiState.value = _uiState.value.copy(errorMessage = message)
+    private fun setCreateError(message: String?) {
+        _uiState.value = _uiState.value.copy(createError = message ?: "Something went wrong.")
     }
 }

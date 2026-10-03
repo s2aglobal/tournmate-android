@@ -1,14 +1,28 @@
 package com.s2aglobal.tournmate.ui.screen.openplay
 
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.HighlightOff
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Group
@@ -19,7 +33,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import com.s2aglobal.tournmate.ui.component.MapPinCircle
+import com.s2aglobal.tournmate.ui.component.PlayPullToRefresh
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -50,94 +69,145 @@ fun OpenPlayListScreen(
     onHostClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var sortNewestFirst by remember { mutableStateOf(true) }
+    var sessionToCancel by remember { mutableStateOf<PlaySession?>(null) }
+    var sessionToDelete by remember { mutableStateOf<PlaySession?>(null) }
 
-    val sortedSessions = remember(uiState.displaySessions, sortNewestFirst) {
-        if (sortNewestFirst) uiState.displaySessions
-        else uiState.displaySessions.sortedByDescending { it.date }
+    sessionToCancel?.let { session ->
+        AlertDialog(
+            onDismissRequest = { sessionToCancel = null },
+            title = { Text("Cancel Session?") },
+            text = { Text("This will cancel the session. All joined players will be notified. This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    Toast.makeText(context, "Session cancelled", Toast.LENGTH_SHORT).show()
+                    viewModel.cancelSession(session.id.toString().uppercase())
+                    sessionToCancel = null
+                }) { Text("Cancel Session", color = ErrorRed) }
+            },
+            dismissButton = { TextButton(onClick = { sessionToCancel = null }) { Text("Keep") } },
+        )
+    }
+
+    sessionToDelete?.let { session ->
+        AlertDialog(
+            onDismissRequest = { sessionToDelete = null },
+            title = { Text("Delete Session?") },
+            text = { Text("This will permanently delete this session and all its data. This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    Toast.makeText(context, "Session deleted", Toast.LENGTH_SHORT).show()
+                    viewModel.deleteSession(session.id.toString().uppercase())
+                    sessionToDelete = null
+                }) { Text("Delete Permanently", color = ErrorRed) }
+            },
+            dismissButton = { TextButton(onClick = { sessionToDelete = null }) { Text("Keep") } },
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        CapsuleFilterRow(
-            currentFilter = uiState.filter,
-            onFilterSelected = { viewModel.setFilter(it) },
-        )
-
-        if (uiState.filter == OpenPlayFilter.COMPLETED && sortedSessions.isNotEmpty()) {
-            SectionHeader(
-                count = sortedSessions.size,
-                sortNewestFirst = sortNewestFirst,
-                onSortChange = { sortNewestFirst = it },
+        if (!isGuest) {
+            CapsuleFilterRow(
+                currentFilter = uiState.filter,
+                onFilterSelected = { viewModel.setFilter(it) },
             )
         }
 
-        if (uiState.isLoading && uiState.displaySessions.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator(color = AppAccent)
-            }
-        } else if (uiState.isEmpty && !uiState.isLoading) {
-            EmptyState(
-                filter = uiState.filter,
-                isGuest = isGuest,
-                onHostClick = onHostClick,
-                onBrowseClick = { viewModel.setFilter(OpenPlayFilter.ALL_SESSIONS) },
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(sortedSessions, key = { it.id }) { session ->
-                    SessionCard(
-                        session = session,
-                        isPast = uiState.filter == OpenPlayFilter.COMPLETED ||
-                            session.isPast ||
-                            session.status == PlaySessionStatus.COMPLETED,
-                        onClick = { onSessionClick(session) },
-                    )
+        PlayPullToRefresh(
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            val sessions = uiState.displaySessions
+            val isCompleted = uiState.filter == OpenPlayFilter.COMPLETED
+            val live = if (isCompleted) emptyList() else sessions.filter { isSessionLive(it) }
+            val upcoming = if (isCompleted) emptyList() else sessions.filter { !isSessionLive(it) && !isSessionEnded(it) }
+            val past = if (isCompleted) sessions else emptyList()
+            val errorMessage = uiState.errorMessage
+
+            when {
+                errorMessage != null && uiState.isEmpty && !uiState.isLoading ->
+                    ErrorState(message = errorMessage, onRetry = { viewModel.load() })
+                uiState.isMyFilterEmpty ->
+                    MySessionsEmptyState(onBrowseClick = { viewModel.setFilter(OpenPlayFilter.ALL_SESSIONS) })
+                uiState.isLoading && uiState.isEmpty -> SkeletonLoading()
+                live.isEmpty() && upcoming.isEmpty() && past.isEmpty() ->
+                    EmptyState(isGuest = isGuest, onHostClick = onHostClick)
+                else -> {
+                    val sections = listOf(
+                        Triple("Live Now", Icons.Filled.Sensors, live),
+                        Triple("Upcoming", Icons.Filled.CalendarToday, upcoming),
+                        Triple("Completed", Icons.Filled.History, past),
+                    ).filter { it.third.isNotEmpty() }
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 100.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        sections.forEachIndexed { index, (title, icon, list) ->
+                            val sorted = if (sortNewestFirst) list else list.sortedByDescending { it.date }
+                            item(key = "header_$title") {
+                                SectionHeader(
+                                    title = title,
+                                    icon = icon,
+                                    count = sorted.size,
+                                    sortNewestFirst = sortNewestFirst,
+                                    onSortChange = { sortNewestFirst = it },
+                                    modifier = if (index > 0) Modifier.padding(top = 8.dp) else Modifier,
+                                )
+                            }
+                            items(sorted, key = { "${title}_${it.id}" }) { session ->
+                                SessionCard(
+                                    session = session,
+                                    isPast = title == "Completed",
+                                    isHost = uiState.isHost(session),
+                                    onClick = { onSessionClick(session) },
+                                    onCancel = { sessionToCancel = session },
+                                    onDelete = { sessionToDelete = session },
+                                )
+                            }
+                        }
+                    }
                 }
-                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
-        }
-    }
-
-    uiState.errorMessage?.let { msg ->
-        LaunchedEffect(msg) {
-            kotlinx.coroutines.delay(3000)
-            viewModel.clearError()
         }
     }
 }
+
+private fun sessionEndMillis(s: PlaySession): Long = s.date.time + (s.durationMinutes ?: 120) * 60_000L
+
+private fun isSessionLive(s: PlaySession): Boolean {
+    if (s.status == PlaySessionStatus.CANCELLED) return false
+    val now = System.currentTimeMillis()
+    return s.date.time <= now && sessionEndMillis(s) > now
+}
+
+private fun isSessionEnded(s: PlaySession): Boolean = sessionEndMillis(s) <= System.currentTimeMillis()
 
 @Composable
 private fun CapsuleFilterRow(
     currentFilter: OpenPlayFilter,
     onFilterSelected: (OpenPlayFilter) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    LazyRow(
+        modifier = Modifier.padding(bottom = 16.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        OpenPlayFilter.entries.forEach { filter ->
+        items(OpenPlayFilter.entries) { filter ->
             val isSelected = currentFilter == filter
             Surface(
                 onClick = { onFilterSelected(filter) },
                 shape = RoundedCornerShape(50),
                 color = if (isSelected) Color.Black else Color.White,
-                border = if (!isSelected) ButtonDefaults.outlinedButtonBorder else null,
-                shadowElevation = if (!isSelected) 0.dp else 2.dp,
+                border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.1f)),
             ) {
                 Text(
                     text = filter.displayName,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     fontSize = 13.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = FontWeight.Bold,
                     color = if (isSelected) Color.White else Color.Black,
                 )
             }
@@ -147,26 +217,27 @@ private fun CapsuleFilterRow(
 
 @Composable
 private fun SectionHeader(
+    title: String,
+    icon: ImageVector,
     count: Int,
     sortNewestFirst: Boolean,
     onSortChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Filled.History,
+            imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
             tint = AppAccent,
         )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text("Completed", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.width(8.dp))
         Surface(
             shape = RoundedCornerShape(4.dp),
@@ -214,185 +285,211 @@ private fun SectionHeader(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SessionCard(
     session: PlaySession,
     isPast: Boolean,
+    isHost: Boolean,
     onClick: () -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val (statusText, statusColor) = sessionStatusBadge(session, isPast)
     val accentColor = statusColor
 
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = Color.White,
-        shadowElevation = 2.dp,
-    ) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 30.dp)
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(accentColor),
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SessionBadge(statusText.uppercase(), statusColor)
-                        SessionBadge(session.skillLevel.displayName, skillLevelColor(session.skillLevel))
-                        SessionBadge(session.gameType.displayName, AppAccent)
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        SportBadge(session.sportType, 16.dp)
-                        Text(
-                            text = dateFormatter.format(session.date),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray,
-                        )
-                    }
-                }
-
-                Text(
-                    text = session.title,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isPast) Color.Gray else Color.Black,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+    Box {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(if (isPast) 0.8f else 1f)
+                .clip(RoundedCornerShape(24.dp))
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { if (isHost) menuExpanded = true },
+                ),
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            shadowElevation = 2.dp,
+        ) {
+            Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 30.dp)
+                        .width(4.dp)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(accentColor),
                 )
 
-                if (session.venue.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Top,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = Color.Gray.copy(alpha = 0.5f),
-                        )
-                        Column {
-                            Text(
-                                text = session.venue,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black,
-                            )
-                            if (session.venueAddress.isNotBlank()) {
-                                Text(
-                                    text = session.venueAddress,
-                                    fontSize = 11.sp,
-                                    color = Color.Gray,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            SessionBadge(statusText.uppercase(), statusColor)
+                            SessionBadge(session.skillLevel.displayName, skillLevelColor(session.skillLevel), fontSize = 10, weight = FontWeight.Bold)
+                            SessionBadge(session.gameType.displayName, AppAccent, fontSize = 10, weight = FontWeight.Bold, bgAlpha = 0.1f)
                         }
-                    }
-                }
 
-                HorizontalDivider(
-                    color = Color(0xFFF2F2F7),
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = Color.Gray,
-                        )
-                        Text(
-                            text = buildString {
-                                append(timeFormatter.format(session.date))
-                                session.formattedDuration?.let { append(" · $it") }
-                            },
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray,
-                        )
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Group,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = Color.Gray,
-                            )
+                            SportBadge(session.sportType, 16.dp)
                             Text(
-                                text = "${session.attendeeCount}",
+                                text = dateFormatter.format(session.date),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Gray,
                             )
                         }
+                    }
 
-                        SessionFeeBadge(
-                            text = session.formattedCost ?: "Free",
-                            isFree = !session.hasCost,
-                        )
+                    Text(
+                        text = session.title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isPast) Color.Gray else Color.Black,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
 
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = Color.Gray.copy(alpha = 0.3f),
-                        )
+                    if (session.venue.isNotEmpty()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            MapPinCircle(Modifier.padding(top = 1.dp))
+                            Column {
+                                Text(
+                                    text = session.venue,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black,
+                                )
+                                if (session.venueAddress.isNotBlank()) {
+                                    Text(
+                                        text = session.venueAddress,
+                                        fontSize = 11.sp,
+                                        color = Color.Gray,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(
+                        color = Color(0xFFF2F2F7),
+                        modifier = Modifier.padding(vertical = 4.dp),
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = Color.Gray,
+                            )
+                            Text(
+                                text = buildString {
+                                    append(timeFormatter.format(session.date))
+                                    session.formattedDuration?.let { append(" · $it") }
+                                },
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray,
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.People,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = Color.Gray,
+                                )
+                                Text(
+                                    text = "${session.attendeeCount}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Gray,
+                                )
+                            }
+
+                            SessionFeeBadge(
+                                text = session.formattedCost ?: "Free",
+                                isFree = !session.hasCost,
+                            )
+
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = Color.Gray.copy(alpha = 0.3f),
+                            )
+                        }
                     }
                 }
             }
+        }
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            if (session.status != PlaySessionStatus.CANCELLED) {
+                DropdownMenuItem(
+                    text = { Text("Cancel Session") },
+                    leadingIcon = { Icon(Icons.Filled.HighlightOff, null) },
+                    onClick = { menuExpanded = false; onCancel() },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Delete", color = ErrorRed) },
+                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = ErrorRed) },
+                onClick = { menuExpanded = false; onDelete() },
+            )
         }
     }
 }
 
 @Composable
-private fun SessionBadge(text: String, color: Color) {
+private fun SessionBadge(
+    text: String,
+    color: Color,
+    fontSize: Int = 9,
+    weight: FontWeight = FontWeight.ExtraBold,
+    bgAlpha: Float = 0.15f,
+) {
     Text(
         text = text,
-        fontSize = 9.sp,
-        fontWeight = FontWeight.ExtraBold,
+        fontSize = fontSize.sp,
+        fontWeight = weight,
         color = color,
         modifier = Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+            .background(color.copy(alpha = bgAlpha), RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp),
     )
 }
@@ -431,20 +528,53 @@ private fun skillLevelColor(level: SkillLevel): Color = when (level) {
 
 @Composable
 private fun EmptyState(
-    filter: OpenPlayFilter,
     isGuest: Boolean,
     onHostClick: () -> Unit,
-    onBrowseClick: () -> Unit,
 ) {
+    val sport = CurrentSport.sport
+    EmptyStateScaffold(
+        heroSize = 120.dp,
+        badgeSize = 64.dp,
+        title = "No Open Play Sessions",
+        subtitle = if (isGuest) "Sign in to post a session or join others."
+        else "Be the first to post a ${sport.inlineName} session!\nInvite others to play.",
+    ) {
+        if (!isGuest) {
+            PrimaryActionButton(text = "Post a Session", icon = Icons.Filled.AddCircle, onClick = onHostClick)
+        }
+    }
+}
+
+@Composable
+private fun MySessionsEmptyState(onBrowseClick: () -> Unit) {
+    EmptyStateScaffold(
+        heroSize = 100.dp,
+        badgeSize = 52.dp,
+        title = "No Sessions Yet",
+        subtitle = "Post your own session or join one\nfrom the All Sessions tab.",
+    ) {
+        PrimaryActionButton(text = "Browse Sessions", icon = Icons.Filled.Search, onClick = onBrowseClick)
+    }
+}
+
+@Composable
+private fun EmptyStateScaffold(
+    heroSize: androidx.compose.ui.unit.Dp,
+    badgeSize: androidx.compose.ui.unit.Dp,
+    title: String,
+    subtitle: String,
+    action: @Composable () -> Unit,
+) {
+    val sport = CurrentSport.sport
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 100.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        val sport = CurrentSport.sport
-        val heroSize = if (filter == OpenPlayFilter.MY_SESSIONS) 100.dp else 120.dp
+        Spacer(modifier = Modifier.height(16.dp))
         Box(
             modifier = Modifier
                 .size(heroSize)
@@ -452,61 +582,88 @@ private fun EmptyState(
                 .background(sport.theme.tint),
             contentAlignment = Alignment.Center,
         ) {
-            SportBadge(sport, if (filter == OpenPlayFilter.MY_SESSIONS) 52.dp else 64.dp, Modifier.rotate(-12f))
+            SportBadge(sport, badgeSize, Modifier.rotate(-12f))
         }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = title,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = subtitle,
+                fontSize = 14.sp,
+                color = Color.Gray,
+                lineHeight = 20.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp),
+            )
+        }
+        Box(modifier = Modifier.padding(horizontal = 40.dp)) { action() }
+    }
+}
 
-        Spacer(modifier = Modifier.height(24.dp))
+@Composable
+private fun PrimaryActionButton(text: String, icon: ImageVector, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
+        shape = RoundedCornerShape(50),
+    ) {
+        Icon(icon, null, Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(text, fontWeight = FontWeight.SemiBold)
+    }
+}
 
-        Text(
-            text = when (filter) {
-                OpenPlayFilter.ALL_SESSIONS -> "No Open Play Sessions"
-                OpenPlayFilter.MY_SESSIONS -> "No Sessions Yet"
-                OpenPlayFilter.COMPLETED -> "No completed sessions"
-            },
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = when (filter) {
-                OpenPlayFilter.ALL_SESSIONS -> if (isGuest) "Sign in to post a session or join others."
-                else "Be the first to post a ${sport.inlineName} session!\nInvite others to play."
-                OpenPlayFilter.MY_SESSIONS -> "Post your own session or join one\nfrom the All Sessions tab."
-                OpenPlayFilter.COMPLETED -> "Completed sessions will show here."
-            },
-            fontSize = 14.sp,
-            color = Color.Gray,
-            lineHeight = 20.sp,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        if (!isGuest) {
-            when (filter) {
-                OpenPlayFilter.ALL_SESSIONS -> {
-                    Button(
-                        onClick = onHostClick,
-                        modifier = Modifier.fillMaxWidth(0.85f),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-                        shape = RoundedCornerShape(14.dp),
-                        contentPadding = PaddingValues(vertical = 14.dp),
-                    ) {
-                        Text("+ Post a Session", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+@Composable
+private fun ErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Spacer(Modifier.height(24.dp))
+        Icon(Icons.Filled.Warning, null, Modifier.size(40.dp), tint = WarningOrange)
+        Text("Couldn't Load Sessions", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Text(message, fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center)
+        Button(
+            onClick = onRetry,
+            modifier = Modifier.padding(horizontal = 20.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
+            shape = RoundedCornerShape(50),
+        ) { Text("Try Again", fontWeight = FontWeight.SemiBold) }
+    }
+}
+
+@Composable
+private fun SkeletonLoading() {
+    val bar = Color.Gray.copy(alpha = 0.15f)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 20.dp, start = 16.dp, end = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        repeat(3) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().height(120.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.size(70.dp, 18.dp).background(bar, RoundedCornerShape(50)))
+                        Box(Modifier.size(50.dp, 18.dp).background(bar, RoundedCornerShape(50)))
                     }
+                    Box(Modifier.fillMaxWidth().height(20.dp).background(bar))
+                    Box(Modifier.fillMaxWidth().height(14.dp).background(bar))
                 }
-                OpenPlayFilter.MY_SESSIONS -> {
-                    Button(
-                        onClick = onBrowseClick,
-                        modifier = Modifier.fillMaxWidth(0.85f),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-                        shape = RoundedCornerShape(14.dp),
-                        contentPadding = PaddingValues(vertical = 14.dp),
-                    ) {
-                        Text("\uD83D\uDD0D Browse Sessions", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    }
-                }
-                OpenPlayFilter.COMPLETED -> {}
             }
         }
     }

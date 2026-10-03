@@ -1,7 +1,10 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -17,13 +20,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.Tournament
+import com.s2aglobal.tournmate.domain.model.TournamentStatus
+import com.s2aglobal.tournmate.ui.component.PlayPullToRefresh
+import com.s2aglobal.tournmate.util.ShareUtil
 import com.s2aglobal.tournmate.ui.component.TournamentCard
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.component.SportBadge
@@ -41,18 +49,20 @@ fun TournamentListScreen(
     viewModel: TournamentListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     var showCancelDialog by remember { mutableStateOf<Tournament?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Tournament?>(null) }
+    var sortNewestFirst by remember { mutableStateOf(true) }
 
-    // Error dialog
-    state.errorMessage?.let { msg ->
+    // Create / cancel / delete error alert
+    state.createError?.let { msg ->
         AlertDialog(
-            onDismissRequest = { viewModel.clearError() },
+            onDismissRequest = { viewModel.clearCreateError() },
             title = { Text("Unable to Post") },
             text = { Text(msg) },
             confirmButton = {
-                TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                TextButton(onClick = { viewModel.clearCreateError() }) { Text("OK") }
             },
         )
     }
@@ -65,7 +75,7 @@ fun TournamentListScreen(
             text = {
                 val fee = tournament.formattedFee
                 Text(
-                    if (fee != null) "This will cancel \"${tournament.title}\". Registered players paid $fee each.\n\nPlease arrange refunds for all registered players before confirming."
+                    if (fee != null) "This will cancel \"${tournament.title}\". Registered players paid $fee each.\n\n⚠️ Please arrange refunds for all registered players before confirming."
                     else "This will cancel \"${tournament.title}\". All registered players will be notified. This action cannot be undone."
                 )
             },
@@ -75,6 +85,7 @@ fun TournamentListScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        Toast.makeText(context, "Tournament cancelled", Toast.LENGTH_SHORT).show()
                         viewModel.cancel(tournament)
                         showCancelDialog = null
                     },
@@ -92,7 +103,7 @@ fun TournamentListScreen(
             text = {
                 val fee = tournament.formattedFee
                 Text(
-                    if (fee != null) "This will permanently delete \"${tournament.title}\" and all its data.\n\nRegistered players paid $fee each. Please ensure all refunds have been processed before deleting."
+                    if (fee != null) "This will permanently delete \"${tournament.title}\" and all its data.\n\n⚠️ Registered players paid $fee each. Please ensure all refunds have been processed before deleting."
                     else "This will permanently delete \"${tournament.title}\" and all its registrations, matches, and data. This cannot be undone."
                 )
             },
@@ -102,6 +113,7 @@ fun TournamentListScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        Toast.makeText(context, "Tournament deleted", Toast.LENGTH_SHORT).show()
                         viewModel.delete(tournament)
                         showDeleteDialog = null
                     },
@@ -120,37 +132,43 @@ fun TournamentListScreen(
             )
         }
 
-        // Content
-        when {
-            state.errorMessage != null -> {
-                ErrorState(
-                    message = state.errorMessage!!,
-                    onRetry = { viewModel.load() },
-                )
-            }
-            state.isMyFilterEmpty -> {
-                MyTournamentsEmptyState(
-                    onBrowse = { viewModel.setFilter(TournamentFilter.ALL) },
-                    onCreate = onHostClick,
-                )
-            }
-            state.isEmpty && !state.isLoading -> {
-                GlobalEmptyState(
-                    isGuest = isGuest,
-                    onCreateClick = onHostClick,
-                )
-            }
-            state.isLoading && state.isEmpty -> {
-                SkeletonLoading()
-            }
-            else -> {
-                TournamentList(
-                    state = state,
-                    onTournamentClick = onTournamentClick,
-                    onCancel = { showCancelDialog = it },
-                    onDelete = { showDeleteDialog = it },
-                    onRefresh = { viewModel.load() },
-                )
+        PlayPullToRefresh(
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            when {
+                state.errorMessage != null -> {
+                    ErrorState(
+                        message = state.errorMessage!!,
+                        onRetry = { viewModel.load() },
+                    )
+                }
+                state.isMyFilterEmpty -> {
+                    MyTournamentsEmptyState(
+                        onBrowse = { viewModel.setFilter(TournamentFilter.ALL) },
+                        onCreate = onHostClick,
+                    )
+                }
+                state.isEmpty && !state.isLoading -> {
+                    GlobalEmptyState(
+                        isGuest = isGuest,
+                        onCreateClick = onHostClick,
+                    )
+                }
+                state.isLoading && state.isEmpty -> {
+                    SkeletonLoading()
+                }
+                else -> {
+                    TournamentList(
+                        state = state,
+                        sortNewestFirst = sortNewestFirst,
+                        onSortChange = { sortNewestFirst = it },
+                        onTournamentClick = onTournamentClick,
+                        onShare = { ShareUtil.shareTournament(context, it) },
+                        onCancel = { showCancelDialog = it },
+                        onDelete = { showDeleteDialog = it },
+                    )
+                }
             }
         }
     }
@@ -191,144 +209,81 @@ private fun FilterChips(
 @Composable
 private fun TournamentList(
     state: TournamentListUiState,
+    sortNewestFirst: Boolean,
+    onSortChange: (Boolean) -> Unit,
     onTournamentClick: (Tournament) -> Unit,
+    onShare: (Tournament) -> Unit,
     onCancel: (Tournament) -> Unit,
     onDelete: (Tournament) -> Unit,
-    onRefresh: () -> Unit,
 ) {
+    val isCreator: (Tournament) -> Boolean = { t ->
+        state.firebaseUid != null && t.createdBy == state.firebaseUid
+    }
+    val sections = buildList {
+        if (state.filter == TournamentFilter.MINE) {
+            add(ListSection("posted", "Tournaments I Posted", Icons.Default.EditNote, state.myPostedTournaments, false))
+            add(ListSection("enrolled", "Tournaments I Enrolled", Icons.Default.PersonAdd, state.myEnrolledTournaments, false))
+            add(ListSection("mine_live", "Live Now", Icons.Default.Sensors, state.inProgressTournaments, false))
+        } else {
+            add(ListSection("live", "Live Now", Icons.Default.Sensors, state.inProgressTournaments, false))
+            add(ListSection("upcoming", "Upcoming", Icons.Default.CalendarToday, state.trulyUpcomingTournaments, false))
+            add(ListSection("completed", "Completed", Icons.Default.History, state.pastTournaments, true))
+        }
+    }.filter { it.tournaments.isNotEmpty() }
+
     LazyColumn(
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 100.dp),
     ) {
-        if (state.filter == TournamentFilter.MINE) {
-            if (state.myPostedTournaments.isNotEmpty()) {
-                item(key = "header_posted") {
-                    SectionHeader(
-                        title = "Tournaments I Posted",
-                        icon = Icons.Default.Edit,
-                        count = state.myPostedTournaments.size,
-                    )
-                }
-                items(state.myPostedTournaments, key = { "posted_${it.id}" }) { tournament ->
-                    TournamentCardItem(
-                        tournament = tournament,
-                        isPast = false,
-                        isCreator = state.firebaseUid != null && tournament.createdBy == state.firebaseUid,
-                        onClick = { onTournamentClick(tournament) },
-                        onCancel = { onCancel(tournament) },
-                        onDelete = { onDelete(tournament) },
-                    )
-                }
+        sections.forEachIndexed { index, section ->
+            val list = if (sortNewestFirst) section.tournaments else section.tournaments.sortedByDescending { it.date }
+            item(key = "header_${section.key}") {
+                SectionHeader(
+                    title = section.title,
+                    icon = section.icon,
+                    count = list.size,
+                    sortNewestFirst = sortNewestFirst,
+                    onSortChange = onSortChange,
+                    modifier = if (index > 0) Modifier.padding(top = 16.dp) else Modifier,
+                )
             }
-            if (state.myEnrolledTournaments.isNotEmpty()) {
-                item(key = "header_enrolled") {
-                    SectionHeader(
-                        title = "Tournaments I Enrolled",
-                        icon = Icons.Default.PersonAdd,
-                        count = state.myEnrolledTournaments.size,
-                    )
-                }
-                items(state.myEnrolledTournaments, key = { "enrolled_${it.id}" }) { tournament ->
-                    TournamentCardItem(
-                        tournament = tournament,
-                        isPast = false,
-                        isCreator = false,
-                        onClick = { onTournamentClick(tournament) },
-                        onCancel = {},
-                        onDelete = {},
-                    )
-                }
-            }
-            if (state.inProgressTournaments.isNotEmpty()) {
-                item(key = "header_mine_live") {
-                    SectionHeader(
-                        title = "Live Now",
-                        icon = Icons.Default.Sensors,
-                        count = state.inProgressTournaments.size,
-                    )
-                }
-                items(state.inProgressTournaments, key = { "mine_live_${it.id}" }) { tournament ->
-                    TournamentCardItem(
-                        tournament = tournament,
-                        isPast = false,
-                        isCreator = state.firebaseUid != null && tournament.createdBy == state.firebaseUid,
-                        onClick = { onTournamentClick(tournament) },
-                        onCancel = { onCancel(tournament) },
-                        onDelete = { onDelete(tournament) },
-                    )
-                }
-            }
-        } else {
-            if (state.inProgressTournaments.isNotEmpty()) {
-                item(key = "header_live") {
-                    SectionHeader(
-                        title = "Live Now",
-                        icon = Icons.Default.Sensors,
-                        count = state.inProgressTournaments.size,
-                    )
-                }
-                items(state.inProgressTournaments, key = { "live_${it.id}" }) { tournament ->
-                    TournamentCardItem(
-                        tournament = tournament,
-                        isPast = false,
-                        isCreator = state.firebaseUid != null && tournament.createdBy == state.firebaseUid,
-                        onClick = { onTournamentClick(tournament) },
-                        onCancel = { onCancel(tournament) },
-                        onDelete = { onDelete(tournament) },
-                    )
-                }
-            }
-            if (state.trulyUpcomingTournaments.isNotEmpty()) {
-                item(key = "header_upcoming") {
-                    SectionHeader(
-                        title = "Upcoming",
-                        icon = Icons.Default.CalendarToday,
-                        count = state.trulyUpcomingTournaments.size,
-                    )
-                }
-                items(state.trulyUpcomingTournaments, key = { "upcoming_${it.id}" }) { tournament ->
-                    TournamentCardItem(
-                        tournament = tournament,
-                        isPast = false,
-                        isCreator = state.firebaseUid != null && tournament.createdBy == state.firebaseUid,
-                        onClick = { onTournamentClick(tournament) },
-                        onCancel = { onCancel(tournament) },
-                        onDelete = { onDelete(tournament) },
-                    )
-                }
-            }
-            if (state.pastTournaments.isNotEmpty()) {
-                item(key = "header_completed") {
-                    SectionHeader(
-                        title = "Completed",
-                        icon = Icons.Default.History,
-                        count = state.pastTournaments.size,
-                    )
-                }
-                items(state.pastTournaments, key = { "completed_${it.id}" }) { tournament ->
-                    TournamentCardItem(
-                        tournament = tournament,
-                        isPast = true,
-                        isCreator = state.firebaseUid != null && tournament.createdBy == state.firebaseUid,
-                        onClick = { onTournamentClick(tournament) },
-                        onCancel = { onCancel(tournament) },
-                        onDelete = { onDelete(tournament) },
-                    )
-                }
+            items(list, key = { "${section.key}_${it.id}" }) { tournament ->
+                TournamentCardItem(
+                    tournament = tournament,
+                    isPast = section.isPast,
+                    isCreator = isCreator(tournament),
+                    onClick = { onTournamentClick(tournament) },
+                    onShare = { onShare(tournament) },
+                    onCancel = { onCancel(tournament) },
+                    onDelete = { onDelete(tournament) },
+                )
             }
         }
     }
 }
+
+private data class ListSection(
+    val key: String,
+    val title: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val tournaments: List<Tournament>,
+    val isPast: Boolean,
+)
 
 @Composable
 private fun SectionHeader(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     count: Int,
+    sortNewestFirst: Boolean,
+    onSortChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -352,24 +307,70 @@ private fun SectionHeader(
                 .background(AppAccent.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 6.dp, vertical = 2.dp),
         )
+        Spacer(Modifier.weight(1f))
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(Icons.Default.FilterList, contentDescription = "Sort", tint = AppAccent)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("Soonest First") },
+                    onClick = { onSortChange(true); menuExpanded = false },
+                    trailingIcon = { if (sortNewestFirst) Icon(Icons.Default.Check, null) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Latest First") },
+                    onClick = { onSortChange(false); menuExpanded = false },
+                    trailingIcon = { if (!sortNewestFirst) Icon(Icons.Default.Check, null) },
+                )
+            }
+        }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TournamentCardItem(
     tournament: Tournament,
     isPast: Boolean,
     isCreator: Boolean,
     onClick: () -> Unit,
+    onShare: () -> Unit,
     onCancel: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .padding(horizontal = 20.dp, vertical = 8.dp)
-            .clickable(onClick = onClick),
+            .clip(RoundedCornerShape(24.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { menuExpanded = true },
+            ),
     ) {
         TournamentCard(tournament = tournament, isPast = isPast)
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Share") },
+                leadingIcon = { Icon(Icons.Default.Share, null) },
+                onClick = { menuExpanded = false; onShare() },
+            )
+            if (isCreator) {
+                if (tournament.status != TournamentStatus.CANCELLED) {
+                    DropdownMenuItem(
+                        text = { Text("Cancel Tournament") },
+                        leadingIcon = { Icon(Icons.Default.HighlightOff, null) },
+                        onClick = { menuExpanded = false; onCancel() },
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text("Delete", color = Color.Red) },
+                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
+                    onClick = { menuExpanded = false; onDelete() },
+                )
+            }
+        }
     }
 }
 
@@ -591,13 +592,25 @@ private fun ActionCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = iconColor.copy(alpha = 0.1f),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, null, modifier = Modifier.size(24.dp), tint = iconColor)
+            Box {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = iconColor.copy(alpha = 0.1f),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(icon, null, modifier = Modifier.size(24.dp), tint = iconColor)
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 4.dp, y = 4.dp)
+                        .size(18.dp)
+                        .background(Color.White, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Default.AddCircle, null, modifier = Modifier.size(16.dp), tint = AppAccent)
                 }
             }
             Column(modifier = Modifier.weight(1f)) {
