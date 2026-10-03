@@ -177,6 +177,7 @@ fun TournMateNavHost(
                 onPlayerClick = { playerId ->
                     navController.navigate(Routes.playerProfile(playerId))
                 },
+                isGuest = isGuestMode,
             )
         }
 

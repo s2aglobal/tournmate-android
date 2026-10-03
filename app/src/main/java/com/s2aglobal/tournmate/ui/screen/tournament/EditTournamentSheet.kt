@@ -84,6 +84,8 @@ fun EditTournamentSheet(
     var showVenuePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showDeadlineDatePicker by remember { mutableStateOf(false) }
+    var showDeadlineTimePicker by remember { mutableStateOf(false) }
     var showEventTypePicker by remember { mutableStateOf(false) }
     var showMatchFormatPicker by remember { mutableStateOf(false) }
 
@@ -149,6 +151,7 @@ fun EditTournamentSheet(
                     onValueChange = { editTitle = it },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
+                    placeholder = { Text("Tournament Name") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AppAccent,
                         unfocusedBorderColor = Color(0xFFE5E5EA),
@@ -266,7 +269,7 @@ fun EditTournamentSheet(
                 SectionLabel("REGISTRATION DEADLINE")
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Surface(
-                        onClick = { /* deadline date picker - reusing date picker */ },
+                        onClick = { showDeadlineDatePicker = true },
                         shape = RoundedCornerShape(14.dp),
                         color = Color(0xFFF2F2F7),
                         modifier = Modifier.weight(1f),
@@ -278,6 +281,7 @@ fun EditTournamentSheet(
                         }
                     }
                     Surface(
+                        onClick = { showDeadlineTimePicker = true },
                         shape = RoundedCornerShape(14.dp),
                         color = Color(0xFFF2F2F7),
                         modifier = Modifier.weight(1f),
@@ -333,10 +337,10 @@ fun EditTournamentSheet(
                     // Payment warning
                     Surface(
                         shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFFFFF3CD).copy(alpha = 0.3f),
+                        color = Color(0xFFFFCC00).copy(alpha = 0.08f),
                     ) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
-                            Icon(Icons.Default.Warning, null, tint = Color(0xFFFF9500), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.GppMaybe, null, tint = Color(0xFFFF9500), modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 "TournMate does not process payments. You are responsible for collecting and refunding fees directly.",
@@ -346,22 +350,25 @@ fun EditTournamentSheet(
                     }
 
                     // Prize info
-                    SectionLabel("WINNING REWARDS")
-                    OutlinedTextField(
-                        value = editPrizeInfo,
-                        onValueChange = { editPrizeInfo = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        placeholder = { Text("e.g. 1st: \$150, 2nd: \$50", fontSize = 14.sp) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AppAccent,
-                            unfocusedBorderColor = Color(0xFFE5E5EA),
-                            unfocusedContainerColor = Color(0xFFF2F2F7),
-                            focusedContainerColor = Color(0xFFF2F2F7),
-                        ),
-                        minLines = 2,
-                        maxLines = 4,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel("WINNING REWARDS")
+                        OutlinedTextField(
+                            value = editPrizeInfo,
+                            onValueChange = { editPrizeInfo = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            placeholder = { Text("e.g. 1st: \$150, 2nd: \$50, 3rd: Free entry next event", fontSize = 14.sp) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AppAccent,
+                                unfocusedBorderColor = Color(0xFFE5E5EA),
+                                unfocusedContainerColor = Color(0xFFF2F2F7),
+                                focusedContainerColor = Color(0xFFF2F2F7),
+                            ),
+                            minLines = 3,
+                            maxLines = 4,
+                        )
+                        Text("Describe what winners receive.", fontSize = 11.sp, color = Color.Gray)
+                    }
 
                     // Duration
                     SectionLabel("ESTIMATED DURATION")
@@ -433,11 +440,7 @@ fun EditTournamentSheet(
                     TextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
                             editDate = DatePickerUtils.applyPickerDate(editDate, millis)
-                            val defaultDeadline = Calendar.getInstance().apply {
-                                time = editDate
-                                add(Calendar.HOUR, -2)
-                            }.time
-                            if (editDeadline.after(editDate)) editDeadline = defaultDeadline
+                            editDeadline = Tournament.defaultDeadline(editDate)
                         }
                         showDatePicker = false
                     }) { Text("OK", color = AppAccent) }
@@ -475,6 +478,52 @@ fun EditTournamentSheet(
                 },
                 text = { TimePicker(state = timePickerState) },
                 title = { Text("Select Time") },
+            )
+        }
+
+        if (showDeadlineDatePicker) {
+            val deadlineState = rememberDatePickerState(
+                initialSelectedDateMillis = DatePickerUtils.toUtcPickerMillis(editDeadline),
+            )
+            DatePickerDialog(
+                onDismissRequest = { showDeadlineDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        deadlineState.selectedDateMillis?.let { editDeadline = DatePickerUtils.applyPickerDate(editDeadline, it) }
+                        showDeadlineDatePicker = false
+                    }) { Text("OK", color = AppAccent) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeadlineDatePicker = false }) { Text("Cancel", color = AppAccent) }
+                },
+            ) {
+                DatePicker(state = deadlineState)
+            }
+        }
+
+        if (showDeadlineTimePicker) {
+            val cal = Calendar.getInstance().apply { time = editDeadline }
+            val deadlineTimeState = rememberTimePickerState(
+                initialHour = cal.get(Calendar.HOUR_OF_DAY),
+                initialMinute = cal.get(Calendar.MINUTE),
+            )
+            AlertDialog(
+                onDismissRequest = { showDeadlineTimePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        editDeadline = Calendar.getInstance().apply {
+                            time = editDeadline
+                            set(Calendar.HOUR_OF_DAY, deadlineTimeState.hour)
+                            set(Calendar.MINUTE, deadlineTimeState.minute)
+                        }.time
+                        showDeadlineTimePicker = false
+                    }) { Text("OK", color = AppAccent) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeadlineTimePicker = false }) { Text("Cancel", color = AppAccent) }
+                },
+                text = { TimePicker(state = deadlineTimeState) },
+                title = { Text("DEADLINE TIME") },
             )
         }
 
@@ -602,13 +651,15 @@ private fun EditFormatConfigSection(
     when (matchFormat) {
         MatchFormat.SINGLE_ELIMINATION -> {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SeedingPicker(config, onConfigChange)
                 EditToggle("Bronze Match", config.bronzeMatch) { onConfigChange(config.copy(bronzeMatch = it)) }
                 EditToggle("Consolation Bracket", config.consolationBracket) { onConfigChange(config.copy(consolationBracket = it)) }
             }
         }
         MatchFormat.DOUBLE_ELIMINATION -> {
-            Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF2F2F7)) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SeedingPicker(config, onConfigChange)
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Info, null, tint = AppAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Losers bracket runs alongside the main bracket.", fontSize = 12.sp, color = Color.Gray)
@@ -642,6 +693,39 @@ private fun EditFormatConfigSection(
                     Icon(Icons.Default.Draw, null, tint = AppAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Matchups assigned manually by organizer.", fontSize = 12.sp, color = Color.Gray)
+                }
+            }
+        }
+    }
+}
+
+private val SeedingMode.displayName: String
+    get() = when (this) {
+        SeedingMode.ELO_RANKED -> "Elo Ranked"
+        SeedingMode.RANDOM -> "Random"
+        SeedingMode.MANUAL -> "Manual"
+    }
+
+@Composable
+private fun SeedingPicker(config: FormatConfig, onConfigChange: (FormatConfig) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel("SEEDING")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SeedingMode.entries.forEach { mode ->
+                val selected = config.seedingMode == mode.rawValue
+                Surface(
+                    onClick = { onConfigChange(config.copy(seedingMode = mode.rawValue)) },
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (selected) AppAccent.copy(alpha = 0.15f) else Color(0xFFF2F2F7),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        mode.displayName,
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        color = if (selected) AppAccent else Color.Black,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 10.dp),
+                    )
                 }
             }
         }

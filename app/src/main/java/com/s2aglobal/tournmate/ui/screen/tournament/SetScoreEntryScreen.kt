@@ -1,25 +1,32 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.SetScore
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val setLabels = listOf("One", "Two", "Three")
+
 @Composable
 fun SetScoreEntryScreen(
     match: Match,
@@ -28,133 +35,129 @@ fun SetScoreEntryScreen(
     onSubmit: (List<SetScore>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var sets by remember {
-        mutableStateOf(
-            if (existingScores.isNotEmpty()) existingScores.map { it.teamAPoints.toString() to it.teamBPoints.toString() }
-            else listOf("" to "")
-        )
-    }
-    var showCelebration by remember { mutableStateOf(false) }
-
-    val parsedSets = sets.mapNotNull { (a, b) ->
-        val aInt = a.toIntOrNull() ?: return@mapNotNull null
-        val bInt = b.toIntOrNull() ?: return@mapNotNull null
-        if (aInt < 0 || bInt < 0 || aInt == bInt) return@mapNotNull null
-        SetScore(aInt, bInt)
-    }
-
-    val setsWonA = parsedSets.count { it.teamAWon }
-    val setsWonB = parsedSets.count { it.teamBWon }
-    val hasWinner = setsWonA != setsWonB && parsedSets.size == sets.size
-    val bestOf = match.sportType.defaultBestOf
-    val maxSets = bestOf
-
-    if (showCelebration) {
-        val winnerName = if (setsWonA > setsWonB) match.teamA.player.name else match.teamB.player.name
-        val scoreLine = parsedSets.joinToString(" ") { "${it.teamAPoints}-${it.teamBPoints}" }
-        WinnerCelebrationScreen(
-            winnerName = winnerName,
-            scoreLine = scoreLine,
-            isCreator = isCreator,
-            onDone = {
-                onSubmit(parsedSets)
-                onDismiss()
-            },
-        )
-        return
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp).padding(bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("SET SCORES", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-            Spacer(Modifier.height(8.dp))
-            Text("Best of $bestOf", fontSize = 12.sp, color = Color.Gray)
-            Spacer(Modifier.height(20.dp))
-
-            // Team headers
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text(match.teamA.player.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    match.teamA.partner?.let { Text("& ${it.name}", fontSize = 10.sp, color = Color.Gray) }
-                }
-                Spacer(Modifier.width(40.dp))
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text(match.teamB.player.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    match.teamB.partner?.let { Text("& ${it.name}", fontSize = 10.sp, color = Color.Gray) }
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // Set rows
-            sets.forEachIndexed { index, (a, b) ->
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedTextField(
-                        value = a, onValueChange = { v -> sets = sets.toMutableList().apply { this[index] = v to this[index].second } },
-                        modifier = Modifier.width(70.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(12.dp), singleLine = true,
-                    )
-                    Text("Set ${index + 1}", Modifier.padding(horizontal = 12.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                    OutlinedTextField(
-                        value = b, onValueChange = { v -> sets = sets.toMutableList().apply { this[index] = this[index].first to v } },
-                        modifier = Modifier.width(70.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(12.dp), singleLine = true,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Add/Remove set
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (sets.size < maxSets) {
-                    TextButton(onClick = { sets = sets + ("" to "") }) {
-                        Icon(Icons.Default.Add, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Add Set")
-                    }
-                }
-                if (sets.size > 1) {
-                    TextButton(onClick = { sets = sets.dropLast(1) }) {
-                        Icon(Icons.Default.Remove, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Remove Set")
-                    }
-                }
-            }
-
-            // Score summary
-            if (parsedSets.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text("Sets: $setsWonA - $setsWonB", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Button(
-                onClick = { showCelebration = true },
-                enabled = hasWinner,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-            ) {
-                Text("SUBMIT SCORE", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+    val focusManager = LocalFocusManager.current
+    val texts = remember {
+        mutableStateListOf<Pair<String, String>>().apply {
+            repeat(3) { i ->
+                val sc = existingScores.getOrNull(i)
+                add(if (sc != null) sc.teamAPoints.toString() to sc.teamBPoints.toString() else "" to "")
             }
         }
+    }
+    var visibleSets by remember { mutableIntStateOf(existingScores.size.coerceIn(1, 3)) }
+    var celebration by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+    val teamAName = registrationFullName(match.teamA)
+    val teamBName = registrationFullName(match.teamB)
+
+    val parsed = (0 until visibleSets).mapNotNull { i ->
+        val a = texts[i].first.toIntOrNull() ?: return@mapNotNull null
+        val b = texts[i].second.toIntOrNull() ?: return@mapNotNull null
+        SetScore(a, b)
+    }
+    val aWins = parsed.count { it.teamAWon }
+    val bWins = parsed.count { it.teamBWon }
+    val isValid = parsed.size == visibleSets && parsed.none { it.teamAPoints == it.teamBPoints } && aWins != bWins
+
+    FullScreenSheet(onDismiss = { if (celebration == null) onDismiss() }) {
+        val result = celebration
+        if (result != null) {
+            WinnerCelebrationScreen(
+                winnerName = result.first,
+                scoreLine = result.second,
+                showSetsLabel = visibleSets > 1,
+                isCreator = isCreator,
+                onDone = onDismiss,
+            )
+            return@FullScreenSheet
+        }
+
+        Column(Modifier.fillMaxSize()) {
+            ScoreTopBar("Enter Scores", onDismiss)
+            Column(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                MatchupHeader(teamAName, teamBName)
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    for (index in 0 until visibleSets) {
+                        SetCard(
+                            index = index,
+                            value = texts[index],
+                            teamAName = teamAName,
+                            teamBName = teamBName,
+                            onChange = { texts[index] = it },
+                            onRemove = {
+                                texts[index] = "" to ""
+                                visibleSets -= 1
+                            },
+                        )
+                    }
+                }
+                if (visibleSets < 3) {
+                    Surface(
+                        onClick = { visibleSets += 1 },
+                        modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth().height(44.dp)
+                            .border(1.dp, AppAccent.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                        shape = RoundedCornerShape(12.dp),
+                        color = AppAccent.copy(alpha = 0.06f),
+                    ) {
+                        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AddCircle, null, Modifier.size(16.dp), tint = AppAccent)
+                            Spacer(Modifier.width(6.dp))
+                            Text("ADD SET ${visibleSets + 1}", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, color = AppAccent)
+                        }
+                    }
+                }
+            }
+            ScoreSubmitBar("SUBMIT SCORE", isValid) {
+                focusManager.clearFocus()
+                val winner = if (aWins > bWins) teamAName else teamBName
+                val line = if (visibleSets == 1) "${parsed[0].teamAPoints}-${parsed[0].teamBPoints}" else "$aWins-$bWins"
+                onSubmit(parsed)
+                celebration = winner to line
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetCard(
+    index: Int,
+    value: Pair<String, String>,
+    teamAName: String,
+    teamBName: String,
+    onChange: (Pair<String, String>) -> Unit,
+    onRemove: () -> Unit,
+) {
+    ScoreCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NumberBadge("${index + 1}")
+            Text("Set ${setLabels[index]}", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            val a = value.first.toIntOrNull()
+            val b = value.second.toIntOrNull()
+            if (a != null && b != null && (a > 0 || b > 0) && a != b) {
+                Text(
+                    if (a > b) teamAName else teamBName,
+                    fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = AppAccent,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false).clip(CircleShape)
+                        .background(AppAccent.copy(alpha = 0.1f)).padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+            if (index > 0) {
+                Surface(onClick = onRemove, shape = CircleShape, color = ScoreGroupedBg, modifier = Modifier.size(24.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Close, null, Modifier.size(12.dp), tint = Color.Gray)
+                    }
+                }
+            }
+        }
+        ScoreFieldPair(
+            a = value.first, b = value.second,
+            onA = { onChange(it to value.second) },
+            onB = { onChange(value.first to it) },
+        )
     }
 }
