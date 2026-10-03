@@ -43,6 +43,9 @@ import java.util.*
 @Composable
 fun CreateSessionSheet(
     preferredSport: SportType = SportType.BADMINTON,
+    isPosting: Boolean = false,
+    postError: String? = null,
+    onClearPostError: () -> Unit = {},
     onPost: (
         title: String,
         venue: String,
@@ -77,13 +80,7 @@ fun CreateSessionSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    val calendar = remember {
-        Calendar.getInstance().apply {
-            add(Calendar.HOUR_OF_DAY, 1)
-            set(Calendar.MINUTE, 0)
-        }
-    }
-    var selectedDate by remember { mutableStateOf(calendar.time) }
+    var selectedDate by remember { mutableStateOf(Date(System.currentTimeMillis() + 3_600_000L)) }
 
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
@@ -294,61 +291,12 @@ fun CreateSessionSheet(
                     }
                 }
 
-                // Skill Level - individual capsule chips without gray container
                 FormSection("Skill Level") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        SkillLevel.entries.forEach { level ->
-                            val isSelected = skillLevel == level
-                            Surface(
-                                onClick = { skillLevel = level },
-                                shape = RoundedCornerShape(50),
-                                color = if (isSelected) Color.White else Color.Transparent,
-                                border = if (isSelected) null else null,
-                                shadowElevation = if (isSelected) 2.dp else 0.dp,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    level.displayName,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
+                    SegmentedPicker(SkillLevel.entries, skillLevel, { it.displayName }) { skillLevel = it }
                 }
 
-                // Game Type - individual capsule chips without gray container
                 FormSection("Game Type") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        CasualGameType.entries.forEach { type ->
-                            val isSelected = gameType == type
-                            Surface(
-                                onClick = { gameType = type },
-                                shape = RoundedCornerShape(50),
-                                color = if (isSelected) Color.White else Color.Transparent,
-                                shadowElevation = if (isSelected) 2.dp else 0.dp,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    type.displayName,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
+                    SegmentedPicker(CasualGameType.entries, gameType, { it.displayName }) { gameType = it }
                 }
 
                 // Age Group dropdown
@@ -404,29 +352,45 @@ fun CreateSessionSheet(
                             "USD", notes.ifBlank { null },
                             ageGroup, sportType,
                         )
-                        onDismiss()
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    enabled = selectedVenueName.isNotBlank(),
+                    enabled = selectedVenueName.isNotBlank() && !isPosting,
                     colors = ButtonDefaults.buttonColors(containerColor = AppAccent, disabledContainerColor = Color.LightGray),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text("Post Session", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    if (isPosting) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (isPosting) "Posting..." else "Post Session", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 
+    postError?.let { msg ->
+        AlertDialog(
+            onDismissRequest = onClearPostError,
+            title = { Text("Unable to Post") },
+            text = { Text(msg) },
+            confirmButton = { TextButton(onClick = onClearPostError) { Text("OK") } },
+        )
+    }
+
     if (showDatePicker) {
+        val todayMillis = DatePickerUtils.toUtcPickerMillis(Date())
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = DatePickerUtils.toUtcPickerMillis(selectedDate),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= todayMillis
+            },
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = { TextButton(onClick = {
                 datePickerState.selectedDateMillis?.let { millis ->
-                    selectedDate = DatePickerUtils.applyPickerDate(selectedDate, millis)
+                    selectedDate = DatePickerUtils.applyPickerDate(selectedDate, millis).coerceAtLeastNow()
                 }
                 showDatePicker = false
             }) { Text("OK") } },
@@ -443,12 +407,51 @@ fun CreateSessionSheet(
                 val newCal = Calendar.getInstance().apply { time = selectedDate }
                 newCal.set(Calendar.HOUR_OF_DAY, timePickerState.hour)
                 newCal.set(Calendar.MINUTE, timePickerState.minute)
-                selectedDate = newCal.time
+                selectedDate = newCal.time.coerceAtLeastNow()
                 showTimePicker = false
             }) { Text("OK") } },
             dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
             text = { TimePicker(state = timePickerState) },
         )
+    }
+}
+
+private fun Date.coerceAtLeastNow(): Date = if (before(Date())) Date() else this
+
+/** iOS `.pickerStyle(.segmented)` look: gray track, white selected thumb. */
+@Composable
+internal fun <T> SegmentedPicker(
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF767680).copy(alpha = 0.12f), RoundedCornerShape(9.dp))
+            .padding(2.dp),
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selected
+            Surface(
+                onClick = { onSelect(option) },
+                shape = RoundedCornerShape(7.dp),
+                color = if (isSelected) Color.White else Color.Transparent,
+                shadowElevation = if (isSelected) 2.dp else 0.dp,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    label(option),
+                    modifier = Modifier.padding(vertical = 7.dp, horizontal = 2.dp),
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

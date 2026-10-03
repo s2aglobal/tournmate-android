@@ -43,6 +43,23 @@ class HealthConnectService @Inject constructor(
         }
     }
 
+    /** Active calories recorded between [start] and [end], or null when unavailable / none recorded. */
+    suspend fun queryCalories(start: Instant, end: Instant): Double? {
+        if (!hasPermissions()) return null
+        return try {
+            val client = HealthConnectClient.getOrCreate(context)
+            val response = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = ActiveCaloriesBurnedRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                )
+            )
+            response.records.sumOf { it.energy.inKilocalories }.takeIf { it > 0 }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun queryWorkoutCalories(durationMinutes: Int): HealthConnectCalorieResult {
         if (!isAvailable) return HealthConnectCalorieResult(0.0, false)
 

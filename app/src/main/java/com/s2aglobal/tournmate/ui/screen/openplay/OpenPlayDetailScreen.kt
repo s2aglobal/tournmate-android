@@ -4,6 +4,10 @@ import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.theme.gearNoun
 import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.border
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlin.math.roundToInt
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -80,7 +84,9 @@ fun OpenPlayDetailScreen(
     onPlayerClick: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault()) }
+    // Same back-stack-scoped instance the nav host uses; provides calorie + status state.
+    val detailVM: OpenPlayDetailViewModel = hiltViewModel()
+    val detailState by detailVM.uiState.collectAsState()
     val isHost = firebaseUid != null && session.hostId == firebaseUid
     val isAttending = currentPlayerId != null && session.attendeeIds.contains(currentPlayerId)
     var showLeaveConfirm by remember { mutableStateOf(false) }
@@ -152,7 +158,31 @@ fun OpenPlayDetailScreen(
                 )
             }
 
-            if (isHost && session.status == PlaySessionStatus.ACTIVE && !session.isPast) {
+            if (detailState.canLogCalories) {
+                item {
+                    CalorieCard(
+                        state = detailState,
+                        sport = session.sportType,
+                        onWeightChange = detailVM::setCalorieWeight,
+                        onLog = detailVM::logCalories,
+                    )
+                }
+            }
+
+            detailState.statusMessage?.let { msg ->
+                item {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.Info, null, Modifier.size(18.dp), tint = AppAccent)
+                        Text(msg, fontSize = 15.sp, color = Color.Gray)
+                    }
+                }
+            }
+
+            if (isHost && session.status == PlaySessionStatus.ACTIVE) {
                 item {
                     HostActionsCard(
                         onEdit = { showEditSheet = true },
@@ -197,7 +227,11 @@ fun OpenPlayDetailScreen(
             title = { Text("Cancel Session?") },
             text = { Text("This will mark the session as cancelled. Attendees will be notified.") },
             confirmButton = {
-                TextButton(onClick = { showCancelConfirm = false; onCancel() }) {
+                TextButton(onClick = {
+                    showCancelConfirm = false
+                    Toast.makeText(context, "Session cancelled", Toast.LENGTH_SHORT).show()
+                    onCancel()
+                }) {
                     Text("Cancel Session", color = ErrorRed)
                 }
             },
@@ -213,7 +247,11 @@ fun OpenPlayDetailScreen(
             title = { Text("Finish Session?") },
             text = { Text("This will mark the session as complete. Players will be prompted to log their calories.") },
             confirmButton = {
-                TextButton(onClick = { showFinishConfirm = false; onFinish() }) {
+                TextButton(onClick = {
+                    showFinishConfirm = false
+                    Toast.makeText(context, "Session completed!", Toast.LENGTH_SHORT).show()
+                    onFinish()
+                }) {
                     Text("Finish", color = SuccessGreen)
                 }
             },
@@ -242,7 +280,7 @@ private fun HeroSection(session: PlaySession) {
             ),
     ) {
         Icon(
-            painter = sportIconPainter(CurrentSport.sport),
+            painter = sportIconPainter(session.sportType),
             contentDescription = null,
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -548,7 +586,7 @@ private fun YourStatusCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("You're in!", fontWeight = FontWeight.Bold, color = AppAccent, fontSize = 14.sp)
-                        Text("See you on the court 🏸", fontSize = 12.sp, color = Color.Gray)
+                        Text("See you on the court!", fontSize = 12.sp, color = Color.Gray)
                         if (session.hasCost) {
                             Text(
                                 "Cost: ${session.formattedCost}",
@@ -666,6 +704,188 @@ private fun AttendeesCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CalorieCard(
+    state: OpenPlayDetailUiState,
+    sport: SportType,
+    onWeightChange: (Double) -> Unit,
+    onLog: () -> Unit,
+) {
+    val flameGradient = Brush.linearGradient(listOf(WarningOrange, ErrorRed.copy(alpha = 0.8f)))
+    val heartGradient = Brush.linearGradient(listOf(Color.Red, Color(0xFFFF2D55)))
+    Column(
+        modifier = Modifier.padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        DetailSectionHeader(title = "Calorie Tracking", icon = Icons.Default.LocalFireDepartment)
+
+        val record = state.existingCalorieRecord
+        val hcCalories = state.healthConnectCalories
+        when {
+            record != null -> {
+                val shape = RoundedCornerShape(16.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(shape)
+                        .background(Brush.horizontalGradient(listOf(WarningOrange.copy(alpha = 0.08f), ErrorRed.copy(alpha = 0.05f))))
+                        .border(1.dp, WarningOrange.copy(alpha = 0.2f), shape)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    GradientCircleIcon(Icons.Default.LocalFireDepartment, flameGradient, 52.dp)
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(formatKcal(record.calories), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        val fromHealthConnect = record.source == CalorieSource.HEALTH_CONNECT
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (fromHealthConnect) Icons.Default.Favorite else Icons.Default.Functions,
+                                null, Modifier.size(11.dp), tint = Color.Gray,
+                            )
+                            Text(
+                                if (fromHealthConnect) "From Health Connect" else "Estimated (MET)",
+                                fontSize = 12.sp, color = Color.Gray,
+                            )
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("${record.durationMinutes} min", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("${record.weightUsedKg.toInt()} kg", fontSize = 11.sp, color = Color.Gray)
+                    }
+                }
+            }
+            state.isFetchingHealthConnect -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF2F2F7), RoundedCornerShape(16.dp))
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(Modifier.size(24.dp), color = AppAccent, strokeWidth = 2.dp)
+                    Text("Checking Health Connect…", fontSize = 15.sp, color = Color.Gray)
+                }
+            }
+            hcCalories != null -> {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        GradientCircleIcon(Icons.Default.Favorite, heartGradient, 44.dp)
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Health Connect Detected", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Workout data found for this session", fontSize = 12.sp, color = Color.Gray)
+                        }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Red.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("${hcCalories.toInt()} kcal", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                            Text("from Health Connect workout", fontSize = 12.sp, color = Color.Gray)
+                        }
+                        Icon(Icons.Default.Watch, null, Modifier.size(32.dp), tint = Color.Red.copy(alpha = 0.6f))
+                    }
+                    CalorieActionButton(
+                        text = if (state.isLoggingCalories) "Saving…" else "Save to My Stats",
+                        icon = Icons.Default.CheckCircle,
+                        gradient = Brush.horizontalGradient(listOf(Color.Red, Color(0xFFFF2D55))),
+                        isLoading = state.isLoggingCalories,
+                        onClick = onLog,
+                    )
+                }
+            }
+            else -> {
+                Surface(shape = RoundedCornerShape(16.dp), color = Color.White, shadowElevation = 2.dp) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            GradientCircleIcon(Icons.Default.LocalFireDepartment, flameGradient, 44.dp)
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("Estimate Your Burn", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                                Text("No Health Connect data found — we'll estimate for you", fontSize = 12.sp, color = Color.Gray)
+                            }
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Your weight", fontSize = 15.sp, modifier = Modifier.weight(1f))
+                                Text("${state.calorieWeight.toInt()} kg", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = WarningOrange)
+                            }
+                            Slider(
+                                value = state.calorieWeight.toFloat().coerceIn(30f, 180f),
+                                onValueChange = { onWeightChange(it.roundToInt().toDouble()) },
+                                valueRange = 30f..180f,
+                                steps = 149,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = WarningOrange,
+                                    activeTrackColor = WarningOrange,
+                                    activeTickColor = Color.Transparent,
+                                    inactiveTickColor = Color.Transparent,
+                                ),
+                            )
+                        }
+                        CalorieActionButton(
+                            text = if (state.isLoggingCalories) "Calculating…" else "Log Calories",
+                            icon = Icons.Default.LocalFireDepartment,
+                            gradient = Brush.horizontalGradient(listOf(WarningOrange, ErrorRed.copy(alpha = 0.8f))),
+                            isLoading = state.isLoggingCalories,
+                            onClick = onLog,
+                        )
+                        Text(
+                            "Tip: Track your ${sport.displayName} workout with an app that syncs to Health Connect for accurate tracking next time.",
+                            fontSize = 11.sp,
+                            color = Color.LightGray,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GradientCircleIcon(icon: ImageVector, gradient: Brush, size: androidx.compose.ui.unit.Dp) {
+    Box(
+        modifier = Modifier.size(size).clip(CircleShape).background(gradient),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, Modifier.size(size * 0.45f), tint = Color.White)
+    }
+}
+
+@Composable
+private fun CalorieActionButton(
+    text: String,
+    icon: ImageVector,
+    gradient: Brush,
+    isLoading: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = !isLoading,
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.background(gradient).padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
+                Icon(icon, null, Modifier.size(18.dp), tint = Color.White)
+            }
+            Text(text, fontWeight = FontWeight.SemiBold, color = Color.White)
         }
     }
 }
@@ -1009,57 +1229,11 @@ private fun EditSessionSheet(
                 }
 
                 FormSection("Skill Level") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        SkillLevel.entries.forEach { level ->
-                            val isSelected = skillLevel == level
-                            Surface(
-                                onClick = { skillLevel = level },
-                                shape = RoundedCornerShape(50),
-                                color = if (isSelected) Color.White else Color.Transparent,
-                                shadowElevation = if (isSelected) 2.dp else 0.dp,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    level.displayName,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
+                    SegmentedPicker(SkillLevel.entries, skillLevel, { it.displayName }) { skillLevel = it }
                 }
 
                 FormSection("Game Type") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        CasualGameType.entries.forEach { type ->
-                            val isSelected = gameType == type
-                            Surface(
-                                onClick = { gameType = type },
-                                shape = RoundedCornerShape(50),
-                                color = if (isSelected) Color.White else Color.Transparent,
-                                shadowElevation = if (isSelected) 2.dp else 0.dp,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    type.displayName,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
+                    SegmentedPicker(CasualGameType.entries, gameType, { it.displayName }) { gameType = it }
                 }
 
                 FormSection("Preferred Age Group") {
@@ -1118,7 +1292,7 @@ private fun EditSessionSheet(
                     colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text("Save Changes", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Save", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }
