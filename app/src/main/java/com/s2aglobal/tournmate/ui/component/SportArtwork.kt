@@ -85,7 +85,7 @@ val SportArtworkShape = GenericShape { size, _ ->
 
 /** Monochrome (tintable) icon for a sport, iOS `SportType.icon`. Tab bar and inline tinted icons only. */
 @Composable
-fun sportIconPainter(sport: SportType, @DrawableRes badmintonIcon: Int = R.drawable.ic_figure_badminton): Painter =
+fun sportIconPainter(sport: SportType, @DrawableRes badmintonIcon: Int = R.drawable.ic_glyph_badminton): Painter =
     when (sport) {
         SportType.BADMINTON -> painterResource(badmintonIcon)
         SportType.PICKLEBALL -> painterResource(R.drawable.ic_pickleball)
