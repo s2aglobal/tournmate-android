@@ -127,6 +127,7 @@ class FirestoreMatchRepository @Inject constructor(
                 bracketPosition = doc.getLong("bracketPosition")?.toInt(),
                 groupLabel = doc.getString("groupLabel"),
                 sportType = SportType.fromRawValue(doc.getString("sportType")),
+                sportTypeRaw = unknownSportRaw(doc.getString("sportType")),
                 submittedBy = doc.getString("submittedBy"),
                 confirmedBy = doc.getString("confirmedBy"),
                 tournament = tournament,
@@ -287,6 +288,6 @@ class FirestoreMatchRepository @Inject constructor(
         match.round?.let { put("round", it) }
         match.bracketPosition?.let { put("bracketPosition", it) }
         match.groupLabel?.let { put("groupLabel", it) }
-        put("sportType", match.sportType.rawValue)
+        put("sportType", match.sportType.storedRawValue(match.sportTypeRaw))
     }
 }

@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,18 +69,41 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import com.s2aglobal.tournmate.service.config.SportCatalogState
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.theme.PickleSurround
 import com.s2aglobal.tournmate.ui.theme.theme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// Shared sport-selection UI (iOS SportPicker.swift): compact tiles, large cards,
-// the switcher pill and sheet, and the Play hero banner.
+// Shared sport-selection UI (iOS SportPicker.swift): compact tiles, the switcher pill,
+// the "Your sport" catalog picker sheet, and the Play hero banner.
 
 private val SystemGray6 = Color(0xFFF2F2F7)
 private val SystemGray5 = Color(0xFFE5E5EA)
 private val SystemGray4 = Color(0xFFD1D1D6)
+
+/** The resolved sport catalog, provided from `SportCatalog.state` in MainActivity. */
+val LocalSportCatalog = compositionLocalOf { SportCatalogState.DEFAULT }
 
 /** SwiftUI `.spring(response:dampingFraction:)` equivalent. */
 private fun <T> iosSpring(response: Float, damping: Float) =
@@ -160,65 +184,37 @@ fun SportTile(
     }
 }
 
-/** A row of [SportTile]s bound to a selection, with a selection haptic. */
+/**
+ * A row of [SportTile]s bound to a selection, with a selection haptic. Defaults to the catalog's
+ * live sports; more than three scroll horizontally at a fixed tile width.
+ */
 @Composable
 fun SportPickerRow(
     selection: SportType,
     onSelect: (SportType) -> Unit,
     modifier: Modifier = Modifier,
-    sports: List<SportType> = SportType.SELECTABLE,
+    sports: List<SportType> = LocalSportCatalog.current.liveSports,
     unselectedColor: Color = SystemGray6,
 ) {
     val view = LocalView.current
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        sports.forEach { sport ->
-            SportTile(sport, selection == sport, Modifier.weight(1f), unselectedColor) {
-                if (sport != selection) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                onSelect(sport)
+    val select = { sport: SportType ->
+        if (sport != selection) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        onSelect(sport)
+    }
+    if (sports.size <= 3) {
+        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            sports.forEach { sport ->
+                SportTile(sport, selection == sport, Modifier.weight(1f), unselectedColor) { select(sport) }
             }
         }
-    }
-}
-
-// ── Sport card (large) ──────────────────────────────
-
-/** Full-width card with court art, used in the sport switcher sheet. */
-@Composable
-fun SportCard(sport: SportType, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val theme = sport.theme
-    val shape = RoundedCornerShape(22.dp)
-    val rotation by animateFloatAsState(if (isSelected) -15f else 0f, iosSpring(0.35f, 0.75f), label = "cardRot")
-    val content = if (isSelected) Color.White else Color.Black
-
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(96.dp)
-            .sportPressable(onClick)
-            .semantics { contentDescription = "${sport.displayName}. ${theme.tagline}"; selected = isSelected }
-            .then(if (isSelected) Modifier.shadow(12.dp, shape, ambientColor = theme.primary.copy(alpha = 0.35f), spotColor = theme.primary.copy(alpha = 0.35f)) else Modifier)
-            .clip(shape)
-            .then(if (isSelected) Modifier.background(theme.gradient) else Modifier.background(Color.White))
-            .border(if (isSelected) 2.5.dp else 1.dp, if (isSelected) theme.accent else SystemGray5, shape),
-    ) {
-        CourtLines(
-            sport,
-            Modifier.matchParentSize().padding(start = 120.dp, top = 12.dp, bottom = 12.dp),
-            lineColor = if (isSelected) Color.White.copy(alpha = 0.2f) else theme.primary.copy(alpha = 0.10f),
-            lineWidth = 1.5.dp,
-        )
+    } else {
         Row(
-            Modifier.fillMaxSize().padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(sport.displayName.uppercase(), fontSize = 20.sp, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp, color = content)
-                Text(theme.tagline, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = content.copy(alpha = if (isSelected) 0.85f else 0.6f))
+            sports.forEach { sport ->
+                SportTile(sport, selection == sport, Modifier.width(104.dp), unselectedColor) { select(sport) }
             }
-            SportBadge(
-                sport, 58.dp,
-                Modifier.rotate(rotation).shadow(8.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.25f)),
-            )
         }
     }
 }
@@ -246,52 +242,285 @@ fun SportSwitcherPill(sport: SportType, modifier: Modifier = Modifier, onDark: B
     }
 }
 
-// ── Switcher sheet ──────────────────────────────────
+// ── Current sport row ───────────────────────────────
 
-/** Bottom sheet for choosing the sport the app shows. */
+/** "[ball] Badminton      Change ›" row that opens [SportPickerSheet] (Profile, profile setup). */
+@Composable
+fun SportChangeRow(sport: SportType, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val theme = sport.theme
+    Row(
+        modifier
+            .fillMaxWidth()
+            .shadow(2.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.06f))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .clickable(role = Role.Button, onClickLabel = "Change sport", onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = "Sport: ${sport.displayName}. Change" }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SportTileArt(sport, 32.dp)
+        Spacer(Modifier.width(12.dp))
+        Text(sport.displayName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+        Text("Change", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = theme.primary)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = theme.primary)
+    }
+}
+
+// ── Sport picker sheet ──────────────────────────────
+
+/** Grouped-background grey behind the white tiles (iOS systemGroupedBackground). */
+private val SheetBackground = SystemGray6
+/** iOS-matched dark capsule for the Done button. */
+private val DoneNavy = Color(0xFF0F172A)
+private val SecondaryGrey = Color(0xFF8E8E93)
+
+/**
+ * "Your sport" picker (spec: scalable picker, single-select). Sections come from the server-driven
+ * catalog; live sports are selectable, the rest show as dimmed "SOON" tiles. Tapping a live tile
+ * applies it right away through [onSelect]; Done closes the sheet.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SportSwitcherSheet(current: SportType, onSelect: (SportType) -> Unit, onDismiss: () -> Unit) {
+fun SportPickerSheet(current: SportType, onSelect: (SportType) -> Unit, onDismiss: () -> Unit) {
+    val catalog = LocalSportCatalog.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val view = LocalView.current
+    val focus = LocalFocusManager.current
     var selection by remember { mutableStateOf(current) }
-    var committing by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+
+    val trimmed = query.trim()
+    val sections = remember(catalog, trimmed) {
+        catalog.categories.mapNotNull { c ->
+            val matches = if (trimmed.isEmpty()) c.sports else c.sports.filter { it.displayName.contains(trimmed, ignoreCase = true) }
+            if (matches.isEmpty()) null else c to matches
+        }
+    }
+
+    fun close() {
+        focus.clearFocus()
+        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = Color.White,
+        containerColor = SheetBackground,
         tonalElevation = 0.dp,
     ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(top = 12.dp, bottom = 28.dp),
-        ) {
-            Text("What are we playing?", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.Black)
-            Spacer(Modifier.height(4.dp))
-            Text("Tournaments, open play, and courts will follow your sport.", fontSize = 15.sp, color = Color.Gray)
-            Spacer(Modifier.height(18.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SportType.SELECTABLE.forEach { sport ->
-                    SportCard(sport, selection == sport) {
-                        if (committing) return@SportCard
-                        if (sport != selection) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        selection = sport
-                        committing = true
-                        // Let the selection animate before the sheet closes.
-                        scope.launch {
-                            delay(300)
-                            onSelect(sport)
-                            sheetState.hide()
-                            onDismiss()
+        // Nearly full height: leaves a strip of the screen above the sheet, and stays put while searching.
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.94f)) {
+            Column(Modifier.padding(horizontal = 20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Your sport",
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        modifier = Modifier.weight(1f).semantics { heading() },
+                    )
+                    Text(
+                        "Done",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        modifier = Modifier
+                            .sportPressable(::close)
+                            .background(DoneNavy, CircleShape)
+                            .padding(horizontal = 18.dp, vertical = 8.dp),
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Pick the sport you play. It sets your home, rules and alerts.",
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    color = Color(0xFF6E6E73),
+                )
+                Spacer(Modifier.height(16.dp))
+                SportSearchField(query, { query = it }, placeholder = "Search ${catalog.allSports.size} sports")
+            }
+
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 8.dp, bottom = 24.dp),
+            ) {
+                if (sections.isEmpty()) {
+                    Text(
+                        "No sports match \u201C$trimmed\u201D",
+                        fontSize = 15.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                sections.forEach { (category, sports) ->
+                    Spacer(Modifier.height(18.dp))
+                    Text(
+                        category.title.uppercase(),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.2.sp,
+                        color = SecondaryGrey,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 10.dp).semantics { heading() },
+                    )
+                    sports.chunked(3).forEach { row ->
+                        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            row.forEach { sport ->
+                                CatalogSportTile(
+                                    sport = sport,
+                                    isLive = catalog.isLive(sport),
+                                    isSelected = sport == selection,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    if (sport == selection) return@CatalogSportTile
+                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                    selection = sport
+                                    onSelect(sport)
+                                }
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SportSearchField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(Color.White, RoundedCornerShape(14.dp))
+            .border(1.dp, SystemGray4, RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Default.Search, null, Modifier.size(20.dp), tint = SecondaryGrey)
+        Spacer(Modifier.width(6.dp))
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (value.isEmpty()) Text(placeholder, fontSize = 16.sp, color = SecondaryGrey, maxLines = 1)
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
+                cursorBrush = SolidColor(Color.Black),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, capitalization = KeyboardCapitalization.Words),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder },
+            )
+        }
+        if (value.isNotEmpty()) {
+            Icon(
+                Icons.Default.Cancel, "Clear search",
+                Modifier
+                    .size(18.dp)
+                    .clickable(role = Role.Button) { onValueChange("") },
+                tint = Color(0xFFAEAEB2),
+            )
+        }
+    }
+}
+
+/** Picker tile: themed gradient when selected, white when live, dimmed with "SOON" otherwise. */
+@Composable
+private fun CatalogSportTile(
+    sport: SportType,
+    isLive: Boolean,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val theme = sport.theme
+    val shape = RoundedCornerShape(16.dp)
+    // A no-longer-live current sport still shows as selected (spec), just not re-selectable.
+    val filled = isSelected
+    val anim = iosSpring<Float>(0.35f, 0.7f)
+    val rotation by animateFloatAsState(if (filled) -12f else 0f, anim, label = "catTileRot")
+    val stateText = when {
+        isSelected -> "selected"
+        isLive -> "not selected"
+        else -> "coming soon"
+    }
+
+    Box(
+        modifier
+            .aspectRatio(1f / 0.85f)
+            .then(if (isLive) Modifier.sportPressable(onClick) else Modifier)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${sport.displayName}, $stateText"
+                selected = isSelected
+                if (!isLive) disabled()
+            }
+            .then(
+                when {
+                    filled -> Modifier.shadow(8.dp, shape, ambientColor = theme.primary.copy(alpha = 0.35f), spotColor = theme.primary.copy(alpha = 0.35f))
+                    isLive -> Modifier.shadow(2.dp, shape, ambientColor = Color.Black.copy(alpha = 0.04f), spotColor = Color.Black.copy(alpha = 0.04f))
+                    else -> Modifier // soon: no shadow
+                }
+            )
+            .clip(shape)
+            .then(
+                when {
+                    filled -> Modifier.background(theme.gradient)
+                    isLive -> Modifier.background(Color.White).border(1.dp, SystemGray5, shape)
+                    else -> Modifier.background(Color.White.copy(alpha = 0.55f)).border(1.dp, SystemGray5.copy(alpha = 0.55f), shape)
+                }
+            )
+            .padding(12.dp),
+    ) {
+        SportTileArt(
+            sport, 30.dp,
+            Modifier
+                .align(Alignment.TopStart)
+                .rotate(rotation)
+                .graphicsLayer { alpha = if (isLive || filled) 1f else 0.55f },
+            onColor = filled,
+        )
+        BasicText(
+            sport.displayName,
+            style = TextStyle(
+                fontSize = 13.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = when {
+                    filled -> Color.White
+                    isLive -> Color.Black
+                    else -> SecondaryGrey
+                },
+            ),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            // iOS minimumScaleFactor(0.85): 13sp down to ~11sp before truncating.
+            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 13.sp, stepSize = 0.5.sp),
+            modifier = Modifier.align(Alignment.BottomStart),
+        )
+        if (filled) {
+            Box(
+                Modifier.align(Alignment.TopEnd).size(20.dp).background(Color.White, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Check, null, Modifier.size(13.dp), tint = theme.primary)
+            }
+        } else if (!isLive) {
+            Text(
+                "SOON",
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp,
+                color = SecondaryGrey,
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 2.dp),
+            )
         }
     }
 }

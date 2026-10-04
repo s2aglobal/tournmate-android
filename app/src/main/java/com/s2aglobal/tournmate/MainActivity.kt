@@ -9,6 +9,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -17,6 +18,8 @@ import androidx.lifecycle.lifecycleScope
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
 import com.s2aglobal.tournmate.service.AnalyticsService
 import com.s2aglobal.tournmate.service.config.AppVersionGate
+import com.s2aglobal.tournmate.service.config.SportCatalog
+import com.s2aglobal.tournmate.ui.component.LocalSportCatalog
 import com.s2aglobal.tournmate.service.notification.LocalNotificationStore
 import com.s2aglobal.tournmate.ui.navigation.DeepLinkParser
 import com.s2aglobal.tournmate.ui.navigation.TournMateNavHost
@@ -37,6 +40,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var versionGate: AppVersionGate
     @Inject lateinit var analytics: AnalyticsService
     @Inject lateinit var currentUserStore: CurrentUserStore
+    @Inject lateinit var sportCatalog: SportCatalog
 
     private val pendingDeepLink = mutableStateOf<DeepLinkParser.Target?>(null)
 
@@ -57,22 +61,27 @@ class MainActivity : ComponentActivity() {
         if (BuildConfig.DEBUG && intent?.getBooleanExtra(EXTRA_SIMULATE_UPDATE_REQUIRED, false) == true) {
             versionGate.simulateUpdateRequired()
         }
+        // Cached catalog first, then `config/sports` once per launch.
+        lifecycleScope.launch { sportCatalog.refresh() }
         persistNotificationFromIntent(intent)
         pendingDeepLink.value = DeepLinkParser.parse(intent?.data)
             ?: DeepLinkParser.parseExtras(intent?.extras)
         setContent {
             TournMateTheme {
                 val gate by versionGate.state.collectAsStateWithLifecycle()
-                Box(Modifier.fillMaxSize()) {
-                    // The blocker replaces the whole app (including sign-in) so no sheet or
-                    // dialog window can sit above it.
-                    if (gate.isUpdateRequired) {
-                        UpdateRequiredScreen(policy = gate.policy, onUpdate = ::openStore)
-                    } else {
-                        TournMateNavHost(
-                            pendingDeepLink = pendingDeepLink.value,
-                            onDeepLinkConsumed = { pendingDeepLink.value = null },
-                        )
+                val catalog by sportCatalog.state.collectAsStateWithLifecycle()
+                CompositionLocalProvider(LocalSportCatalog provides catalog) {
+                    Box(Modifier.fillMaxSize()) {
+                        // The blocker replaces the whole app (including sign-in) so no sheet or
+                        // dialog window can sit above it.
+                        if (gate.isUpdateRequired) {
+                            UpdateRequiredScreen(policy = gate.policy, onUpdate = ::openStore)
+                        } else {
+                            TournMateNavHost(
+                                pendingDeepLink = pendingDeepLink.value,
+                                onDeepLinkConsumed = { pendingDeepLink.value = null },
+                            )
+                        }
                     }
                 }
             }

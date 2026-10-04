@@ -21,10 +21,6 @@ val TennisGrass = Color(0.13f, 0.47f, 0.27f)
 val TennisGrassDeep = Color(0.06f, 0.30f, 0.16f)
 val TennisBall = Color(0.86f, 0.93f, 0.20f)
 
-// Table tennis — blue table, red paddle.
-val TableTennisBlue = Color(0.10f, 0.25f, 0.55f)
-val TableTennisRed = Color(0.86f, 0.18f, 0.20f)
-
 data class SportTheme(
     /** Main surface colour (header gradient start, selected card fill). */
     val primary: Color,
@@ -74,15 +70,6 @@ private val TennisTheme = SportTheme(
     gearNoun = "racket and balls",
 )
 
-private val TableTennisTheme = SportTheme(
-    primary = TableTennisBlue, primaryDeep = DarkNavy,
-    accent = TableTennisRed, onAccent = Color.White,
-    tint = TableTennisBlue.copy(alpha = 0.10f),
-    tagline = "Spin. Loop. Win.",
-    gearPhrase = "get the paddles spinning",
-    gearNoun = "paddle and balls",
-)
-
 private val DefaultTheme = SportTheme(
     primary = TournmatePurple, primaryDeep = DarkNavy,
     accent = LimeAccent, onAccent = DarkNavy,
@@ -92,13 +79,49 @@ private val DefaultTheme = SportTheme(
     gearNoun = "gear",
 )
 
+/** Theme for catalog sports without a bespoke palette: one brand colour, darkened for the gradient. */
+private fun catalogTheme(hex: Long, tagline: String, gearPhrase: String, gearNoun: String): SportTheme {
+    val primary = Color(hex)
+    // Gradient end: the spec colour at 0.68× brightness (iOS parity).
+    val deep = Color(primary.red * 0.68f, primary.green * 0.68f, primary.blue * 0.68f)
+    return SportTheme(
+        primary = primary, primaryDeep = deep,
+        accent = Color.White, onAccent = deep,
+        tint = primary.copy(alpha = 0.10f),
+        tagline = tagline, gearPhrase = gearPhrase, gearNoun = gearNoun,
+    )
+}
+
+// Catalog sports (spec colours). Only used if one goes live and is selected.
+private val TableTennisTheme = catalogTheme(0xFFC62828, "Spin. Loop. Win.", "get the paddles spinning", "paddle and balls")
+private val PadelTheme = catalogTheme(0xFF0E7C7B, "Lob. Bandeja. Win.", "get the padel rackets out", "racket and balls")
+private val SquashTheme = catalogTheme(0xFF37474F, "Boast. Drop. Win.", "get the ball warmed up", "racket and balls")
+private val VolleyballTheme = catalogTheme(0xFFF2A900, "Bump. Set. Spike.", "get the ball in the air", "a ball")
+private val BeachVolleyballTheme = catalogTheme(0xFFE07A1F, "Dig. Set. Spike.", "get on the sand", "a ball")
+private val BasketballTheme = catalogTheme(0xFFE65100, "Dribble. Pass. Score.", "get the hoops going", "a ball")
+private val SoccerTheme = catalogTheme(0xFF2E7D32, "Pass. Shoot. Score.", "get the ball rolling", "boots and a ball")
+private val CricketTheme = catalogTheme(0xFFB71C1C, "Bowl. Bat. Win.", "get the stumps up", "bat and ball")
+private val GolfTheme = catalogTheme(0xFF1B5E20, "Drive. Chip. Putt.", "get out on the course", "clubs and balls")
+private val BowlingTheme = catalogTheme(0xFF3949AB, "Roll. Strike. Repeat.", "get the pins falling", "bowling shoes")
+private val DartsTheme = catalogTheme(0xFF263238, "Aim. Throw. Checkout.", "get the darts flying", "darts")
+
 val SportType.theme: SportTheme
     get() = when (this) {
         SportType.PICKLEBALL -> PickleballTheme
         SportType.BADMINTON -> BadmintonTheme
         SportType.TENNIS -> TennisTheme
         SportType.TABLE_TENNIS -> TableTennisTheme
-        else -> DefaultTheme
+        SportType.PADEL -> PadelTheme
+        SportType.SQUASH -> SquashTheme
+        SportType.VOLLEYBALL -> VolleyballTheme
+        SportType.BEACH_VOLLEYBALL -> BeachVolleyballTheme
+        SportType.BASKETBALL -> BasketballTheme
+        SportType.SOCCER -> SoccerTheme
+        SportType.CRICKET -> CricketTheme
+        SportType.GOLF -> GolfTheme
+        SportType.BOWLING -> BowlingTheme
+        SportType.DARTS -> DartsTheme
+        SportType.FOOTBALL, SportType.GENERIC -> DefaultTheme
     }
 
 /** What players bring, for placeholder copy. */

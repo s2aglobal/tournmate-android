@@ -28,6 +28,7 @@ import androidx.compose.runtime.*
 import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
 import com.s2aglobal.tournmate.ui.component.ScoringDescription
 import com.s2aglobal.tournmate.ui.component.SkillDivisionPicker
+import com.s2aglobal.tournmate.ui.component.LocalSportCatalog
 import com.s2aglobal.tournmate.ui.component.SportPickerRow
 import com.s2aglobal.tournmate.ui.theme.theme
 import androidx.compose.ui.Alignment
@@ -126,9 +127,11 @@ fun PublishTournamentScreen(
     var newPrizeInfo by remember { mutableStateOf("") }
     var newDurationMinutes by remember { mutableStateOf("") }
     var newAgeGroup by remember { mutableStateOf(AgeGroup.OPEN) }
-    var newSportType by remember { mutableStateOf(preferredSport) }
+    // Only live sports can be published; a soon/unknown preference starts on the first live one.
+    val initialSport = LocalSportCatalog.current.defaultCreationSport(preferredSport)
+    var newSportType by remember { mutableStateOf(initialSport) }
     var newFormatConfig by remember { mutableStateOf(FormatConfig.defaults(MatchFormat.SINGLE_ELIMINATION)) }
-    var newScoringConfig by remember { mutableStateOf(preferredSport.scoringRules.defaultConfig) }
+    var newScoringConfig by remember { mutableStateOf(initialSport.scoringRules.defaultConfig) }
     var newSkillDivision by remember { mutableStateOf<String?>(null) }
     // Scoring as it will be saved (round robin is always a single game).
     val reviewScoringConfig = if (newMatchFormat == MatchFormat.ROUND_ROBIN) newScoringConfig.copy(gamesPerMatch = 1) else newScoringConfig

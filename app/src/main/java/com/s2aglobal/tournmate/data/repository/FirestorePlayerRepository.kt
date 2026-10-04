@@ -8,6 +8,7 @@ import com.s2aglobal.tournmate.domain.model.Gender
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.PlayerAvatar
 import com.s2aglobal.tournmate.domain.model.SportType
+import com.s2aglobal.tournmate.domain.model.storedRawValue
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 import java.util.UUID
@@ -117,7 +118,7 @@ class FirestorePlayerRepository @Inject constructor(
             "phone" to player.phone,
             "genderRaw" to player.genderRaw,
             "avatarId" to player.avatarId,
-            "preferredSport" to player.preferredSport.rawValue,
+            "preferredSport" to player.preferredSport.storedRawValue(player.preferredSportRaw),
         )
         player.homeCountryCode?.let { allowedFields["homeCountryCode"] = it }
         player.homePostalCode?.let { allowedFields["homePostalCode"] = it }

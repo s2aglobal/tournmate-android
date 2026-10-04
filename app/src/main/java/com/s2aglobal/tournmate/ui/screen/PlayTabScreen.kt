@@ -66,7 +66,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.component.SportHeroBanner
-import com.s2aglobal.tournmate.ui.component.SportSwitcherSheet
+import com.s2aglobal.tournmate.ui.component.SportPickerSheet
 import com.s2aglobal.tournmate.ui.component.SportSwitcherViewModel
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.screen.openplay.CreateSessionSheet
@@ -193,7 +193,7 @@ fun PlayTabScreen(
     }
 
     if (showSportSwitcher) {
-        SportSwitcherSheet(
+        SportPickerSheet(
             current = sport,
             onSelect = sportSwitcherVM::select,
             onDismiss = { showSportSwitcher = false },

@@ -144,7 +144,8 @@ import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
 import com.s2aglobal.tournmate.ui.component.BottomSheetPicker
 import com.s2aglobal.tournmate.ui.component.TrophySpinner
 import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
-import com.s2aglobal.tournmate.ui.component.SportPickerRow
+import com.s2aglobal.tournmate.ui.component.SportChangeRow
+import com.s2aglobal.tournmate.ui.component.SportPickerSheet
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.screen.player.EloExplainerCard
 import com.s2aglobal.tournmate.ui.screen.player.InfoBlue
@@ -466,11 +467,15 @@ private fun IconTile(icon: ImageVector) {
 
 @Composable
 private fun SportCard(vm: ProfileViewModel) {
+    var showPicker by remember { mutableStateOf(false) }
     Column(Modifier.padding(horizontal = 16.dp)) {
         SectionHeader("My Sport", painterResource(R.drawable.ic_sportscourt))
         Spacer(Modifier.height(12.dp))
         // Mirrors the app-wide sport so a switch from the Play tab shows here too.
-        SportPickerRow(selection = CurrentSport.sport, onSelect = vm::updateSport)
+        SportChangeRow(CurrentSport.sport) { showPicker = true }
+    }
+    if (showPicker) {
+        SportPickerSheet(current = CurrentSport.sport, onSelect = vm::updateSport, onDismiss = { showPicker = false })
     }
 }
 

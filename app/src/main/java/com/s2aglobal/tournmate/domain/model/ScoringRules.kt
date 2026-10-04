@@ -119,7 +119,30 @@ val SportType.scoringRules: SportScoringRules
             scoringSystemOptions = listOf(ScoringSystem.RALLY),
             capForTarget = { null },
         )
-        SportType.BASKETBALL, SportType.FOOTBALL, SportType.SOCCER, SportType.CRICKET, SportType.GENERIC ->
+        SportType.PADEL -> SportScoringRules(
+            defaultConfig = ScoringConfig(3, 6, 2, 7, ScoringSystem.RALLY),
+            gamesPerMatchOptions = listOf(1, 3),
+            pointsToWinOptions = listOf(6),
+            scoringSystemOptions = listOf(ScoringSystem.RALLY),
+            capForTarget = { target -> target + 1 },
+        )
+        SportType.SQUASH -> SportScoringRules(
+            defaultConfig = ScoringConfig(5, 11, 2, null, ScoringSystem.RALLY),
+            gamesPerMatchOptions = listOf(3, 5),
+            pointsToWinOptions = listOf(11, 15),
+            scoringSystemOptions = listOf(ScoringSystem.RALLY),
+            capForTarget = { null },
+        )
+        SportType.BEACH_VOLLEYBALL -> SportScoringRules(
+            defaultConfig = ScoringConfig(3, 21, 2, null, ScoringSystem.RALLY),
+            gamesPerMatchOptions = listOf(1, 3),
+            pointsToWinOptions = listOf(15, 21),
+            scoringSystemOptions = listOf(ScoringSystem.RALLY),
+            capForTarget = { null },
+        )
+        // Generic fallback: no set scoring until these sports get real rules.
+        SportType.BASKETBALL, SportType.FOOTBALL, SportType.SOCCER, SportType.CRICKET,
+        SportType.GOLF, SportType.BOWLING, SportType.DARTS, SportType.GENERIC ->
             SportScoringRules(
                 defaultConfig = ScoringConfig(1, 0, 1, null, ScoringSystem.RALLY),
                 gamesPerMatchOptions = listOf(1),

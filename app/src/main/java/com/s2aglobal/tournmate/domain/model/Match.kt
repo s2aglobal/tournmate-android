@@ -26,6 +26,8 @@ data class Match(
     val bracketPosition: Int? = null,
     val groupLabel: String? = null,
     val sportType: SportType = SportType.BADMINTON,
+    /** Original id when [sportType] is the GENERIC stand-in for a sport this build doesn't know; written back on save. */
+    val sportTypeRaw: String? = null,
     val submittedBy: String? = null,
     val confirmedBy: String? = null,
     val tournament: Tournament = Tournament(),

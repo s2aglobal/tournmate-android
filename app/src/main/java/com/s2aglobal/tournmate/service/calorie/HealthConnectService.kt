@@ -115,5 +115,8 @@ val SportType.healthConnectExerciseType: Int?
         SportType.SOCCER -> ExerciseSessionRecord.EXERCISE_TYPE_SOCCER
         SportType.FOOTBALL -> ExerciseSessionRecord.EXERCISE_TYPE_FOOTBALL_AMERICAN
         SportType.CRICKET -> ExerciseSessionRecord.EXERCISE_TYPE_CRICKET
-        SportType.PICKLEBALL, SportType.GENERIC -> null
+        SportType.SQUASH -> ExerciseSessionRecord.EXERCISE_TYPE_SQUASH
+        SportType.BEACH_VOLLEYBALL -> ExerciseSessionRecord.EXERCISE_TYPE_VOLLEYBALL
+        SportType.GOLF -> ExerciseSessionRecord.EXERCISE_TYPE_GOLF
+        SportType.PICKLEBALL, SportType.PADEL, SportType.BOWLING, SportType.DARTS, SportType.GENERIC -> null
     }

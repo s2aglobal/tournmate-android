@@ -33,6 +33,7 @@ import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.screen.tournament.VenuePickerScreen
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.component.LocalSportCatalog
 import com.s2aglobal.tournmate.ui.component.SportPickerRow
 import com.s2aglobal.tournmate.ui.theme.gearNoun
 import com.s2aglobal.tournmate.ui.theme.theme
@@ -77,7 +78,9 @@ fun CreateSessionSheet(
     var costText by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var ageGroup by remember { mutableStateOf(AgeGroup.OPEN) }
-    var sportType by remember { mutableStateOf(preferredSport) }
+    // Only live sports can be posted; a soon/unknown preference starts on the first live one.
+    val catalog = LocalSportCatalog.current
+    var sportType by remember { mutableStateOf(catalog.defaultCreationSport(preferredSport)) }
     var showVenuePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }

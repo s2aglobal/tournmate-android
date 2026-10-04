@@ -24,6 +24,7 @@ fun DocumentSnapshot.toPlayer(): Player? {
         createdAt = getTimestamp("createdAt")?.toDate() ?: Date(),
         eloRatings = resolveEloRatings(legacyElo, storedRatings, preferredSport),
         preferredSport = preferredSport,
+        preferredSportRaw = unknownSportRaw(getString("preferredSport")),
         streak = getLong("streak")?.toInt() ?: 0,
         firebaseUid = getString("firebaseUid"),
         avatarId = getString("avatarId") ?: PlayerAvatar.DEFAULT.id,
@@ -61,7 +62,7 @@ fun Player.toFirestoreMap(): Map<String, Any?> = buildMap {
     put("createdAt", Timestamp(createdAt))
     put("eloRatings", eloRatings)
     put("elo", elo(SportType.BADMINTON))
-    put("preferredSport", preferredSport.rawValue)
+    put("preferredSport", preferredSport.storedRawValue(preferredSportRaw))
     put("streak", streak)
     put("avatarId", avatarId)
     firebaseUid?.let { put("firebaseUid", it) }
@@ -106,6 +107,7 @@ fun DocumentSnapshot.toTournament(): Tournament? {
         postalCode = getString("postalCode"),
         timeZone = getString("timeZone"),
         sportType = SportType.fromRawValue(getString("sportType")),
+        sportTypeRaw = unknownSportRaw(getString("sportType")),
     )
 }
 
@@ -136,7 +138,7 @@ fun Tournament.toFirestoreMap(): Map<String, Any?> = buildMap {
     countryCode?.let { put("countryCode", it) }
     postalCode?.let { put("postalCode", it) }
     timeZone?.let { put("timeZone", it) }
-    put("sportType", sportType.rawValue)
+    put("sportType", sportType.storedRawValue(sportTypeRaw))
 }
 
 fun Match.toFirestoreMap(): Map<String, Any?> = buildMap {
@@ -148,7 +150,7 @@ fun Match.toFirestoreMap(): Map<String, Any?> = buildMap {
     round?.let { put("round", it) }
     bracketPosition?.let { put("bracketPosition", it) }
     groupLabel?.let { put("groupLabel", it) }
-    put("sportType", sportType.rawValue)
+    put("sportType", sportType.storedRawValue(sportTypeRaw))
     scoreA?.let { put("scoreA", it) }
     scoreB?.let { put("scoreB", it) }
     winnerRegistrationId?.let { put("winnerRegistrationId", it) }
@@ -204,6 +206,7 @@ fun DocumentSnapshot.toMatch(): Match? {
         bracketPosition = getLong("bracketPosition")?.toInt(),
         groupLabel = getString("groupLabel"),
         sportType = SportType.fromRawValue(getString("sportType")),
+        sportTypeRaw = unknownSportRaw(getString("sportType")),
         submittedBy = getString("submittedBy"),
         confirmedBy = getString("confirmedBy"),
     )
@@ -238,6 +241,7 @@ fun DocumentSnapshot.toPlaySession(): PlaySession? {
         createdAt = getTimestamp("createdAt")?.toDate() ?: Date(),
         timeZone = getString("timeZone"),
         sportType = SportType.fromRawValue(getString("sportType")),
+        sportTypeRaw = unknownSportRaw(getString("sportType")),
         attendeeIds = attendeeIds,
     )
 }

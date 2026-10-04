@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Adjust
 import androidx.compose.material.icons.filled.Sports
 import androidx.compose.material.icons.filled.SportsBasketball
 import androidx.compose.material.icons.filled.SportsCricket
 import androidx.compose.material.icons.filled.SportsFootball
+import androidx.compose.material.icons.filled.SportsGolf
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.SportsTennis
 import androidx.compose.material.icons.filled.SportsVolleyball
@@ -148,6 +150,12 @@ fun sportIconPainter(sport: SportType, @DrawableRes badmintonIcon: Int = R.drawa
         SportType.FOOTBALL -> rememberVectorPainter(Icons.Filled.SportsFootball)
         SportType.SOCCER -> rememberVectorPainter(Icons.Filled.SportsSoccer)
         SportType.CRICKET -> rememberVectorPainter(Icons.Filled.SportsCricket)
+        SportType.PADEL -> rememberVectorPainter(Icons.Filled.SportsTennis)
+        SportType.SQUASH -> rememberVectorPainter(Icons.Filled.SportsTennis)
+        SportType.BEACH_VOLLEYBALL -> rememberVectorPainter(Icons.Filled.SportsVolleyball)
+        SportType.GOLF -> rememberVectorPainter(Icons.Filled.SportsGolf)
+        SportType.BOWLING -> rememberVectorPainter(Icons.Filled.Sports)
+        SportType.DARTS -> rememberVectorPainter(Icons.Filled.Adjust)
         SportType.GENERIC -> rememberVectorPainter(Icons.Filled.Sports)
     }
 
@@ -157,11 +165,82 @@ fun SportBadge(sport: SportType, size: Dp = 32.dp, modifier: Modifier = Modifier
     when (sport) {
         SportType.PICKLEBALL -> PickleballBall(size, modifier)
         SportType.TENNIS -> TennisBallArt(size, modifier)
+        SportType.BOWLING -> BowlingBallArt(size, modifier)
+        SportType.SQUASH -> SquashBallArt(size, modifier)
         else -> Box(
             modifier.size(size).background(sport.theme.gradient, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(sportIconPainter(sport), null, Modifier.size(size * 0.5f), tint = Color.White)
+        }
+    }
+}
+
+// ── Bowling / squash balls ──────────────────────────
+
+/** A glossy bowling ball with three finger holes. */
+@Composable
+fun BowlingBallArt(size: Dp, modifier: Modifier = Modifier) {
+    val base = Color(0xFF3949AB)
+    Canvas(modifier.size(size)) {
+        val r = min(this.size.width, this.size.height) / 2
+        val c = center
+        drawCircle(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFF8C9EFF), base, Color(0xFF1A237E)),
+                center = Offset(c.x - r * 0.35f, c.y - r * 0.4f),
+                radius = r * 1.6f,
+            ),
+            radius = r,
+            center = c,
+        )
+        val hole = Color(0xFF0D1440)
+        drawCircle(hole, radius = r * 0.13f, center = Offset(c.x + r * 0.05f, c.y - r * 0.38f))
+        drawCircle(hole, radius = r * 0.13f, center = Offset(c.x + r * 0.38f, c.y - r * 0.22f))
+        drawCircle(hole, radius = r * 0.15f, center = Offset(c.x + r * 0.22f, c.y + r * 0.18f))
+    }
+}
+
+/** A black squash ball with its two yellow dots. */
+@Composable
+fun SquashBallArt(size: Dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val r = min(this.size.width, this.size.height) / 2
+        val c = center
+        drawCircle(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFF6B6B6B), Color(0xFF2B2B2B), Color(0xFF0F0F0F)),
+                center = Offset(c.x - r * 0.35f, c.y - r * 0.4f),
+                radius = r * 1.6f,
+            ),
+            radius = r,
+            center = c,
+        )
+        val dot = Color(0xFFFFD60A)
+        drawCircle(dot, radius = r * 0.14f, center = Offset(c.x - r * 0.22f, c.y - r * 0.05f))
+        drawCircle(dot, radius = r * 0.14f, center = Offset(c.x + r * 0.22f, c.y - r * 0.05f))
+    }
+}
+
+/**
+ * Artwork for a picker tile: the drawn ball where one exists (pickleball, tennis, bowling, squash),
+ * otherwise the sport icon inside a soft circle. [onColor] when drawn on the
+ * sport's own gradient (selected tile), so the soft circle doesn't vanish into the fill.
+ */
+@Composable
+fun SportTileArt(sport: SportType, size: Dp, modifier: Modifier = Modifier, onColor: Boolean = false) {
+    when (sport) {
+        // Same as iOS: drawn balls for pickleball and tennis, icon-in-circle for the rest.
+        SportType.PICKLEBALL, SportType.TENNIS ->
+            SportBadge(sport, size, modifier)
+        else -> {
+            val tint = if (onColor) Color.White else sport.theme.primary
+            Box(
+                modifier.size(size).background(if (onColor) Color.White.copy(alpha = 0.22f) else tint.copy(alpha = 0.13f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(sportIconPainter(sport), null, Modifier.size(size * 0.58f), tint = tint)
+            }
         }
     }
 }

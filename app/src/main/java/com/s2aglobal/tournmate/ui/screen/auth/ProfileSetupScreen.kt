@@ -103,7 +103,8 @@ import com.s2aglobal.tournmate.domain.model.PlayerAvatar
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.region.RegionNormalizer
 import com.s2aglobal.tournmate.ui.component.BottomSheetPicker
-import com.s2aglobal.tournmate.ui.component.SportPickerRow
+import com.s2aglobal.tournmate.ui.component.SportChangeRow
+import com.s2aglobal.tournmate.ui.component.SportPickerSheet
 import com.s2aglobal.tournmate.ui.component.TrophySpinner
 import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
@@ -405,7 +406,12 @@ private fun ColumnScope.ProfileInfoStep(
 
     SectionLabel("YOUR SPORT")
     Spacer(Modifier.height(12.dp))
-    SportPickerRow(selection = selectedSport, onSelect = onSportChange)
+    // Local selection only; saved with the profile as before.
+    var showSportPicker by remember { mutableStateOf(false) }
+    SportChangeRow(selectedSport) { showSportPicker = true }
+    if (showSportPicker) {
+        SportPickerSheet(current = selectedSport, onSelect = onSportChange, onDismiss = { showSportPicker = false })
+    }
     Spacer(Modifier.height(24.dp))
 
     SectionLabel("AVATAR")

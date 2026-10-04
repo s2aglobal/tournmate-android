@@ -34,6 +34,8 @@ data class Tournament(
     val postalCode: String? = null,
     val timeZone: String? = null,
     val sportType: SportType = SportType.BADMINTON,
+    /** Original id when [sportType] is the GENERIC stand-in for a sport this build doesn't know; written back on save. */
+    val sportTypeRaw: String? = null,
 ) {
     val status: TournamentStatus
         get() = TournamentStatus.fromRawValue(statusRaw)
