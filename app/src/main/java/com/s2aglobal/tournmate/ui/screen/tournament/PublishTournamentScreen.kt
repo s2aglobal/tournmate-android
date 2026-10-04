@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Send
 import com.s2aglobal.tournmate.ui.component.PrimaryCapsuleButton
@@ -163,8 +164,10 @@ fun PublishTournamentScreen(
 
     val dateIsTooSoon = newDate.time <= System.currentTimeMillis() + 3 * 3600 * 1000L
     val deadlineIsPast = newDeadline.before(Date())
-    val dateFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-    val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
+    // Observe the configuration locale so formatters rebuild when the user changes language.
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFmt = remember(locale) { SimpleDateFormat("MMM d, yyyy", locale) }
+    val timeFmt = remember(locale) { SimpleDateFormat("h:mm a", locale) }
 
     val nextDisabled = when (wizardStep) {
         1 -> titleError != null || !InputValidator.validateEventTitle(newTitle).isValid || venueName.isEmpty() || dateIsTooSoon

@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.ui.screen.discover
 
+import com.s2aglobal.tournmate.ui.component.LocalTabBarClearance
+import com.s2aglobal.tournmate.ui.component.TabBarContentGap
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -143,7 +145,8 @@ private fun DiscoverContent(
             )
         }
 
-        Spacer(Modifier.height(80.dp))
+        // Column spacing (24) + this keeps the last section above the floating tab bar.
+        Spacer(Modifier.height(LocalTabBarClearance.current))
         }
     }
 }

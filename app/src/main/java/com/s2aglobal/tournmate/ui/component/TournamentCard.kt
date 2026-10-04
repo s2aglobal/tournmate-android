@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Tournament
@@ -64,16 +65,7 @@ fun TournamentCard(
         color = Color.White,
         shadowElevation = 2.dp,
     ) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 30.dp)
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(accentColor),
-            )
-
+        Box {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -86,7 +78,10 @@ fun TournamentCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.weight(1f, fill = false),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         Badge(statusText.uppercase(), statusColor)
                         Badge(
                             tournament.format.shortName, Color.Gray,
@@ -102,13 +97,19 @@ fun TournamentCard(
                         )
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.padding(start = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         SportBadge(tournament.sportType, 16.dp)
                         Text(
                             text = formatDateShort(tournament.date),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Gray,
+                            maxLines = 1,
+                            softWrap = false,
                         )
                     }
                 }
@@ -161,6 +162,7 @@ fun TournamentCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -175,6 +177,8 @@ fun TournamentCard(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
@@ -198,6 +202,19 @@ fun TournamentCard(
                     }
                 }
             }
+
+            // iOS overlays the 4pt accent bar on the leading edge (it takes no content width).
+            Box(modifier = Modifier.matchParentSize()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(vertical = 30.dp)
+                        .width(4.dp)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(accentColor),
+                )
+            }
         }
     }
 }
@@ -215,6 +232,9 @@ private fun Badge(
         fontSize = fontSize.sp,
         fontWeight = weight,
         color = color,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .background(background, RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp),

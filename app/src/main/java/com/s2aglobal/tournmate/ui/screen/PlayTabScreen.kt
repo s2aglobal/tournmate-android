@@ -6,6 +6,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -32,7 +33,6 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -244,10 +244,10 @@ private fun PlayHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = "Play.",
                 fontSize = 34.sp,
@@ -265,33 +265,41 @@ private fun PlayHeader(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        IconButton(onClick = onNotificationClick) {
+        // iOS: 22pt bell in a 40pt plain button frame.
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .clickable(onClickLabel = "Notifications", onClick = onNotificationClick),
+            contentAlignment = Alignment.Center,
+        ) {
             Box {
                 Icon(
                     imageVector = Icons.Outlined.Notifications,
                     contentDescription = "Notifications",
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(22.dp),
                     tint = Color.Black,
                 )
-                // iOS: 9pt bold count in a small red circle at the bell's top-right.
+                // iOS: 9pt bold count, padding 4, red circle, offset (6, -4) at the bell's top-right.
                 if (unreadCount > 0) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .offset(x = 5.dp, y = (-3).dp)
-                            .height(16.dp)
-                            .defaultMinSize(minWidth = 16.dp)
+                            .offset(x = 6.dp, y = (-4).dp)
+                            .wrapContentSize(unbounded = true)
+                            .defaultMinSize(minWidth = 17.dp, minHeight = 17.dp)
                             .background(Color.Red, CircleShape)
-                            .padding(horizontal = 3.dp),
+                            .padding(horizontal = 4.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = "${minOf(unreadCount, 99)}",
                             fontSize = 9.sp,
-                            lineHeight = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
                         )
                     }
                 }
@@ -370,6 +378,7 @@ private fun PillTabSwitcher(
                 .height(48.dp),
             shape = RoundedCornerShape(24.dp),
             color = Color(0xFFE5E5EA).copy(alpha = 0.55f),
+            border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.12f)),
         ) {
             Box {
                 Surface(
@@ -378,7 +387,12 @@ private fun PillTabSwitcher(
                         .width(tabWidth)
                         .height(38.dp)
                         .align(Alignment.CenterStart)
-                        .shadow(6.dp, RoundedCornerShape(19.dp)),
+                        .shadow(
+                            6.dp,
+                            RoundedCornerShape(19.dp),
+                            ambientColor = Color.Black.copy(alpha = 0.08f),
+                            spotColor = Color.Black.copy(alpha = 0.08f),
+                        ),
                     shape = RoundedCornerShape(19.dp),
                     color = Color.White,
                 ) {}

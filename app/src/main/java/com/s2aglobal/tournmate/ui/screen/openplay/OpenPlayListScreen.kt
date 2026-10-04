@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.ui.screen.openplay
 
+import com.s2aglobal.tournmate.ui.component.LocalTabBarClearance
+import com.s2aglobal.tournmate.ui.component.TabBarContentGap
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -8,6 +10,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -145,7 +149,11 @@ fun OpenPlayListScreen(
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 100.dp),
+                        contentPadding = PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            bottom = maxOf(100.dp, LocalTabBarClearance.current + TabBarContentGap),
+                        ),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         sections.forEachIndexed { index, (title, icon, list) ->
@@ -258,13 +266,18 @@ private fun SectionHeader(
         Spacer(modifier = Modifier.weight(1f))
 
         Box {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(
-                    imageVector = Icons.Filled.FilterList,
-                    contentDescription = "Sort",
-                    tint = AppAccent,
-                )
-            }
+            // iOS: a plain Menu label image (no 48dp button chrome).
+            Icon(
+                imageVector = Icons.Filled.FilterList,
+                contentDescription = "Sort",
+                tint = AppAccent,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { menuExpanded = true },
+            )
             DropdownMenu(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false },
@@ -318,16 +331,7 @@ private fun SessionCard(
             color = Color.White,
             shadowElevation = 2.dp,
         ) {
-            Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 30.dp)
-                        .width(4.dp)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(accentColor),
-                )
-
+            Box {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -339,13 +343,17 @@ private fun SessionCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.weight(1f, fill = false),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
                             SessionBadge(statusText.uppercase(), statusColor)
                             SessionBadge(session.skillLevel.displayName, skillLevelColor(session.skillLevel), fontSize = 10, weight = FontWeight.Bold)
                             SessionBadge(session.gameType.displayName, AppAccent, fontSize = 10, weight = FontWeight.Bold, bgAlpha = 0.1f)
                         }
 
                         Row(
+                            modifier = Modifier.padding(start = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -355,6 +363,8 @@ private fun SessionCard(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Gray,
+                                maxLines = 1,
+                                softWrap = false,
                             )
                         }
                     }
@@ -403,6 +413,7 @@ private fun SessionCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Row(
+                            modifier = Modifier.weight(1f),
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -420,6 +431,8 @@ private fun SessionCard(
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Gray,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
 
@@ -459,6 +472,19 @@ private fun SessionCard(
                         }
                     }
                 }
+
+                // iOS overlays the 4pt accent bar on the leading edge (it takes no content width).
+                Box(modifier = Modifier.matchParentSize()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(vertical = 30.dp)
+                            .width(4.dp)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(accentColor),
+                    )
+                }
             }
         }
         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
@@ -491,6 +517,9 @@ private fun SessionBadge(
         fontSize = fontSize.sp,
         fontWeight = weight,
         color = color,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .background(color.copy(alpha = bgAlpha), RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -579,7 +608,7 @@ private fun EmptyStateScaffold(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 100.dp),
+            .padding(bottom = maxOf(100.dp, LocalTabBarClearance.current + TabBarContentGap)),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {

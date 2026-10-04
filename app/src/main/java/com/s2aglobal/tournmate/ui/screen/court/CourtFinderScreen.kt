@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.ui.screen.court
 
+import com.s2aglobal.tournmate.ui.component.LocalTabBarClearance
+import com.s2aglobal.tournmate.ui.component.TabBarContentGap
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -158,8 +160,8 @@ fun CourtFinderScreen(
         )
 
         when {
-            uiState.isLoading -> Box(Modifier.weight(1f)) { LoadingState() }
-            uiState.errorMessage != null -> Box(Modifier.weight(1f)) {
+            uiState.isLoading -> Box(Modifier.weight(1f).padding(bottom = LocalTabBarClearance.current)) { LoadingState() }
+            uiState.errorMessage != null -> Box(Modifier.weight(1f).padding(bottom = LocalTabBarClearance.current)) {
                 ErrorState(uiState.errorMessage!!) { viewModel.dismissError() }
             }
             uiState.courts.isEmpty() && uiState.hasSearched -> Column(
@@ -347,7 +349,7 @@ private fun WelcomeHero(
                 )
             }
         }
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(LocalTabBarClearance.current + TabBarContentGap))
     }
 }
 
@@ -509,7 +511,7 @@ private fun NoResultsState(examples: List<String>, onExampleClick: (String) -> U
                 }
             }
         }
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(LocalTabBarClearance.current + TabBarContentGap))
     }
 }
 
@@ -554,7 +556,7 @@ private fun ResultsList(
             CourtCard(court, apiKey)
         }
 
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(LocalTabBarClearance.current + TabBarContentGap))
     }
 }
 

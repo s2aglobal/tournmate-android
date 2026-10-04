@@ -1,9 +1,12 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import com.s2aglobal.tournmate.ui.component.LocalTabBarClearance
+import com.s2aglobal.tournmate.ui.component.TabBarContentGap
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -234,7 +237,8 @@ private fun TournamentList(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 100.dp),
+        // iOS pads the list 100pt; the floating tab bar sits over the bottom of the content.
+        contentPadding = PaddingValues(bottom = maxOf(100.dp, LocalTabBarClearance.current + TabBarContentGap)),
     ) {
         sections.forEachIndexed { index, section ->
             val list = if (sortNewestFirst) section.tournaments else section.tournaments.sortedByDescending { it.date }
@@ -245,7 +249,8 @@ private fun TournamentList(
                     count = list.size,
                     sortNewestFirst = sortNewestFirst,
                     onSortChange = onSortChange,
-                    modifier = if (index > 0) Modifier.padding(top = 16.dp) else Modifier,
+                    // iOS: VStack(spacing: 24) between section blocks.
+                    modifier = if (index > 0) Modifier.padding(top = 24.dp) else Modifier,
                 )
             }
             items(list, key = { "${section.key}_${it.id}" }) { tournament ->
@@ -284,7 +289,7 @@ private fun SectionHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -310,9 +315,18 @@ private fun SectionHeader(
         )
         Spacer(Modifier.weight(1f))
         Box {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(Icons.Default.FilterList, contentDescription = "Sort", tint = AppAccent)
-            }
+            // iOS: a plain Menu label image (no 48dp button chrome).
+            Icon(
+                Icons.Default.FilterList,
+                contentDescription = "Sort",
+                tint = AppAccent,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { menuExpanded = true },
+            )
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 DropdownMenuItem(
                     text = { Text("Soonest First") },
@@ -343,7 +357,8 @@ private fun TournamentCardItem(
     var menuExpanded by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
-            .padding(horizontal = 20.dp, vertical = 8.dp)
+            // iOS sectionBlock VStack(spacing: 16): 16 from header to first card and between cards.
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp)
             .clip(RoundedCornerShape(24.dp))
             .combinedClickable(
                 onClick = onClick,
@@ -426,7 +441,7 @@ private fun MyTournamentsEmptyState(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
-            .padding(bottom = 40.dp),
+            .padding(bottom = LocalTabBarClearance.current + TabBarContentGap),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(30.dp))
@@ -488,7 +503,7 @@ private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 40.dp)
-            .padding(bottom = 40.dp),
+            .padding(bottom = LocalTabBarClearance.current + TabBarContentGap),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(40.dp))

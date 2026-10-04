@@ -1,5 +1,8 @@
 package com.s2aglobal.tournmate.ui.screen.profile
 
+import androidx.compose.ui.draw.clipToBounds
+import com.s2aglobal.tournmate.ui.component.LocalTabBarClearance
+import com.s2aglobal.tournmate.ui.component.TabBarContentGap
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -278,7 +281,7 @@ private fun SignedInProfile(
             "Profile",
             fontSize = 34.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.background(GroupedBg).fillMaxWidth().padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.background(GroupedBg).fillMaxWidth().padding(start = 16.dp, top = 4.dp, bottom = 8.dp),
         )
         PullToRefreshBox(
             isRefreshing = isPullRefreshing,
@@ -286,18 +289,26 @@ private fun SignedInProfile(
                 isPullRefreshing = true
                 viewModel.refresh { isPullRefreshing = false }
             },
-            modifier = Modifier.fillMaxSize(),
+            // Clip so the idle indicator (parked above the box) never peeks out over the title/avatar.
+            modifier = Modifier.fillMaxSize().clipToBounds(),
             state = pullState,
             indicator = {
                 PullToRefreshDefaults.Indicator(
                     state = pullState,
                     isRefreshing = isPullRefreshing,
                     modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = Color.White,
                     color = AppAccent,
                 )
             },
         ) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                // iOS shows an inline TrophySpinner(28) at the top of the scroll while refreshing.
+                if (isPullRefreshing) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+                        TrophySpinner(size = 28.dp)
+                    }
+                }
                 ProfileHeader(player, onAvatarEdit = { showAvatarPicker = true })
                 Spacer(Modifier.height(24.dp))
                 ContactCard(player)
@@ -319,7 +330,8 @@ private fun SignedInProfile(
                 LegalSection()
                 Spacer(Modifier.height(24.dp))
                 SignOutSection(uiState, onSignOut) { showDeleteDialog = true }
-                Spacer(Modifier.height(40.dp))
+                // Keep the sign-out section clear of the floating tab bar.
+                Spacer(Modifier.height(LocalTabBarClearance.current + TabBarContentGap))
             }
         }
     }
@@ -1073,7 +1085,7 @@ private fun GuestPromptScreen(modifier: Modifier, onJoinClick: () -> Unit) {
         TextButton(onClick = onJoinClick, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(60.dp).background(AppAccent, RoundedCornerShape(30.dp))) {
             Text("JOIN THE ELITE", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp); Spacer(Modifier.width(10.dp)); Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(14.dp), tint = Color.White)
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(LocalTabBarClearance.current + TabBarContentGap))
     }
 }
 

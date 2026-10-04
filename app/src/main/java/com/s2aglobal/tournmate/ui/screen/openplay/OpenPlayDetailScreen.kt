@@ -483,7 +483,8 @@ private fun VenueCard(session: PlaySession) {
                         tiltGesturesEnabled = false,
                     ),
                 ) {
-                    Marker(state = MarkerState(position = latLng), title = session.venue)
+                    val markerState = remember(latLng) { MarkerState(position = latLng) }
+                    Marker(state = markerState, title = session.venue)
                 }
             } else {
                 Box(
