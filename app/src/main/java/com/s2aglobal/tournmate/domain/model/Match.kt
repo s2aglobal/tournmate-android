@@ -83,10 +83,13 @@ data class Match(
 
     companion object {
         fun bracketRoundName(roundNumber: Int, totalRounds: Int): String =
-            when (totalRounds - roundNumber) {
-                0 -> "Final"
-                1 -> "Semi-Final"
-                2 -> "Quarter-Final"
+            // Mirrors iOS `Match.bracketRoundName`.
+            when (val fromFinal = totalRounds - roundNumber) {
+                0 -> "Finals"
+                1 -> "Semi Finals"
+                2 -> "Quarter Finals"
+                // Outside a real bracket (round-robin rounds, unknown total) → "Round N".
+                in 3..15 -> "Round of ${1 shl (fromFinal + 1)}"
                 else -> "Round $roundNumber"
             }
     }

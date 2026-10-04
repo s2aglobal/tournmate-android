@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.ArrowCircleRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Stadium
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.*
@@ -35,10 +37,12 @@ import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.screen.tournament.draw.*
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
-import com.s2aglobal.tournmate.util.BracketPdfPrinter
+import com.s2aglobal.tournmate.util.TournamentPdfExporter
 
 private val Indigo = Color(0xFF5856D6)
 private val Gray6 = Color(0xFFF2F2F7)
+/** iOS systemGray5 (#E5E5EA) at 55% — the Play-tab segment track. */
+private val SegmentTrack = Color(0xFFE5E5EA).copy(alpha = 0.55f)
 
 /** Score actions the match cards and draw views can trigger. */
 internal class MatchActions(
@@ -104,28 +108,65 @@ internal fun MatchesTabContent(
     val drawLabel = if (tournament.matchFormat.isElimination) "Bracket" else "Draw"
 
     Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f).padding(horizontal = 4.dp).clip(RoundedCornerShape(12.dp)).background(Gray6)) {
+        // Sub-tab segment (capsule, Play-tab style) with the PDF button beside it.
+        // Bottom gap matches the 24dp above (tab picker 4 + content 20), like iOS.
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                Modifier.weight(1f).clip(CircleShape).background(SegmentTrack)
+                    .border(1.dp, Color.Gray.copy(alpha = 0.12f), CircleShape).padding(4.dp),
+            ) {
                 SubTabButton(drawLabel, subTab == MatchSubTab.DRAW, Modifier.weight(1f)) { subTab = MatchSubTab.DRAW }
                 SubTabButton("Matches", subTab == MatchSubTab.MATCHES, Modifier.weight(1f)) { subTab = MatchSubTab.MATCHES }
                 SubTabButton("Standings", subTab == MatchSubTab.STANDINGS, Modifier.weight(1f)) { subTab = MatchSubTab.STANDINGS }
             }
-            Row(
-                Modifier.padding(start = 8.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.1f))
-                    .clickable {
-                        val tabName = when (subTab) {
-                            MatchSubTab.DRAW -> drawLabel
-                            MatchSubTab.MATCHES -> "Matches"
-                            MatchSubTab.STANDINGS -> "Standings"
-                        }
-                        BracketPdfPrinter.print(context, tournament, state.matches, state.registrations, tabName)
-                    }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                Icon(Icons.Default.Description, null, Modifier.size(12.dp), tint = AppAccent)
-                Text("PDF", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppAccent)
+            Box {
+                var showPdfMenu by remember { mutableStateOf(false) }
+                val tabName = when (subTab) {
+                    MatchSubTab.DRAW -> drawLabel
+                    MatchSubTab.MATCHES -> "Matches"
+                    MatchSubTab.STANDINGS -> "Standings"
+                }
+                fun pdfInput() = TournamentPdfExporter.Input(
+                    tournament = tournament,
+                    matches = state.matches,
+                    registrations = state.registrations,
+                    totalBracketRounds = state.totalBracketRounds,
+                    rrStandings = viewModel.computeRRStandings(state),
+                    groupStandings = viewModel.computeGroupStandings(state),
+                    bracketProgress = viewModel.computeBracketProgress(state),
+                )
+                Row(
+                    Modifier.height(44.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.1f))
+                        .clickable { showPdfMenu = true }
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Icon(Icons.Default.Description, null, Modifier.size(12.dp), tint = AppAccent)
+                    Text("PDF", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppAccent)
+                }
+                DropdownMenu(expanded = showPdfMenu, onDismissRequest = { showPdfMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Share PDF") },
+                        leadingIcon = { Icon(Icons.Default.Share, null) },
+                        onClick = {
+                            showPdfMenu = false
+                            TournamentPdfExporter.share(context, pdfInput(), tabName)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Print") },
+                        leadingIcon = { Icon(Icons.Default.Print, null) },
+                        onClick = {
+                            showPdfMenu = false
+                            TournamentPdfExporter.print(context, pdfInput(), tabName)
+                        },
+                    )
+                }
             }
         }
 
@@ -145,11 +186,13 @@ internal fun MatchesTabContent(
 @Composable
 private fun SubTabButton(title: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
     Box(
-        modifier.clip(RoundedCornerShape(10.dp)).background(if (active) AppAccent.copy(alpha = 0.1f) else Color.Transparent)
-            .clickable(onClick = onClick).padding(vertical = 10.dp),
+        modifier.height(36.dp)
+            .then(if (active) Modifier.shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.08f), spotColor = Color.Black.copy(alpha = 0.08f)) else Modifier)
+            .clip(CircleShape).background(if (active) Color.White else Color.Transparent)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (active) AppAccent else Color.Gray)
+        Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, color = if (active) AppAccent else Color.Gray)
     }
 }
 
@@ -450,15 +493,29 @@ private fun StandingsContent(state: TournamentDetailUiState, viewModel: Tourname
                     groups.keys.sorted().forEach { group ->
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("GROUP $group", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, color = AppAccent)
-                            GroupStandingsTable(groups[group].orEmpty(), advancing)
+                            GroupStandingsTable(groups[group].orEmpty(), advancing, tournament.sportType.ranksStandingsBySets)
                         }
                     }
                     if (state.hasKnockoutMatches) BracketStandingsTable(viewModel.computeBracketProgress(state), state.totalBracketRounds)
                 }
             }
         }
-        else -> RoundRobinStandingsTable(viewModel.computeRRStandings(state))
+        else -> RoundRobinStandingsTable(viewModel.computeRRStandings(state), tournament.sportType.ranksStandingsBySets)
     }
+}
+
+/** Tennis/padel show set and game difference (their tie-breaks); other sports show point difference. */
+private fun diffTitles(bySets: Boolean) = if (bySets) listOf("SETS", "GMS") else listOf("+/-")
+
+private fun diffValues(e: StandingsEntry, bySets: Boolean) = if (bySets) listOf(e.setDiff, e.pointDiff) else listOf(e.pointDiff)
+
+@Composable
+private fun DiffCell(value: Int, size: Int) {
+    Text(
+        if (value > 0) "+$value" else "$value",
+        fontSize = size.sp, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp),
+        color = when { value > 0 -> AppAccent; value < 0 -> Color.Red; else -> Color.Gray },
+    )
 }
 
 @Composable
@@ -484,7 +541,7 @@ private fun HeaderCell(text: String, width: Dp?, modifier: Modifier = Modifier, 
 }
 
 @Composable
-private fun RoundRobinStandingsTable(entries: List<StandingsEntry>) {
+private fun RoundRobinStandingsTable(entries: List<StandingsEntry>, bySets: Boolean) {
     TableShell(16.dp) {
         if (entries.isEmpty()) {
             EmptyStandings("Standings will appear once matches are completed.")
@@ -493,9 +550,9 @@ private fun RoundRobinStandingsTable(entries: List<StandingsEntry>) {
         Row(Modifier.fillMaxWidth().background(Gray6).padding(horizontal = 12.dp, vertical = 8.dp)) {
             HeaderCell("#", 28.dp)
             HeaderCell("TEAM", null, Modifier.weight(1f), TextAlign.Start)
-            listOf("P", "W", "L", "D").forEach { HeaderCell(it, 28.dp) }
+            (if (bySets) listOf("P", "W", "L") else listOf("P", "W", "L", "D")).forEach { HeaderCell(it, 28.dp) }
             HeaderCell("PTS", 36.dp)
-            HeaderCell("+/-", 36.dp)
+            diffTitles(bySets).forEach { HeaderCell(it, 36.dp) }
         }
         entries.forEachIndexed { idx, e ->
             Row(
@@ -504,15 +561,11 @@ private fun RoundRobinStandingsTable(entries: List<StandingsEntry>) {
             ) {
                 Text("${idx + 1}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (idx < 3) AppAccent else Color.Black, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
                 Text(e.teamName, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                listOf(e.played, e.wins, e.losses, e.draws).forEach {
+                (if (bySets) listOf(e.played, e.wins, e.losses) else listOf(e.played, e.wins, e.losses, e.draws)).forEach {
                     Text("$it", fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
                 }
                 Text("${e.points}", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
-                Text(
-                    if (e.pointDiff > 0) "+${e.pointDiff}" else "${e.pointDiff}",
-                    fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp),
-                    color = when { e.pointDiff > 0 -> AppAccent; e.pointDiff < 0 -> Color.Red; else -> Color.Gray },
-                )
+                diffValues(e, bySets).forEach { DiffCell(it, 11) }
             }
             if (idx < entries.size - 1) HorizontalDivider(Modifier.padding(start = 40.dp), color = Color(0xFFE5E5EA))
         }
@@ -520,13 +573,14 @@ private fun RoundRobinStandingsTable(entries: List<StandingsEntry>) {
 }
 
 @Composable
-private fun GroupStandingsTable(entries: List<StandingsEntry>, advancingCount: Int) {
+private fun GroupStandingsTable(entries: List<StandingsEntry>, advancingCount: Int, bySets: Boolean) {
     TableShell(12.dp) {
         Row(Modifier.fillMaxWidth().background(Gray6).padding(horizontal = 12.dp, vertical = 8.dp)) {
             HeaderCell("#", 28.dp, size = 10)
             HeaderCell("TEAM", null, Modifier.weight(1f), TextAlign.Start, size = 10)
             listOf("P", "W", "L").forEach { HeaderCell(it, 28.dp, size = 10) }
             HeaderCell("PTS", 36.dp, size = 10)
+            diffTitles(bySets).forEach { HeaderCell(it, 36.dp, size = 10) }
         }
         entries.forEachIndexed { index, e ->
             val advances = index < advancingCount
@@ -541,6 +595,7 @@ private fun GroupStandingsTable(entries: List<StandingsEntry>, advancingCount: I
                     Text("$it", fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
                 }
                 Text("${e.points}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
+                diffValues(e, bySets).forEach { DiffCell(it, 12) }
             }
             HorizontalDivider(color = Color(0xFFE5E5EA))
         }

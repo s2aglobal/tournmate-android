@@ -125,6 +125,14 @@ enum class SportType(val rawValue: String) {
     val usesSetScoring: Boolean
         get() = this in listOf(BADMINTON, TENNIS, TABLE_TENNIS, PICKLEBALL, VOLLEYBALL, PADEL, SQUASH, BEACH_VOLLEYBALL, ROUNDNET)
 
+    /**
+     * `true` for sports whose set is scored in games (tennis, padel): standings
+     * break ties on sets, then games, and show SETS / GMS columns instead of +/-.
+     * Mirrors iOS `SportType.ranksStandingsBySets`.
+     */
+    val ranksStandingsBySets: Boolean
+        get() = this == TENNIS || this == PADEL
+
     val defaultBestOf: Int
         get() = scoringRules.defaultConfig.gamesPerMatch
 

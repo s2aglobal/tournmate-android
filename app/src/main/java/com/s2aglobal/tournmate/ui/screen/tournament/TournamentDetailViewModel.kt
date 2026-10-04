@@ -35,8 +35,29 @@ data class StandingsEntry(
     var points: Int = 0,
     var pointsFor: Int = 0,
     var pointsAgainst: Int = 0,
+    /** Sets (tennis/padel) or games (badminton, pickleball…) won and lost. */
+    var setsWon: Int = 0,
+    var setsLost: Int = 0,
 ) {
+    /** Score difference: rally points, or games for tennis/padel (a set is scored in games). */
     val pointDiff: Int get() = pointsFor - pointsAgainst
+    val setDiff: Int get() = setsWon - setsLost
+
+    companion object {
+        /**
+         * Table order: standings points, then the sport's tie-breaks.
+         * Tennis/padel: set difference, then game difference. Every other sport:
+         * score (point) difference. Teams still level are listed by name.
+         * Mirrors iOS `StandingsEntry.ranked`.
+         */
+        fun ranked(entries: Collection<StandingsEntry>, sport: SportType): List<StandingsEntry> =
+            entries.sortedWith(
+                compareByDescending<StandingsEntry> { it.points }
+                    .thenByDescending { if (sport.ranksStandingsBySets) it.setDiff else 0 }
+                    .thenByDescending { it.pointDiff }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.teamName }
+            )
+    }
 }
 
 data class BracketStandingsEntry(
@@ -743,6 +764,18 @@ class TournamentDetailViewModel @Inject constructor(
 
     private fun setStatus(msg: String?) { _uiState.value = _uiState.value.copy(statusMessage = msg, isLoading = false) }
 
+    /** Sets (games, in badminton terms) won by each side; a simple score counts as one set to the winner. */
+    private fun setPair(match: Match): Pair<Int, Int> {
+        if (match.setScores.isNotEmpty()) return match.setsWonByA to match.setsWonByB
+        val a = match.scoreA ?: 0
+        val b = match.scoreB ?: 0
+        return when {
+            a > b -> 1 to 0
+            b > a -> 0 to 1
+            else -> 0 to 0
+        }
+    }
+
     private fun scorePair(match: Match): Pair<Int, Int> =
         if (match.setScores.isNotEmpty()) match.setScores.sumOf { it.teamAPoints } to match.setScores.sumOf { it.teamBPoints }
         else (match.scoreA ?: 0) to (match.scoreB ?: 0)
@@ -766,6 +799,9 @@ class TournamentDetailViewModel @Inject constructor(
             val (a, b) = scorePair(match)
             entriesByGroup[group]?.get(aId)?.apply { played++; pointsFor += a; pointsAgainst += b }
             entriesByGroup[group]?.get(bId)?.apply { played++; pointsFor += b; pointsAgainst += a }
+            val (sa, sb) = setPair(match)
+            entriesByGroup[group]?.get(aId)?.apply { setsWon += sa; setsLost += sb }
+            entriesByGroup[group]?.get(bId)?.apply { setsWon += sb; setsLost += sa }
 
             val winnerId = match.winnerRegistrationId
             if (winnerId != null) {
@@ -779,9 +815,8 @@ class TournamentDetailViewModel @Inject constructor(
         }
 
         if (groupMatches.isEmpty()) return emptyMap()
-        return entriesByGroup.mapValues { (_, entries) ->
-            entries.values.sortedWith(compareByDescending<StandingsEntry> { it.points }.thenByDescending { it.pointDiff })
-        }
+        val sport = state.tournament?.sportType ?: SportType.BADMINTON
+        return entriesByGroup.mapValues { (_, entries) -> StandingsEntry.ranked(entries.values, sport) }
     }
 
     fun computeRRStandings(state: TournamentDetailUiState): List<StandingsEntry> {
@@ -800,6 +835,9 @@ class TournamentDetailViewModel @Inject constructor(
             val (a, b) = scorePair(match)
             entries[aId]?.apply { played++; pointsFor += a; pointsAgainst += b }
             entries[bId]?.apply { played++; pointsFor += b; pointsAgainst += a }
+            val (sa, sb) = setPair(match)
+            entries[aId]?.apply { setsWon += sa; setsLost += sb }
+            entries[bId]?.apply { setsWon += sb; setsLost += sa }
 
             val winnerId = match.winnerRegistrationId
             if (winnerId != null) {
@@ -812,7 +850,7 @@ class TournamentDetailViewModel @Inject constructor(
             }
         }
 
-        return entries.values.sortedWith(compareByDescending<StandingsEntry> { it.points }.thenByDescending { it.pointDiff })
+        return StandingsEntry.ranked(entries.values, state.tournament?.sportType ?: SportType.BADMINTON)
     }
 
     fun computeBracketProgress(state: TournamentDetailUiState): List<BracketStandingsEntry> {
@@ -836,7 +874,10 @@ class TournamentDetailViewModel @Inject constructor(
                 entries[lId]?.apply { eliminated = true; eliminatedInRound = round }
             }
         }
-        return entries.values.sortedWith(
+        // Group + Knockout: teams that never reached the bracket aren't listed.
+        val hasGroupStage = state.matches.any { it.groupLabel != null }
+        val listed = if (hasGroupStage) entries.values.filter { it.maxRound > 0 } else entries.values
+        return listed.sortedWith(
             compareBy<BracketStandingsEntry> { it.eliminated }
                 .thenByDescending { it.maxRound }
                 .thenByDescending { it.wins }
