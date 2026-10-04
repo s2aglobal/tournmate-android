@@ -138,6 +138,8 @@ internal fun MatchesTabContent(
                     rrStandings = viewModel.computeRRStandings(state),
                     groupStandings = viewModel.computeGroupStandings(state),
                     bracketProgress = viewModel.computeBracketProgress(state),
+                    rrTieBreakCaption = StandingsEntry.tieBreakCaption(viewModel.standingsTieBreaker(state), tournament.sportType),
+                    groupTieBreakCaption = StandingsEntry.tieBreakCaption(viewModel.groupStandingsTieBreaker(state), tournament.sportType),
                 )
                 Row(
                     Modifier.height(44.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.1f))
@@ -494,14 +496,29 @@ private fun StandingsContent(state: TournamentDetailUiState, viewModel: Tourname
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("GROUP $group", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, color = AppAccent)
                             GroupStandingsTable(groups[group].orEmpty(), advancing, tournament.sportType.ranksStandingsBySets)
+                            TieBreakCaption(StandingsEntry.tieBreakCaption(viewModel.groupStandingsTieBreaker(state), tournament.sportType))
                         }
                     }
                     if (state.hasKnockoutMatches) BracketStandingsTable(viewModel.computeBracketProgress(state), state.totalBracketRounds)
                 }
             }
         }
-        else -> RoundRobinStandingsTable(viewModel.computeRRStandings(state), tournament.sportType.ranksStandingsBySets)
+        else -> {
+            val entries = viewModel.computeRRStandings(state)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                RoundRobinStandingsTable(entries, tournament.sportType.ranksStandingsBySets)
+                if (entries.isNotEmpty()) {
+                    TieBreakCaption(StandingsEntry.tieBreakCaption(viewModel.standingsTieBreaker(state), tournament.sportType))
+                }
+            }
+        }
     }
+}
+
+/** How ties are broken, under each standings table (iOS `tieBreakCaption`). */
+@Composable
+private fun TieBreakCaption(text: String) {
+    Text(text, fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 4.dp))
 }
 
 /** Tennis/padel show set and game difference (their tie-breaks); other sports show point difference. */

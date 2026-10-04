@@ -82,6 +82,16 @@ data class Match(
         teamA.contains(playerId) || teamB.contains(playerId)
 
     companion object {
+        /**
+         * Winning registration id for a score (games won, or a simple score);
+         * `null` for a draw. Mirrors iOS `Match.winnerId`.
+         */
+        fun winnerId(scoreA: Int, scoreB: Int, teamAId: String, teamBId: String): String? = when {
+            scoreA > scoreB -> teamAId
+            scoreB > scoreA -> teamBId
+            else -> null
+        }
+
         fun bracketRoundName(roundNumber: Int, totalRounds: Int): String =
             // Mirrors iOS `Match.bracketRoundName`.
             when (val fromFinal = totalRounds - roundNumber) {

@@ -43,22 +43,128 @@ data class StandingsEntry(
     val pointDiff: Int get() = pointsFor - pointsAgainst
     val setDiff: Int get() = setsWon - setsLost
 
+    /**
+     * Games won, for the "Games Won" tie-breaker: tennis/padel count games
+     * ([pointsFor], since their sets are scored in games); other sports count
+     * games in the badminton sense ([setsWon]). Mirrors iOS.
+     */
+    fun gamesWon(sport: SportType): Int = if (sport.ranksStandingsBySets) pointsFor else setsWon
+
     companion object {
         /**
-         * Table order: standings points, then the sport's tie-breaks.
-         * Tennis/padel: set difference, then game difference. Every other sport:
-         * score (point) difference. Teams still level are listed by name.
-         * Mirrors iOS `StandingsEntry.ranked`.
+         * Adds finished results to a table. Only teams already in [entries] are
+         * counted, so a group table ignores matches against other groups.
          */
-        fun ranked(entries: Collection<StandingsEntry>, sport: SportType): List<StandingsEntry> =
-            entries.sortedWith(
-                compareByDescending<StandingsEntry> { it.points }
-                    .thenByDescending { if (sport.ranksStandingsBySets) it.setDiff else 0 }
-                    .thenByDescending { it.pointDiff }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.teamName }
-            )
+        fun tally(results: List<StandingsResult>, entries: Map<String, StandingsEntry>, points: StandingsPoints) {
+            for (r in results) {
+                fun add(id: String, scored: Int, conceded: Int, setsFor: Int, setsAgainst: Int) {
+                    val e = entries[id] ?: return
+                    e.played++
+                    e.pointsFor += scored
+                    e.pointsAgainst += conceded
+                    e.setsWon += setsFor
+                    e.setsLost += setsAgainst
+                    when (r.winnerId) {
+                        null -> { e.draws++; e.points += points.draw }
+                        id -> { e.wins++; e.points += points.win }
+                        else -> { e.losses++; e.points += points.loss }
+                    }
+                }
+                add(r.teamAId, r.scoreA, r.scoreB, r.setsA, r.setsB)
+                add(r.teamBId, r.scoreB, r.scoreA, r.setsB, r.setsA)
+            }
+        }
+
+        /**
+         * Table order (identical to iOS `StandingsEntry.ranked`):
+         * 1. standings points;
+         * 2. the configured tie-breaker — head-to-head (a mini-table of only the
+         *    matches between the teams level on points: H2H points, then H2H score
+         *    difference), games won, or point difference (no extra step);
+         * 3. the sport's score difference — tennis/padel: set difference then game
+         *    difference; every other sport: point difference;
+         * 4. name, so the table (and its PDF) don't reshuffle on every render.
+         *
+         * The H2H mini-table is built once per points level (3+ way ties included)
+         * and isn't re-applied to a subset it leaves level; such teams, and teams
+         * that never met, fall through to step 3.
+         */
+        fun ranked(
+            entries: Collection<StandingsEntry>,
+            results: List<StandingsResult>,
+            sport: SportType,
+            tieBreaker: TieBreaker,
+            points: StandingsPoints,
+        ): List<StandingsEntry> {
+            val h2h = mutableMapOf<String, StandingsEntry>()
+            if (tieBreaker == TieBreaker.HEAD_TO_HEAD) {
+                entries.groupBy { it.points }.values.filter { it.size > 1 }.forEach { level ->
+                    val ids = level.map { it.registrationId }.toSet()
+                    val mini = ids.associateWith { StandingsEntry(it, "") }
+                    tally(results.filter { it.teamAId in ids && it.teamBId in ids }, mini, points)
+                    h2h.putAll(mini)
+                }
+            }
+            val comparator = Comparator<StandingsEntry> { a, b ->
+                if (a.points != b.points) return@Comparator b.points.compareTo(a.points)
+                when (tieBreaker) {
+                    TieBreaker.HEAD_TO_HEAD -> {
+                        val ha = h2h[a.registrationId]; val hb = h2h[b.registrationId]
+                        if (ha != null && hb != null) {
+                            if (ha.points != hb.points) return@Comparator hb.points.compareTo(ha.points)
+                            scoreDifferenceOrder(ha, hb, sport)?.let { return@Comparator it }
+                        }
+                    }
+                    TieBreaker.GAMES_WON -> {
+                        val ga = a.gamesWon(sport); val gb = b.gamesWon(sport)
+                        if (ga != gb) return@Comparator gb.compareTo(ga)
+                    }
+                    TieBreaker.POINT_DIFF -> Unit // the sport's score difference below is this tie-breaker
+                }
+                scoreDifferenceOrder(a, b, sport) ?: String.CASE_INSENSITIVE_ORDER.compare(a.teamName, b.teamName)
+            }
+            return entries.sortedWith(comparator)
+        }
+
+        /** Negative when the sport's score difference puts [a] first, positive for [b], `null` when level. */
+        private fun scoreDifferenceOrder(a: StandingsEntry, b: StandingsEntry, sport: SportType): Int? = when {
+            sport.ranksStandingsBySets && a.setDiff != b.setDiff -> b.setDiff.compareTo(a.setDiff)
+            a.pointDiff != b.pointDiff -> b.pointDiff.compareTo(a.pointDiff)
+            else -> null
+        }
+
+        /**
+         * Caption under a standings table, e.g. "Ties: head-to-head, then point difference".
+         * Same wording as iOS `StandingsEntry.tieBreakCaption` and the PDF.
+         */
+        fun tieBreakCaption(tieBreaker: TieBreaker, sport: SportType): String {
+            val sportDefault = if (sport.ranksStandingsBySets) listOf("set difference", "game difference") else listOf("point difference")
+            val steps = when (tieBreaker) {
+                TieBreaker.HEAD_TO_HEAD -> listOf("head-to-head") + sportDefault
+                TieBreaker.GAMES_WON -> listOf("games won") + sportDefault
+                TieBreaker.POINT_DIFF -> sportDefault
+            }
+            return "Ties: " + steps.joinToString(", then ")
+        }
     }
 }
+
+/**
+ * One finished match as seen by a standings table: scores from team A's and
+ * team B's side, games (sets) won, and the winner (`null` = draw). Mirrors iOS.
+ */
+data class StandingsResult(
+    val teamAId: String,
+    val teamBId: String,
+    val winnerId: String?,
+    val scoreA: Int,
+    val scoreB: Int,
+    val setsA: Int,
+    val setsB: Int,
+)
+
+/** Standings points awarded per result (FormatConfig points system). */
+data class StandingsPoints(val win: Int, val draw: Int, val loss: Int)
 
 data class BracketStandingsEntry(
     val registrationId: String,
@@ -780,9 +886,28 @@ class TournamentDetailViewModel @Inject constructor(
         if (match.setScores.isNotEmpty()) match.setScores.sumOf { it.teamAPoints } to match.setScores.sumOf { it.teamBPoints }
         else (match.scoreA ?: 0) to (match.scoreB ?: 0)
 
-    fun computeGroupStandings(state: TournamentDetailUiState): Map<String, List<StandingsEntry>> {
-        val config = state.tournament?.formatConfig ?: FormatConfig()
+    private fun standingsResult(match: Match): StandingsResult {
+        val (a, b) = scorePair(match)
+        val (sa, sb) = setPair(match)
+        return StandingsResult(match.teamAId, match.teamBId, match.winnerRegistrationId, a, b, sa, sb)
+    }
 
+    private fun standingsPoints(state: TournamentDetailUiState): StandingsPoints {
+        val config = state.tournament?.formatConfig ?: FormatConfig()
+        return StandingsPoints(config.pointsPerWin, config.pointsPerDraw, config.pointsPerLoss)
+    }
+
+    /** Tie-breaker for the round-robin table. Only Round Robin has the setting; Swiss and Manual Draw keep the sport's score difference. */
+    fun standingsTieBreaker(state: TournamentDetailUiState): TieBreaker {
+        val t = state.tournament ?: return TieBreaker.POINT_DIFF
+        return if (t.matchFormat == MatchFormat.ROUND_ROBIN) t.formatConfig.effectiveTieBreaker else FormatConfig.LEGACY_TIE_BREAKER
+    }
+
+    /** Tie-breaker for Group + Knockout group tables. */
+    fun groupStandingsTieBreaker(state: TournamentDetailUiState): TieBreaker =
+        state.tournament?.formatConfig?.effectiveGroupTieBreaker ?: FormatConfig.LEGACY_TIE_BREAKER
+
+    fun computeGroupStandings(state: TournamentDetailUiState): Map<String, List<StandingsEntry>> {
         val groupMatches = state.matches.filter { it.groupLabel != null && it.status == MatchStatus.FINISHED }
         val entriesByGroup = mutableMapOf<String, MutableMap<String, StandingsEntry>>()
 
@@ -793,34 +918,18 @@ class TournamentDetailViewModel @Inject constructor(
             entriesByGroup.getOrPut(groupLabel) { mutableMapOf() }[rid] = StandingsEntry(rid, registrationFullName(reg))
         }
 
-        for (match in groupMatches) {
-            val group = match.groupLabel ?: continue
-            val aId = match.teamAId; val bId = match.teamBId
-            val (a, b) = scorePair(match)
-            entriesByGroup[group]?.get(aId)?.apply { played++; pointsFor += a; pointsAgainst += b }
-            entriesByGroup[group]?.get(bId)?.apply { played++; pointsFor += b; pointsAgainst += a }
-            val (sa, sb) = setPair(match)
-            entriesByGroup[group]?.get(aId)?.apply { setsWon += sa; setsLost += sb }
-            entriesByGroup[group]?.get(bId)?.apply { setsWon += sb; setsLost += sa }
-
-            val winnerId = match.winnerRegistrationId
-            if (winnerId != null) {
-                val loserId = if (winnerId == aId) bId else aId
-                entriesByGroup[group]?.get(winnerId)?.apply { wins++; points += config.pointsPerWin }
-                entriesByGroup[group]?.get(loserId)?.apply { losses++; points += config.pointsPerLoss }
-            } else {
-                entriesByGroup[group]?.get(aId)?.apply { draws++; points += config.pointsPerDraw }
-                entriesByGroup[group]?.get(bId)?.apply { draws++; points += config.pointsPerDraw }
-            }
-        }
-
         if (groupMatches.isEmpty()) return emptyMap()
         val sport = state.tournament?.sportType ?: SportType.BADMINTON
-        return entriesByGroup.mapValues { (_, entries) -> StandingsEntry.ranked(entries.values, sport) }
+        val points = standingsPoints(state)
+        val tieBreaker = groupStandingsTieBreaker(state)
+        return entriesByGroup.mapValues { (group, entries) ->
+            val results = groupMatches.filter { it.groupLabel == group }.map(::standingsResult)
+            StandingsEntry.tally(results, entries, points)
+            StandingsEntry.ranked(entries.values, results, sport, tieBreaker, points)
+        }
     }
 
     fun computeRRStandings(state: TournamentDetailUiState): List<StandingsEntry> {
-        val config = state.tournament?.formatConfig ?: FormatConfig()
         val finished = state.matches.filter { it.status == MatchStatus.FINISHED }
         if (finished.isEmpty()) return emptyList()
 
@@ -830,27 +939,10 @@ class TournamentDetailViewModel @Inject constructor(
             entries[rid] = StandingsEntry(rid, registrationFullName(reg))
         }
 
-        for (match in finished) {
-            val aId = match.teamAId; val bId = match.teamBId
-            val (a, b) = scorePair(match)
-            entries[aId]?.apply { played++; pointsFor += a; pointsAgainst += b }
-            entries[bId]?.apply { played++; pointsFor += b; pointsAgainst += a }
-            val (sa, sb) = setPair(match)
-            entries[aId]?.apply { setsWon += sa; setsLost += sb }
-            entries[bId]?.apply { setsWon += sb; setsLost += sa }
-
-            val winnerId = match.winnerRegistrationId
-            if (winnerId != null) {
-                val loserId = if (winnerId == aId) bId else aId
-                entries[winnerId]?.apply { wins++; points += config.pointsPerWin }
-                entries[loserId]?.apply { losses++; points += config.pointsPerLoss }
-            } else {
-                entries[aId]?.apply { draws++; points += config.pointsPerDraw }
-                entries[bId]?.apply { draws++; points += config.pointsPerDraw }
-            }
-        }
-
-        return StandingsEntry.ranked(entries.values, state.tournament?.sportType ?: SportType.BADMINTON)
+        val points = standingsPoints(state)
+        val results = finished.map(::standingsResult)
+        StandingsEntry.tally(results, entries, points)
+        return StandingsEntry.ranked(entries.values, results, state.tournament?.sportType ?: SportType.BADMINTON, standingsTieBreaker(state), points)
     }
 
     fun computeBracketProgress(state: TournamentDetailUiState): List<BracketStandingsEntry> {

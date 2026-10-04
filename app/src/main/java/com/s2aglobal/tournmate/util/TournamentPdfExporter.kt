@@ -64,6 +64,9 @@ object TournamentPdfExporter {
         val rrStandings: List<StandingsEntry>,
         val groupStandings: Map<String, List<StandingsEntry>>,
         val bracketProgress: List<BracketStandingsEntry>,
+        /** "Ties: …" captions under the round-robin and group tables (`StandingsEntry.tieBreakCaption`). */
+        val rrTieBreakCaption: String = "",
+        val groupTieBreakCaption: String = "",
     )
 
     // ── Public API ───────────────────────────────────────────────────────────
@@ -574,6 +577,7 @@ object TournamentPdfExporter {
                         if (i > 0) blocks += spacer(20f)
                         blocks += Block(lineH(12f) + 8f) { c, _, top -> text(c, "GROUP $group", contentX, top, paint(12f, accent, 900, tracking = 2f)) }
                         blocks += groupTable(input.groupStandings[group].orEmpty(), t.formatConfig.advancingPerGroup)
+                        blocks += caption(input.groupTieBreakCaption)
                     }
                     if (input.matches.any { it.groupLabel == null }) {
                         blocks += spacer(20f)
@@ -582,8 +586,13 @@ object TournamentPdfExporter {
                     blocks
                 }
             }
-            else -> rrTable(input.rrStandings)
+            else -> rrTable(input.rrStandings).let { table ->
+                if (input.rrStandings.isEmpty()) table else table + caption(input.rrTieBreakCaption)
+            }
         }
+
+        /** How ties are broken, under a standings table (iOS `tieBreakCaption`). */
+        fun caption(s: String): Block = Block(8f + lineH(11f)) { c, _, top -> text(c, s, contentX + 4f, top + 8f, paint(11f, gray)) }
 
         fun emptyText(s: String) = Block(32f + lineH(13f) + 32f) { c, _, top -> text(c, s, contentX + 32f, top + 32f, paint(13f, gray)) }
 

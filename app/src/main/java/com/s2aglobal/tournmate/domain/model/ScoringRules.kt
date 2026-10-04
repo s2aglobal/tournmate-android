@@ -50,7 +50,7 @@ data class ScoringConfig(
         fun decodeOrNull(json: String?): ScoringConfig? {
             if (json.isNullOrBlank()) return null
             return try {
-                ConfigJson.decodeFromString(serializer(), json)
+                ConfigJson.decodeFromJsonElement(serializer(), parseConfigObject(json))
             } catch (_: Exception) {
                 null
             }
@@ -121,7 +121,7 @@ val SportType.scoringRules: SportScoringRules
         )
         SportType.PADEL -> SportScoringRules(
             defaultConfig = ScoringConfig(3, 6, 2, 7, ScoringSystem.RALLY),
-            gamesPerMatchOptions = listOf(1, 3),
+            gamesPerMatchOptions = listOf(1, 3, 5),
             pointsToWinOptions = listOf(6),
             scoringSystemOptions = listOf(ScoringSystem.RALLY),
             capForTarget = { target -> target + 1 },
@@ -184,7 +184,7 @@ sealed class ScoreValidationError {
             is MarginTooSmall -> "Must win by $winBy"
             is GameShouldHaveEnded -> "$unit ends at $target with a $winBy-$scoreWordSingular lead"
             is ExceedsCap -> "Max score is $cap"
-            is TooManyGames -> "A match has at most $max games"
+            is TooManyGames -> "A match has at most $max ${sport.setName}"
             is MatchNotDecided -> "One side must win $gamesToWin ${sport.setNameSingular}${if (gamesToWin == 1) "" else "s"}"
             GamesAfterMatchDecided -> "Match was already won before the last ${sport.setNameSingular}"
         }

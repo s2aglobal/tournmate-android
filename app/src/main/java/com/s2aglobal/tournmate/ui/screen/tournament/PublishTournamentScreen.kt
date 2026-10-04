@@ -419,7 +419,8 @@ fun PublishTournamentScreen(
                         isPublishing = true
                         onPublish(
                             newTitle, newDate, venueName, venueAddress, venueLatitude, venueLongitude,
-                            newFormat, newMatchFormat, newFormatConfig,
+                            // New tournaments apply the chosen tie-breakers (FormatConfig.tieBreakRulesVersion).
+                            newFormat, newMatchFormat, newFormatConfig.copy(tieBreakRulesVersion = FormatConfig.CURRENT_TIE_BREAK_RULES_VERSION),
                             if (newFormat.isDoubles) newRandomPairing else false,
                             newDeadline, firebaseUid,
                             newEntryFee.toDoubleOrNull(), newCurrency,

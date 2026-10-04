@@ -83,7 +83,7 @@ fun EditTournamentSheet(
         FormatConfig.decodeOrNull(tournament.formatConfigData)
     }
     var editFormatConfig by remember {
-        mutableStateOf(existingConfig ?: FormatConfig.defaults(tournament.matchFormat))
+        mutableStateOf(existingConfig ?: FormatConfig.fallback(tournament.matchFormat))
     }
     // Only write the config when it was loaded or the organizer touched it, so an
     // unreadable stored config is never replaced with blank defaults.
@@ -587,7 +587,8 @@ fun EditTournamentSheet(
                 onSelect = {
                     if (it != editMatchFormat) {
                         editMatchFormat = it
-                        editFormatConfig = FormatConfig.defaults(it)
+                        // Fresh defaults, but Edit never adds the tie-break rules version (iOS parity).
+                        editFormatConfig = FormatConfig.defaults(it).copy(tieBreakRulesVersion = editFormatConfig.tieBreakRulesVersion)
                         formatConfigEdited = true
                     }
                     showMatchFormatPicker = false
