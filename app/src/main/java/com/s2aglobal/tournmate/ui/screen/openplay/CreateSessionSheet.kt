@@ -33,7 +33,7 @@ import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.screen.tournament.VenuePickerScreen
 import com.s2aglobal.tournmate.ui.theme.AppAccent
-import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.ui.component.LocalSportCatalog
 import com.s2aglobal.tournmate.ui.component.SportPickerRow
 import com.s2aglobal.tournmate.ui.theme.gearNoun
@@ -156,7 +156,7 @@ fun CreateSessionSheet(
                         .background(sportType.theme.tint),
                     contentAlignment = Alignment.Center,
                 ) {
-                    SportBadge(sportType, 48.dp, Modifier.rotate(-12f))
+                    SportArtworkImage(sportType, 48.dp, Modifier.rotate(-12f))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("Post Open Play", fontSize = 18.sp, fontWeight = FontWeight.Bold)

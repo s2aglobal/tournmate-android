@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.component.ScoringDescription
-import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.ui.component.TrophySpinner
 import com.s2aglobal.tournmate.ui.theme.*
 import kotlinx.coroutines.delay
@@ -180,7 +180,7 @@ private fun ScoringRulesCard(tournament: Tournament) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        SportBadge(sport, size = 40.dp)
+        SportArtworkImage(sport, 40.dp)
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("SCORING", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp, color = Color.Gray)
             Text(ScoringDescription.summary(config, sport), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)

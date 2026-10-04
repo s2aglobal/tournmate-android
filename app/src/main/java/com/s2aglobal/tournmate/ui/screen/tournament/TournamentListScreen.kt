@@ -38,7 +38,8 @@ import com.s2aglobal.tournmate.ui.component.PlayPullToRefresh
 import com.s2aglobal.tournmate.util.ShareUtil
 import com.s2aglobal.tournmate.ui.component.TournamentCard
 import com.s2aglobal.tournmate.ui.theme.AppAccent
-import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
+import com.s2aglobal.tournmate.ui.component.SportArtworkShape
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.theme.theme
 import androidx.compose.ui.draw.rotate
@@ -453,7 +454,7 @@ private fun MyTournamentsEmptyState(
                 shape = CircleShape,
                 color = sport.theme.tint,
             ) {}
-            SportBadge(sport, 64.dp, Modifier.rotate(-12f))
+            SportArtworkImage(sport, 64.dp, Modifier.rotate(-12f))
         }
 
         Spacer(Modifier.height(24.dp))
@@ -521,12 +522,12 @@ private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
                 modifier = Modifier.size(48.dp),
                 tint = sport.theme.primary.copy(alpha = 0.75f),
             )
-            SportBadge(
+            SportArtworkImage(
                 sport, 40.dp,
                 Modifier
                     .offset(x = 38.dp, y = 34.dp)
                     .rotate(-15f)
-                    .shadow(4.dp, CircleShape),
+                    .shadow(4.dp, SportArtworkShape),
             )
         }
 

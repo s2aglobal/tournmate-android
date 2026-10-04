@@ -35,6 +35,7 @@ import com.s2aglobal.tournmate.service.court.CourtResult
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.court.CourtSearchService
 import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import kotlinx.coroutines.delay
@@ -187,7 +188,7 @@ private fun SearchingState(sportType: SportType) {
                         color = AppAccent.copy(alpha = alpha),
                     ) {}
                 }
-                Icon(sportIconPainter(sportType), null, Modifier.size(32.dp), tint = AppAccent)
+                SportArtworkImage(sportType, 32.dp)
             }
             Spacer(Modifier.height(24.dp))
             Text("Searching for courts...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -219,7 +220,7 @@ private fun WelcomeState(sportType: SportType, examples: List<Pair<String, Strin
                     Icon(Icons.Default.LocationOn, null, Modifier.size(20.dp).offset(x = (-45).dp, y = (-25).dp), tint = AppAccent.copy(alpha = 0.7f))
                     Icon(Icons.Default.LocationOn, null, Modifier.size(16.dp).offset(x = 30.dp, y = 12.dp), tint = AppAccent.copy(alpha = 0.5f))
                     Icon(Icons.Default.LocationOn, null, Modifier.size(12.dp).offset(x = (-12).dp, y = 35.dp), tint = AppAccent.copy(alpha = 0.4f))
-                    Icon(sportIconPainter(sportType), null, Modifier.size(42.dp), tint = AppAccent)
+                    SportArtworkImage(sportType, 38.dp)
                 }
             }
 

@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.ScoringConfig
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.component.ScoringDescription
-import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.AppAccentDeep
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
@@ -193,7 +193,7 @@ internal fun GameErrorRow(message: String) {
 @Composable
 internal fun ScoringHint(sport: SportType, config: ScoringConfig, badgeSize: Dp = 18.dp, fontSize: Int = 12, modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (badgeSize > 14.dp) 8.dp else 5.dp), verticalAlignment = Alignment.CenterVertically) {
-        SportBadge(sport, size = badgeSize)
+        SportArtworkImage(sport, badgeSize)
         Text(
             ScoringDescription.summary(config, sport),
             fontSize = fontSize.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray,

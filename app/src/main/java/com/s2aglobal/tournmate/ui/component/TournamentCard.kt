@@ -102,7 +102,7 @@ fun TournamentCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        SportBadge(tournament.sportType, 16.dp)
+                        SportArtworkImage(tournament.sportType, 18.dp)
                         Text(
                             text = formatDateShort(tournament.date),
                             fontSize = 12.sp,

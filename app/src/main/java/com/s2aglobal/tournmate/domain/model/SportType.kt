@@ -16,6 +16,8 @@ enum class SportType(val rawValue: String) {
     GOLF("golf"),
     BOWLING("bowling"),
     DARTS("darts"),
+    DISC_GOLF("disc_golf"),
+    ROUNDNET("roundnet"),
 
     /** Display-only bucket ("Other") for values this build doesn't know. Never selectable. */
     GENERIC("generic");
@@ -37,6 +39,8 @@ enum class SportType(val rawValue: String) {
             GOLF -> "Golf"
             BOWLING -> "Bowling"
             DARTS -> "Darts"
+            DISC_GOLF -> "Disc Golf"
+            ROUNDNET -> "Roundnet"
             GENERIC -> "Other"
         }
 
@@ -57,6 +61,8 @@ enum class SportType(val rawValue: String) {
             GOLF -> "sports_golf"
             BOWLING -> "sports"
             DARTS -> "adjust"
+            DISC_GOLF -> "sports_golf"
+            ROUNDNET -> "sports_volleyball"
             GENERIC -> "sports"
         }
 
@@ -67,7 +73,7 @@ enum class SportType(val rawValue: String) {
         get() = when (this) {
             SOCCER -> "goals"
             CRICKET -> "runs"
-            GOLF -> "strokes"
+            GOLF, DISC_GOLF -> "strokes"
             BOWLING -> "pins"
             else -> "points"
         }
@@ -89,6 +95,8 @@ enum class SportType(val rawValue: String) {
             GOLF -> "rounds"
             BOWLING -> "games"
             DARTS -> "legs"
+            DISC_GOLF -> "rounds"
+            ROUNDNET -> "games"
             GENERIC -> "sets"
         }
 
@@ -109,11 +117,13 @@ enum class SportType(val rawValue: String) {
             GOLF -> "round"
             BOWLING -> "game"
             DARTS -> "leg"
+            DISC_GOLF -> "round"
+            ROUNDNET -> "game"
             GENERIC -> "set"
         }
 
     val usesSetScoring: Boolean
-        get() = this in listOf(BADMINTON, TENNIS, TABLE_TENNIS, PICKLEBALL, VOLLEYBALL, PADEL, SQUASH, BEACH_VOLLEYBALL)
+        get() = this in listOf(BADMINTON, TENNIS, TABLE_TENNIS, PICKLEBALL, VOLLEYBALL, PADEL, SQUASH, BEACH_VOLLEYBALL, ROUNDNET)
 
     val defaultBestOf: Int
         get() = scoringRules.defaultConfig.gamesPerMatch

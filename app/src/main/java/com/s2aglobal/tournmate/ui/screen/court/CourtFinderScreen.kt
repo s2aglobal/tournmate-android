@@ -54,6 +54,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
@@ -80,6 +81,7 @@ import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.service.court.CourtResult
 import com.s2aglobal.tournmate.service.court.CourtSearchService
 import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import java.net.URLEncoder
@@ -401,7 +403,7 @@ private fun LoadingState() {
                         color = AppAccent.copy(alpha = alpha),
                     ) {}
                 }
-                Icon(sportIconPainter(CurrentSport.sport), null, Modifier.size(32.dp), tint = AppAccent)
+                SportArtworkImage(CurrentSport.sport, 32.dp)
             }
             Spacer(Modifier.height(24.dp))
             Text("Searching for courts…", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -432,7 +434,7 @@ private fun ErrorState(message: String, onDismiss: () -> Unit) {
                         repeat(4) { Box(Modifier.fillMaxWidth().height(1.dp).background(AppAccent.copy(alpha = 0.06f))) }
                     }
                 }
-                Icon(sportIconPainter(CurrentSport.sport), null, Modifier.size(48.dp), tint = AppAccent.copy(alpha = 0.6f))
+                SportArtworkImage(CurrentSport.sport, 44.dp, Modifier.alpha(0.6f))
                 Icon(
                     Icons.Filled.Warning, null,
                     Modifier.offset(x = 35.dp, y = (-30).dp).size(26.dp),
@@ -758,10 +760,9 @@ private fun CourtsHero() {
             Box(Modifier.size(1.5.dp, 50.dp).background(AppAccent.copy(alpha = 0.1f)))
             Box(Modifier.size(70.dp, 1.5.dp).background(AppAccent.copy(alpha = 0.1f)))
         }
-        Icon(
-            sportIconPainter(CurrentSport.sport), null,
-            Modifier.size(56.dp).graphicsLayer { scaleX = 0.3f + 0.7f * p; scaleY = scaleX; alpha = p },
-            tint = AppAccent,
+        SportArtworkImage(
+            CurrentSport.sport, 52.dp,
+            Modifier.graphicsLayer { scaleX = 0.3f + 0.7f * p; scaleY = scaleX; alpha = p },
         )
         Icon(
             Icons.Filled.LocationOn, null,

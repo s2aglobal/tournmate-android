@@ -58,7 +58,7 @@ import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.AccentGradient
 import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
 import androidx.compose.ui.graphics.Brush
-import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.theme.theme
 import androidx.compose.ui.draw.rotate
@@ -357,7 +357,7 @@ private fun SessionCard(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            SportBadge(session.sportType, 16.dp)
+                            SportArtworkImage(session.sportType, 18.dp)
                             Text(
                                 text = dateFormatter.format(session.date),
                                 fontSize = 12.sp,
@@ -620,7 +620,7 @@ private fun EmptyStateScaffold(
                 .background(sport.theme.tint),
             contentAlignment = Alignment.Center,
         ) {
-            SportBadge(sport, badgeSize, Modifier.rotate(-12f))
+            SportArtworkImage(sport, badgeSize, Modifier.rotate(-12f))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(

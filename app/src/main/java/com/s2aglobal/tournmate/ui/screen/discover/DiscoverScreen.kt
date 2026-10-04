@@ -47,7 +47,7 @@ import com.s2aglobal.tournmate.domain.model.RuleSection
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.AppAccentTint
-import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.util.openInBrowser
 
 private val GroupedBg = Color(0xFFF2F2F7)
@@ -166,7 +166,7 @@ private fun HeaderSection(sport: SportType) {
             modifier = Modifier.size(72.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(sportIconPainter(sport), null, Modifier.size(34.dp), tint = AppAccent)
+            SportArtworkImage(sport, 44.dp)
         }
         Text("Your ${sport.displayName} Hub", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(

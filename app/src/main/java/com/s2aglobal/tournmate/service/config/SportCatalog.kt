@@ -76,9 +76,9 @@ internal object SportCatalogParser {
             ),
             RawSportCatalog.RawCategory(
                 "court_field", "Court & Field",
-                listOf("volleyball", "beach_volleyball", "basketball", "soccer", "cricket"),
+                listOf("volleyball", "beach_volleyball", "basketball", "soccer", "cricket", "roundnet"),
             ),
-            RawSportCatalog.RawCategory("target_more", "Target & More", listOf("golf", "bowling", "darts")),
+            RawSportCatalog.RawCategory("target_more", "Target & More", listOf("golf", "disc_golf", "bowling", "darts")),
         ),
     )
 

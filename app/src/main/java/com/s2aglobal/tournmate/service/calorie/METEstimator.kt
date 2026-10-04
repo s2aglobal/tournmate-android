@@ -35,6 +35,8 @@ object METEstimator {
         SportType.TENNIS -> if (intensity == PlayIntensity.CASUAL) 6.0 else 8.0
         SportType.TABLE_TENNIS -> 4.0
         SportType.VOLLEYBALL -> if (intensity == PlayIntensity.CASUAL) 3.0 else 6.0
+        SportType.DISC_GOLF -> 3.5
+        SportType.ROUNDNET -> 6.0
         // Badminton social / competitive (default).
         else -> if (intensity == PlayIntensity.CASUAL) 5.5 else 7.0
     }

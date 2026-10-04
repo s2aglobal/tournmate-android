@@ -154,12 +154,12 @@ fun SportTile(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            SportBadge(
+            SportArtworkImage(
                 sport, 40.dp,
                 Modifier
                     .rotate(rotation)
                     .scale(ballScale)
-                    .shadow(if (isSelected) 6.dp else 2.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.25f)),
+                    .shadow(if (isSelected) 6.dp else 2.dp, SportArtworkShape, ambientColor = Color.Black.copy(alpha = 0.25f)),
             )
             Spacer(Modifier.height(10.dp))
             Text(
@@ -236,7 +236,7 @@ fun SportSwitcherPill(sport: SportType, modifier: Modifier = Modifier, onDark: B
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        SportBadge(sport, 18.dp)
+        SportArtworkImage(sport, 18.dp)
         Text(sport.displayName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = fg)
         Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(14.dp), tint = fg)
     }
@@ -259,7 +259,7 @@ fun SportChangeRow(sport: SportType, modifier: Modifier = Modifier, onClick: () 
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SportTileArt(sport, 32.dp)
+        SportArtworkImage(sport, 38.dp)
         Spacer(Modifier.width(12.dp))
         Text(sport.displayName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
         Text("Change", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = theme.primary)
@@ -446,8 +446,6 @@ private fun CatalogSportTile(
     val shape = RoundedCornerShape(16.dp)
     // A no-longer-live current sport still shows as selected (spec), just not re-selectable.
     val filled = isSelected
-    val anim = iosSpring<Float>(0.35f, 0.7f)
-    val rotation by animateFloatAsState(if (filled) -12f else 0f, anim, label = "catTileRot")
     val stateText = when {
         isSelected -> "selected"
         isLive -> "not selected"
@@ -480,14 +478,22 @@ private fun CatalogSportTile(
             )
             .padding(12.dp),
     ) {
-        SportTileArt(
-            sport, 30.dp,
-            Modifier
-                .align(Alignment.TopStart)
-                .rotate(rotation)
-                .graphicsLayer { alpha = if (isLive || filled) 1f else 0.55f },
-            onColor = filled,
-        )
+        Box(Modifier.align(Alignment.TopStart).size(34.dp), contentAlignment = Alignment.Center) {
+            if (filled) {
+                // iOS: a white 85% disc 2dp wider than the ball, with a soft shadow, so the
+                // artwork reads on its own sport's gradient (e.g. the purple badminton ball).
+                Box(
+                    Modifier
+                        .size(34.dp * 44f / 48f + 2.dp)
+                        .shadow(3.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.25f), spotColor = Color.Black.copy(alpha = 0.25f))
+                        .background(Color.White.copy(alpha = 0.85f), CircleShape),
+                )
+            }
+            SportArtworkImage(
+                sport, 34.dp,
+                Modifier.graphicsLayer { alpha = if (isLive || filled) 1f else 0.55f },
+            )
+        }
         BasicText(
             sport.displayName,
             style = TextStyle(
@@ -573,7 +579,7 @@ private fun HeroBannerContent(sport: SportType, onSwitch: () -> Unit) {
             zoneColor = if (sport == SportType.PICKLEBALL) PickleSurround.copy(alpha = 0.35f) else null,
         )
 
-        SportBadge(
+        SportArtworkImage(
             sport, 74.dp,
             Modifier
                 .align(Alignment.CenterEnd)
@@ -583,7 +589,7 @@ private fun HeroBannerContent(sport: SportType, onSwitch: () -> Unit) {
                     rotationZ = 10f + (-30f * v)
                     translationY = (4f + (-10f * v)) * density
                     shadowElevation = (6f + 8f * v) * density
-                    this.shape = CircleShape
+                    this.shape = SportArtworkShape
                 },
         )
 

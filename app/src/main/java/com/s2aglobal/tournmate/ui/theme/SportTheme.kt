@@ -14,7 +14,6 @@ val PickleCourtBlue = Color(0.09f, 0.36f, 0.70f)
 val PickleCourtDeep = Color(0.05f, 0.20f, 0.45f)
 val PickleSurround = Color(0.16f, 0.52f, 0.36f)
 val PickleBall = Color(0.85f, 0.95f, 0.26f)
-val PickleBallShade = Color(0.62f, 0.75f, 0.10f)
 
 // Tennis — grass green with a yellow ball.
 val TennisGrass = Color(0.13f, 0.47f, 0.27f)
@@ -104,6 +103,8 @@ private val CricketTheme = catalogTheme(0xFFB71C1C, "Bowl. Bat. Win.", "get the 
 private val GolfTheme = catalogTheme(0xFF1B5E20, "Drive. Chip. Putt.", "get out on the course", "clubs and balls")
 private val BowlingTheme = catalogTheme(0xFF3949AB, "Roll. Strike. Repeat.", "get the pins falling", "bowling shoes")
 private val DartsTheme = catalogTheme(0xFF263238, "Aim. Throw. Checkout.", "get the darts flying", "darts")
+private val DiscGolfTheme = catalogTheme(0xFFE8890C, "Drive. Upshot. Chains.", "get the discs flying", "discs")
+private val RoundnetTheme = catalogTheme(0xFFC99A06, "Serve. Set. Spike.", "get the net set up", "a net and balls")
 
 val SportType.theme: SportTheme
     get() = when (this) {
@@ -121,6 +122,8 @@ val SportType.theme: SportTheme
         SportType.GOLF -> GolfTheme
         SportType.BOWLING -> BowlingTheme
         SportType.DARTS -> DartsTheme
+        SportType.DISC_GOLF -> DiscGolfTheme
+        SportType.ROUNDNET -> RoundnetTheme
         SportType.FOOTBALL, SportType.GENERIC -> DefaultTheme
     }
 
