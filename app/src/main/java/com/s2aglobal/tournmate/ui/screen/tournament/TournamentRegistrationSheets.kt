@@ -143,7 +143,7 @@ internal fun SelectPartnerSheet(
         dragHandle = null,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
-        // The sheet already pads (and consumes) the navigation-bar inset (material3 1.2 BottomSheetDefaults.windowInsets).
+        // The sheet already pads (and consumes) the navigation-bar inset (material3 contentWindowInsets = BottomSheetDefaults.windowInsets).
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)) {
             SheetTopBar("Select Partner", onCancel)
             Column(

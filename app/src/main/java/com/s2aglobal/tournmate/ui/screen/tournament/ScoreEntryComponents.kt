@@ -48,7 +48,7 @@ internal val ScoreDisabled = Color(0xFFD1D1D6)
 /**
  * Page sheet for the score entry flows (iOS presents them with `.sheet`).
  * [content] receives a `close` action that animates the sheet away before calling [onDismiss].
- * Material3 1.2.x pads the sheet window by the vertical system-bar and IME insets
+ * Material3 1.4 pads the sheet content by the vertical safe-drawing (system-bar + IME) insets
  * (BottomSheetDefaults.windowInsets) and consumes them, so content must not add its own.
  */
 @OptIn(ExperimentalMaterial3Api::class)

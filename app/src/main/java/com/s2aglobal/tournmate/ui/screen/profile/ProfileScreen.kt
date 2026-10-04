@@ -92,7 +92,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -113,7 +114,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -124,7 +124,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.s2aglobal.tournmate.BuildConfig
@@ -271,10 +271,7 @@ private fun SignedInProfile(
     var showAvatarPicker by remember { mutableStateOf(false) }
     var showQuickPlay by remember { mutableStateOf(false) }
     val pullState = rememberPullToRefreshState()
-
-    if (pullState.isRefreshing) {
-        LaunchedEffect(Unit) { viewModel.refresh { pullState.endRefresh() } }
-    }
+    var isPullRefreshing by remember { mutableStateOf(false) }
 
     Column(modifier.fillMaxSize()) {
         Text(
@@ -283,7 +280,23 @@ private fun SignedInProfile(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.background(GroupedBg).fillMaxWidth().padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
         )
-        Box(Modifier.fillMaxSize().nestedScroll(pullState.nestedScrollConnection)) {
+        PullToRefreshBox(
+            isRefreshing = isPullRefreshing,
+            onRefresh = {
+                isPullRefreshing = true
+                viewModel.refresh { isPullRefreshing = false }
+            },
+            modifier = Modifier.fillMaxSize(),
+            state = pullState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullState,
+                    isRefreshing = isPullRefreshing,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    color = AppAccent,
+                )
+            },
+        ) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 ProfileHeader(player, onAvatarEdit = { showAvatarPicker = true })
                 Spacer(Modifier.height(24.dp))
@@ -308,7 +321,6 @@ private fun SignedInProfile(
                 SignOutSection(uiState, onSignOut) { showDeleteDialog = true }
                 Spacer(Modifier.height(40.dp))
             }
-            PullToRefreshContainer(pullState, Modifier.align(Alignment.TopCenter), contentColor = AppAccent)
         }
     }
 

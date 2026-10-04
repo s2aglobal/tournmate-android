@@ -6,7 +6,7 @@ import com.s2aglobal.tournmate.ui.theme.gearNoun
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.border
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlin.math.roundToInt
 import android.net.Uri
 import androidx.compose.foundation.background
