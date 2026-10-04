@@ -46,14 +46,19 @@
                 <data android:host="session" />
             </intent-filter>
 
+            <!-- App Links: must match the URLs ShareUtil generates (and iOS AASA paths
+                 /tournament/* and /session/*). Verified against
+                 https://www.tournmate.com/.well-known/assetlinks.json; until that
+                 file lists this package + signing SHA-256, Android 12+ opens
+                 these links in the browser instead of the app. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" />
                 <data android:host="www.tournmate.com" />
-                <data android:pathPrefix="/tournament" />
-                <data android:pathPrefix="/session" />
+                <data android:pathPrefix="/tournament/" />
+                <data android:pathPrefix="/session/" />
             </intent-filter>
         </activity>
 
