@@ -6,11 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -64,11 +63,12 @@ fun NotificationInboxScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Notifications", fontWeight = FontWeight.Bold) },
+            // iOS: inline title, xmark close on the leading edge.
+            CenterAlignedTopAppBar(
+                title = { Text("Notifications", fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.Default.Close, "Close", modifier = Modifier.size(20.dp), tint = SecondaryText)
                     }
                 },
                 actions = {
@@ -86,10 +86,10 @@ fun NotificationInboxScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
             )
         },
-        containerColor = Color(0xFFF2F2F7),
+        containerColor = Color.White,
     ) { padding ->
         Box(
             modifier = Modifier
@@ -113,12 +113,16 @@ fun NotificationInboxScreen(
                 }
 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(state.notifications, key = { it.id }) { item ->
+                    // iOS: plain list — full-width rows separated by inset dividers.
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        itemsIndexed(state.notifications, key = { _, item -> item.id }) { index, item ->
+                            if (index > 0) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = Color(0x4D3C3C43),
+                                )
+                            }
                             SwipeToDeleteRow(onDelete = { viewModel.delete(item) }) {
                                 NotificationRow(
                                     item = item,
@@ -152,16 +156,17 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
         state = dismissState,
         enableDismissFromStartToEnd = false,
         backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFE53935))
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+            // Only reveal the red delete action while the row is being swiped.
+            if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFFF3B30))
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Text("Delete", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         },
     ) { content() }
@@ -174,17 +179,21 @@ private fun NotificationRow(
 ) {
     val iconStyle = notificationIconStyle(item.type)
 
-    Surface(
-        onClick = onClick,
+    // Opaque white row (so the swipe background never bleeds through), with the
+    // iOS unread tint as a rounded card inside the 16/12 row insets.
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = if (item.read) Color.White else AppAccent.copy(alpha = 0.04f),
-        shadowElevation = if (item.read) 0.dp else 1.dp,
+            .background(Color.White)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (item.read) Color.White else AppAccent.copy(alpha = 0.04f))
+                .padding(12.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -224,7 +233,7 @@ private fun NotificationRow(
                 Text(
                     text = item.body,
                     fontSize = 13.sp,
-                    color = Color.Gray,
+                    color = SecondaryText,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     lineHeight = 18.sp,
@@ -235,7 +244,7 @@ private fun NotificationRow(
                 Text(
                     text = timeAgo(item.createdAt),
                     fontSize = 11.sp,
-                    color = Color.LightGray,
+                    color = TertiaryText,
                 )
             }
 
@@ -274,6 +283,10 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         )
     }
 }
+
+// iOS label colors: .secondary / .tertiary on a light background.
+private val SecondaryText = Color(0x993C3C43)
+private val TertiaryText = Color(0x4D3C3C43)
 
 private data class NotificationIconStyle(
     val icon: ImageVector,

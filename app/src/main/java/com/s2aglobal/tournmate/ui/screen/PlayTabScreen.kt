@@ -268,24 +268,30 @@ private fun PlayHeader(
                 Icon(
                     imageVector = Icons.Outlined.Notifications,
                     contentDescription = "Notifications",
-                    modifier = Modifier.size(24.dp),
-                    tint = AppAccent,
+                    modifier = Modifier.size(26.dp),
+                    tint = Color.Black,
                 )
+                // iOS: 9pt bold count in a small red circle at the bell's top-right.
                 if (unreadCount > 0) {
-                    Text(
-                        text = "${minOf(unreadCount, 99)}",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
+                    Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .offset(x = 6.dp, y = (-4).dp)
-                            .defaultMinSize(minWidth = 17.dp, minHeight = 17.dp)
+                            .offset(x = 5.dp, y = (-3).dp)
+                            .height(16.dp)
+                            .defaultMinSize(minWidth = 16.dp)
                             .background(Color.Red, CircleShape)
-                            .wrapContentSize(Alignment.Center)
-                            .padding(horizontal = 4.dp),
-                    )
+                            .padding(horizontal = 3.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "${minOf(unreadCount, 99)}",
+                            fontSize = 9.sp,
+                            lineHeight = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             }
         }

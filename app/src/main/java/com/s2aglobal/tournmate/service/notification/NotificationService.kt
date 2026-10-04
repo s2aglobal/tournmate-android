@@ -47,11 +47,19 @@ class NotificationService @Inject constructor(
         fun countryTopicName(countryCode: String) =
             "country_${countryCode}"
 
+        /**
+         * Badminton keeps the legacy name ("country_US") so released
+         * badminton-only builds keep receiving pushes; other sports are
+         * suffixed ("country_US_pickleball"). Mirrors iOS and the server.
+         */
         fun sportCountryTopicName(countryCode: String, sport: SportType) =
-            "country_${countryCode}_${sport.rawValue}"
+            if (sport == SportType.BADMINTON) countryTopicName(countryCode)
+            else "country_${countryCode}_${sport.rawValue}"
 
+        /** Badminton keeps "region_US_78641"; other sports are suffixed. */
         fun sportRegionTopicName(countryCode: String, postalCode: String, sport: SportType) =
-            "region_${countryCode}_${postalCode}_${sport.rawValue}"
+            if (sport == SportType.BADMINTON) topicName(countryCode, postalCode)
+            else "region_${countryCode}_${postalCode}_${sport.rawValue}"
     }
 
     // ── Channel setup ─────────────────────────────────────────────────────────
@@ -111,22 +119,23 @@ class NotificationService @Inject constructor(
             messaging.subscribeToTopic("user_$uid")
         }
 
-        // Country-wide topic
-        messaging.subscribeToTopic(countryTopicName(cc))
+        // Legacy topics are badminton's; drop them when another sport is selected.
+        if (sport != SportType.BADMINTON) {
+            unsubscribeFromRegion(cc, player.homePostalCode ?: "")
+        }
 
-        // Sport-scoped country topic
+        // Sport-scoped country topic (badminton = legacy "country_US")
         messaging.subscribeToTopic(sportCountryTopicName(cc, sport))
 
-        // ZIP-level topics
+        // Sport-scoped ZIP-level topic (badminton = legacy "region_US_78641")
         RegionNormalizer.normalizePostal(player.homePostalCode, cc)
             ?.takeIf { it.isNotEmpty() }
             ?.let { postal ->
-                messaging.subscribeToTopic(topicName(cc, postal))
                 messaging.subscribeToTopic(sportRegionTopicName(cc, postal, sport))
             }
     }
 
-    /** Unsubscribes when the user changes home region. */
+    /** Unsubscribes from the legacy region/country topics, plus the given sport's topics. */
     fun unsubscribeFromRegion(countryCode: String, postalCode: String, sport: SportType? = null) {
         val cc = RegionNormalizer.normalizeCountryCode(countryCode) ?: return
         messaging.unsubscribeFromTopic(countryTopicName(cc))
