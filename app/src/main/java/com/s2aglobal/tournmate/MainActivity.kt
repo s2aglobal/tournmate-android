@@ -1,38 +1,104 @@
 package com.s2aglobal.tournmate
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.s2aglobal.tournmate.data.local.CurrentUserStore
+import com.s2aglobal.tournmate.service.AnalyticsService
+import com.s2aglobal.tournmate.service.config.AppVersionGate
+import com.s2aglobal.tournmate.service.config.SportCatalog
+import com.s2aglobal.tournmate.ui.component.LocalSportCatalog
 import com.s2aglobal.tournmate.service.notification.LocalNotificationStore
 import com.s2aglobal.tournmate.ui.navigation.DeepLinkParser
 import com.s2aglobal.tournmate.ui.navigation.TournMateNavHost
+import com.s2aglobal.tournmate.ui.screen.update.UPDATE_FALLBACK_URL
+import com.s2aglobal.tournmate.ui.screen.update.UpdateRequiredScreen
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.theme.TournMateTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var localNotificationStore: LocalNotificationStore
+    @Inject lateinit var versionGate: AppVersionGate
+    @Inject lateinit var analytics: AnalyticsService
+    @Inject lateinit var currentUserStore: CurrentUserStore
+    @Inject lateinit var sportCatalog: SportCatalog
 
     private val pendingDeepLink = mutableStateOf<DeepLinkParser.Target?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // The app is light-only, so always draw dark status/nav icons — the default
+        // follows system dark mode and would render white icons on white screens.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+        )
+        // Resolve the sport before first frame so the accent never flashes the default.
+        CurrentSport.adoptStored(runBlocking { currentUserStore.storedPreferredSportFlow.first() })
+        lifecycleScope.launch {
+            currentUserStore.storedPreferredSportFlow.collect { CurrentSport.adoptStored(it) }
+        }
+        // QA: launch with `--ez simulateUpdateRequired true` to preview the update blocker (debug only).
+        if (BuildConfig.DEBUG && intent?.getBooleanExtra(EXTRA_SIMULATE_UPDATE_REQUIRED, false) == true) {
+            versionGate.simulateUpdateRequired()
+        }
+        // Cached catalog first, then `config/sports` once per launch.
+        lifecycleScope.launch { sportCatalog.refresh() }
         persistNotificationFromIntent(intent)
         pendingDeepLink.value = DeepLinkParser.parse(intent?.data)
             ?: DeepLinkParser.parseExtras(intent?.extras)
         setContent {
             TournMateTheme {
-                TournMateNavHost(
-                    pendingDeepLink = pendingDeepLink.value,
-                    onDeepLinkConsumed = { pendingDeepLink.value = null },
-                )
+                val gate by versionGate.state.collectAsStateWithLifecycle()
+                val catalog by sportCatalog.state.collectAsStateWithLifecycle()
+                CompositionLocalProvider(LocalSportCatalog provides catalog) {
+                    Box(Modifier.fillMaxSize()) {
+                        // The blocker replaces the whole app (including sign-in) so no sheet or
+                        // dialog window can sit above it.
+                        if (gate.isUpdateRequired) {
+                            UpdateRequiredScreen(policy = gate.policy, onUpdate = ::openStore)
+                        } else {
+                            TournMateNavHost(
+                                pendingDeepLink = pendingDeepLink.value,
+                                onDeepLinkConsumed = { pendingDeepLink.value = null },
+                            )
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Checked at launch and whenever the app returns to the foreground.
+        lifecycleScope.launch { versionGate.check() }
+    }
+
+    private fun openStore(url: String) {
+        analytics.log(AnalyticsService.EventName.UPDATE_TAPPED)
+        val opened = runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.isSuccess
+        if (!opened && url != UPDATE_FALLBACK_URL) {
+            runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UPDATE_FALLBACK_URL))) }
         }
     }
 
@@ -87,5 +153,9 @@ class MainActivity : ComponentActivity() {
             sessionId = sessionId,
             createdBy = createdBy,
         )
+    }
+
+    companion object {
+        const val EXTRA_SIMULATE_UPDATE_REQUIRED = "simulateUpdateRequired"
     }
 }

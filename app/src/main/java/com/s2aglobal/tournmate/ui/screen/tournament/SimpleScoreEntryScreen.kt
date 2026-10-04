@@ -1,24 +1,22 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import com.s2aglobal.tournmate.ui.component.sheetScrollLikeIos
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Match
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.domain.model.ScoreValidator
+import com.s2aglobal.tournmate.domain.model.SetScore
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SimpleScoreEntryScreen(
     match: Match,
@@ -26,88 +24,65 @@ fun SimpleScoreEntryScreen(
     onSubmit: (scoreA: Int, scoreB: Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
     var scoreA by remember { mutableStateOf("") }
     var scoreB by remember { mutableStateOf("") }
-    var showCelebration by remember { mutableStateOf(false) }
+    var winnerName by remember { mutableStateOf<String?>(null) }
 
-    if (showCelebration) {
-        val a = scoreA.toIntOrNull() ?: 0
-        val b = scoreB.toIntOrNull() ?: 0
-        val winnerName = if (a > b) match.teamA.player.name else match.teamB.player.name
-        WinnerCelebrationScreen(
-            winnerName = winnerName,
-            scoreLine = "$a - $b",
-            isCreator = isCreator,
-            onDone = {
-                onSubmit(a, b)
-                onDismiss()
-            },
-        )
+    val teamAName = registrationFullName(match.teamA)
+    val teamBName = registrationFullName(match.teamB)
+    val a = scoreA.toIntOrNull()
+    val b = scoreB.toIntOrNull()
+    val tournament = match.tournament
+    val sport = tournament.sportType
+    // Round-robin matches are a single game played to the tournament's target.
+    val gameConfig = tournament.scoringConfig.copy(gamesPerMatch = 1)
+    val gameError = if (tournament.enforcesScoringRules && a != null && b != null) {
+        ScoreValidator.validateGame(SetScore(a, b), gameConfig)?.message(sport)
+    } else null
+    val isValid = a != null && b != null && a >= 0 && b >= 0 && a != b && (a > 0 || b > 0) && gameError == null
+
+    // iOS presents the celebration with .fullScreenCover over the score sheet; Done dismisses both.
+    val winner = winnerName
+    if (winner != null) {
+        FullScreenCover(onDismissRequest = {}) {
+            WinnerCelebrationScreen(
+                winnerName = winner,
+                scoreLine = "$scoreA-$scoreB",
+                showSetsLabel = false,
+                isCreator = isCreator,
+                onDone = onDismiss,
+            )
+        }
         return
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp).padding(bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("ENTER SCORE", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-            Spacer(Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
+    FullScreenSheet(onDismiss = onDismiss) { close ->
+        Column(Modifier.fillMaxSize()) {
+            ScoreTopBar("Enter Score", close)
+            Column(
+                Modifier.weight(1f).sheetScrollLikeIos().verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(match.teamA.player.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    match.teamA.partner?.let { Text("& ${it.name}", fontSize = 11.sp, color = Color.Gray) }
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = scoreA, onValueChange = { scoreA = it },
-                        modifier = Modifier.width(80.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(14.dp),
-                        singleLine = true,
-                    )
-                }
-
-                Text("VS", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(match.teamB.player.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    match.teamB.partner?.let { Text("& ${it.name}", fontSize = 11.sp, color = Color.Gray) }
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = scoreB, onValueChange = { scoreB = it },
-                        modifier = Modifier.width(80.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(14.dp),
-                        singleLine = true,
-                    )
+                MatchupHeader(teamAName, teamBName)
+                ScoreCard {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        NumberBadge("1")
+                        Text("Game Score", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.weight(1f))
+                        if (tournament.enforcesScoringRules) {
+                            ScoringHint(sport, gameConfig, badgeSize = 14.dp, fontSize = 11, modifier = Modifier.weight(1f, fill = false))
+                        }
+                    }
+                    ScoreFieldPair(scoreA, scoreB, onA = { scoreA = it }, onB = { scoreB = it }, isError = gameError != null)
+                    gameError?.let { GameErrorRow(it) }
                 }
             }
-
-            Spacer(Modifier.height(32.dp))
-
-            val canSubmit = (scoreA.toIntOrNull() ?: -1) >= 0 && (scoreB.toIntOrNull() ?: -1) >= 0 && scoreA != scoreB
-            Button(
-                onClick = { showCelebration = true },
-                enabled = canSubmit,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
-            ) {
-                Text(
-                    if (isCreator) "FINALIZE SCORE" else "SUBMIT SCORE",
-                    fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
-                )
+            ScoreSubmitBar(if (isCreator) "FINALIZE SCORE" else "SUBMIT SCORE", isValid) {
+                focusManager.clearFocus()
+                if (a == null || b == null) return@ScoreSubmitBar
+                onSubmit(a, b)
+                winnerName = if (a > b) teamAName else teamBName
             }
         }
     }

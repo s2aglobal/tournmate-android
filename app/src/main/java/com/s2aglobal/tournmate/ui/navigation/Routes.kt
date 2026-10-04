@@ -7,6 +7,7 @@ object Routes {
     fun login(createMode: Boolean = false) = "login/$createMode"
     const val PROFILE_SETUP = "profile_setup?name={name}"
     fun profileSetup(name: String = "") = "profile_setup?name=${java.net.URLEncoder.encode(name, "UTF-8")}"
+    const val EMAIL_VERIFICATION = "email_verification"
     const val ONBOARDING = "onboarding"
     const val MAIN = "main"
 

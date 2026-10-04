@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 
 @Composable
 fun ManualDrawVisualizerView(
@@ -21,7 +21,7 @@ fun ManualDrawVisualizerView(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = BrandPurple.copy(alpha = 0.05f),
+            color = AppAccent.copy(alpha = 0.05f),
         ) {
             Text(
                 "Organizer creates matchups manually",

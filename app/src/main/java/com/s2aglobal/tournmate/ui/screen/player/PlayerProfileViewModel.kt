@@ -4,13 +4,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
-import com.s2aglobal.tournmate.data.repository.MatchRepository
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.data.repository.RatingRepository
-import com.s2aglobal.tournmate.data.repository.RegistrationRepository
-import com.s2aglobal.tournmate.domain.model.MatchStatus
+import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.PlayerRating
+import com.s2aglobal.tournmate.domain.model.SportType
+import com.s2aglobal.tournmate.service.AnalyticsService
+import com.s2aglobal.tournmate.service.auth.AuthService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,12 +26,16 @@ data class PlayerProfileUiState(
     val ratings: List<PlayerRating> = emptyList(),
     val averageRating: Double = 0.0,
     val matchStats: MatchStats = MatchStats(),
+    val recentMatches: List<Match> = emptyList(),
     val currentPlayerId: String? = null,
+    val hasCurrentPlayer: Boolean = false,
+    val isGuest: Boolean = false,
     val hasRated: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val showRateSheet: Boolean = false,
     val ratingSubmitted: Boolean = false,
+    val viewerSport: SportType = SportType.BADMINTON,
 )
 
 @HiltViewModel
@@ -38,9 +43,10 @@ class PlayerProfileViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playerRepo: PlayerRepository,
     private val ratingRepo: RatingRepository,
-    private val matchRepo: MatchRepository,
-    private val registrationRepo: RegistrationRepository,
+    private val matchHistory: PlayerMatchHistory,
     private val currentUserStore: CurrentUserStore,
+    private val authService: AuthService,
+    analytics: AnalyticsService,
 ) : ViewModel() {
 
     private val playerId: String = savedStateHandle["playerId"] ?: ""
@@ -49,7 +55,13 @@ class PlayerProfileViewModel @Inject constructor(
     val uiState: StateFlow<PlayerProfileUiState> = _uiState.asStateFlow()
 
     init {
+        analytics.screenView(AnalyticsService.ScreenName.PLAYER_PROFILE)
         load()
+        viewModelScope.launch {
+            currentUserStore.preferredSportFlow.collect { sport ->
+                _uiState.value = _uiState.value.copy(viewerSport = sport)
+            }
+        }
     }
 
     fun load() {
@@ -57,21 +69,31 @@ class PlayerProfileViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 val player = playerRepo.findPlayerById(playerId)
-                val ratings = ratingRepo.ratingsForPlayer(playerId)
+                val ratings = try { ratingRepo.ratingsForPlayer(playerId) } catch (_: Exception) { emptyList() }
                 val avgRating = if (ratings.isNotEmpty()) ratings.map { it.stars }.average() else 0.0
-                val currentPid = currentUserStore.currentPlayerId()?.toString()?.uppercase()
+                val isGuest = authService.currentUser == null
+                val currentUuid = if (isGuest) null else currentUserStore.currentPlayerId()
+                val currentPid = currentUuid?.toString()?.uppercase()
+                val hasCurrentPlayer = currentUuid != null &&
+                    (try { playerRepo.findPlayerById(currentUuid) } catch (_: Exception) { null }) != null
                 val hasRated = if (currentPid != null) {
-                    ratingRepo.hasRated(raterId = currentPid, playerId = playerId)
+                    try { ratingRepo.hasRated(raterId = currentPid, playerId = playerId) } catch (_: Exception) { false }
                 } else false
 
-                val matchStats = computeMatchStats(playerId)
+                val matches = player?.let {
+                    try { matchHistory.finishedMatches(it.id) } catch (_: Exception) { emptyList() }
+                }.orEmpty()
+                val wins = player?.let { p -> matches.count { it.didPlayerWin(p.id) } } ?: 0
 
                 _uiState.value = _uiState.value.copy(
                     player = player,
                     ratings = ratings,
                     averageRating = avgRating,
-                    matchStats = matchStats,
+                    matchStats = MatchStats(played = matches.size, wins = wins),
+                    recentMatches = matches,
                     currentPlayerId = currentPid,
+                    hasCurrentPlayer = hasCurrentPlayer,
+                    isGuest = isGuest,
                     hasRated = hasRated,
                     isLoading = false,
                 )
@@ -114,34 +136,6 @@ class PlayerProfileViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(errorMessage = e.message)
             }
-        }
-    }
-
-    private suspend fun computeMatchStats(playerId: String): MatchStats {
-        try {
-            val playerUUID = try { UUID.fromString(playerId) } catch (_: Exception) { return MatchStats() }
-            val registeredTournamentIds = registrationRepo.tournamentIds(playerUUID)
-            if (registeredTournamentIds.isEmpty()) return MatchStats()
-
-            var totalPlayed = 0
-            var totalWins = 0
-
-            for (tournamentId in registeredTournamentIds.take(10)) {
-                val matches = matchRepo.matchesForTournament(tournamentId.toString().uppercase())
-
-                for (match in matches) {
-                    if (match.status != MatchStatus.FINISHED) continue
-                    val isTeamA = match.teamAId == playerId
-                    val isTeamB = match.teamBId == playerId
-                    if (!isTeamA && !isTeamB) continue
-                    totalPlayed++
-                    if (match.winnerRegistrationId == playerId) totalWins++
-                }
-            }
-
-            return MatchStats(played = totalPlayed, wins = totalWins)
-        } catch (_: Exception) {
-            return MatchStats()
         }
     }
 }

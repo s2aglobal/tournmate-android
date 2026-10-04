@@ -19,6 +19,8 @@ interface PlayerRepository {
         firebaseUid: String?,
         dateOfBirth: Date? = null,
         preferredSport: SportType = SportType.BADMINTON,
+        playingHand: String? = null,
+        skillLevel: String? = null,
     ): Player
     suspend fun findPlayerById(id: UUID): Player?
     suspend fun findPlayerById(id: String): Player?

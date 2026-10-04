@@ -46,6 +46,11 @@ class CurrentUserStore @Inject constructor(
         SportType.fromRawValue(prefs[Keys.PREFERRED_SPORT])
     }
 
+    /** The saved sport, or null before one has been saved (first launch). iOS `SportType.stored`. */
+    val storedPreferredSportFlow: Flow<SportType?> = context.dataStore.data.map { prefs ->
+        prefs[Keys.PREFERRED_SPORT]?.takeIf { it.isNotBlank() }?.let(SportType::fromRawValue)
+    }
+
     suspend fun currentPlayerId(): UUID? =
         currentPlayerIdFlow.first()
 
@@ -91,7 +96,13 @@ class CurrentUserStore @Inject constructor(
         }
     }
 
+    /** Clears the signed-in session only; the preferred sport survives sign-out (matches iOS). */
     suspend fun clear() {
-        context.dataStore.edit { it.clear() }
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.FIREBASE_UID)
+            prefs.remove(Keys.PLAYER_ID)
+            prefs.remove(Keys.PENDING_DISPLAY_NAME)
+            prefs[Keys.HAS_SEEN_ONBOARDING] = false
+        }
     }
 }

@@ -24,7 +24,7 @@ fun RoundHeader(roundName: String) {
     Text(
         roundName.uppercase(),
         fontSize = 12.sp, fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp, color = BrandPurple,
+        letterSpacing = 1.sp, color = AppAccent,
         modifier = Modifier.padding(vertical = 8.dp),
     )
 }
@@ -88,7 +88,7 @@ fun MatchCard(
                 Text(
                     "${match.scoreA ?: "-"}",
                     fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                    color = if (isWinnerA && node.isFinished) BrandPurple else Color.Black,
+                    color = if (isWinnerA && node.isFinished) AppAccent else Color.Black,
                 )
             }
 
@@ -109,7 +109,7 @@ fun MatchCard(
                 Text(
                     "${match.scoreB ?: "-"}",
                     fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                    color = if (isWinnerB && node.isFinished) BrandPurple else Color.Black,
+                    color = if (isWinnerB && node.isFinished) AppAccent else Color.Black,
                 )
             }
         }
@@ -146,9 +146,9 @@ fun ParticipantRow(node: ParticipantNode) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         node.seedNumber?.let { seed ->
-            Surface(modifier = Modifier.size(24.dp), shape = CircleShape, color = BrandPurple.copy(alpha = 0.1f)) {
+            Surface(modifier = Modifier.size(24.dp), shape = CircleShape, color = AppAccent.copy(alpha = 0.1f)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("$seed", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+                    Text("$seed", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                 }
             }
         }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Same as values/themes.xml plus windowLightNavigationBar, which needs API 27 (minSdk is 26). -->
+    <style name="Theme.TournMate" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/brand_purple</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

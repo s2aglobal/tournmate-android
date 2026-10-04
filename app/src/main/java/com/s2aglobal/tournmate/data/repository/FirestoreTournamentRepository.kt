@@ -1,13 +1,12 @@
 package com.s2aglobal.tournmate.data.repository
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.s2aglobal.tournmate.data.mapper.toFirestoreMap
 import com.s2aglobal.tournmate.data.mapper.toTournament
 import com.s2aglobal.tournmate.domain.model.*
 import kotlinx.coroutines.tasks.await
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.Calendar
 import java.util.Date
 import java.util.UUID
@@ -86,8 +85,10 @@ class FirestoreTournamentRepository @Inject constructor(
         durationMinutes: Int?,
         ageGroup: AgeGroup,
         sportType: SportType,
+        scoringConfig: ScoringConfig?,
+        skillDivision: String?,
     ) {
-        val configJson = formatConfig?.let { Json.encodeToString(it) }
+        val configJson = formatConfig?.encode()
         val deadline = registrationDeadline ?: Tournament.defaultDeadline(date)
 
         val tournament = Tournament(
@@ -112,10 +113,12 @@ class FirestoreTournamentRepository @Inject constructor(
             ageGroupRaw = ageGroup.rawValue,
             durationMinutes = durationMinutes,
             formatConfigData = configJson,
+            scoringConfigData = (scoringConfig ?: sportType.scoringRules.defaultConfig).encode(),
             countryCode = countryCode,
             postalCode = postalCode,
             timeZone = java.util.TimeZone.getDefault().id,
             sportType = sportType,
+            skillDivision = skillDivision,
         )
 
         collection.document(tournament.id.toString().uppercase())
@@ -144,8 +147,10 @@ class FirestoreTournamentRepository @Inject constructor(
         prizeInfo: String?,
         durationMinutes: Int?,
         ageGroup: AgeGroup,
+        scoringConfig: ScoringConfig?,
+        skillDivision: String?,
     ) {
-        val configJson = formatConfig?.let { Json.encodeToString(it) }
+        val configJson = formatConfig?.encode() ?: tournament.formatConfigData
 
         val updated = tournament.copy(
             title = title,
@@ -167,10 +172,14 @@ class FirestoreTournamentRepository @Inject constructor(
             durationMinutes = durationMinutes,
             ageGroupRaw = ageGroup.rawValue,
             formatConfigData = configJson,
+            scoringConfigData = scoringConfig?.encode() ?: tournament.scoringConfigData,
+            skillDivision = skillDivision,
         )
+        // Merge writes skip absent keys, so clear a removed division explicitly.
+        val data = updated.toFirestoreMap() + ("skillDivision" to (skillDivision ?: FieldValue.delete()))
 
         collection.document(tournament.id.toString().uppercase())
-            .set(updated.toFirestoreMap(), com.google.firebase.firestore.SetOptions.merge())
+            .set(data, com.google.firebase.firestore.SetOptions.merge())
             .await()
     }
 

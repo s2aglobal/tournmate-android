@@ -1,14 +1,15 @@
 package com.s2aglobal.tournmate.ui.screen.notification
 
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,18 +21,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.outlined.EmojiEvents as EmojiEventsOutlined
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.s2aglobal.tournmate.R
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,11 +63,12 @@ fun NotificationInboxScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Notifications", fontWeight = FontWeight.Bold) },
+            // iOS: inline title, xmark close on the leading edge.
+            CenterAlignedTopAppBar(
+                title = { Text("Notifications", fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.Default.Close, "Close", modifier = Modifier.size(20.dp), tint = SecondaryText)
                     }
                 },
                 actions = {
@@ -75,17 +79,17 @@ fun NotificationInboxScreen(
                         ) {
                             Text(
                                 "Read All",
-                                color = if (state.notifications.any { !it.read }) BrandPurple else Color.Gray,
+                                color = if (state.notifications.any { !it.read }) AppAccent else Color.Gray,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
             )
         },
-        containerColor = Color(0xFFF2F2F7),
+        containerColor = Color.White,
     ) { padding ->
         Box(
             modifier = Modifier
@@ -93,11 +97,15 @@ fun NotificationInboxScreen(
                 .padding(padding),
         ) {
             when {
-                state.isLoading -> {
-                    CircularProgressIndicator(
+                state.isLoading && state.notifications.isEmpty() -> {
+                    Column(
                         modifier = Modifier.align(Alignment.Center),
-                        color = BrandPurple,
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(color = AppAccent)
+                        Text("Loading...", fontSize = 14.sp, color = Color.Gray)
+                    }
                 }
 
                 state.notifications.isEmpty() -> {
@@ -105,21 +113,26 @@ fun NotificationInboxScreen(
                 }
 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(state.notifications, key = { it.id }) { item ->
-                            NotificationRow(
-                                item = item,
-                                onClick = {
-                                    viewModel.markAsRead(item)
-                                    item.tournamentId?.let { onNavigateToTournament(it) }
-                                        ?: item.sessionId?.let { onNavigateToSession(it) }
-                                },
-                                onDelete = { viewModel.delete(item) },
-                            )
+                    // iOS: plain list — full-width rows separated by inset dividers.
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        itemsIndexed(state.notifications, key = { _, item -> item.id }) { index, item ->
+                            if (index > 0) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = Color(0x4D3C3C43),
+                                )
+                            }
+                            SwipeToDeleteRow(onDelete = { viewModel.delete(item) }) {
+                                NotificationRow(
+                                    item = item,
+                                    onClick = {
+                                        viewModel.markAsRead(item)
+                                        item.tournamentId?.let { onNavigateToTournament(it) }
+                                            ?: item.sessionId?.let { onNavigateToSession(it) }
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -128,25 +141,59 @@ fun NotificationInboxScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                true
+            } else false
+        },
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            // Only reveal the red delete action while the row is being swiped.
+            if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFFF3B30))
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Text("Delete", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        },
+    ) { content() }
+}
+
 @Composable
 private fun NotificationRow(
     item: NotificationItem,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     val iconStyle = notificationIconStyle(item.type)
 
-    Surface(
-        onClick = onClick,
+    // Opaque white row (so the swipe background never bleeds through), with the
+    // iOS unread tint as a rounded card inside the 16/12 row insets.
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = if (item.read) Color.White else BrandPurple.copy(alpha = 0.04f),
-        shadowElevation = if (item.read) 0.dp else 1.dp,
+            .background(Color.White)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (item.read) Color.White else AppAccent.copy(alpha = 0.04f))
+                .padding(12.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -157,9 +204,9 @@ private fun NotificationRow(
                     .background(iconStyle.color.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
-                when (iconStyle.useBadmintonAsset) {
+                when (iconStyle.useSportIcon) {
                     true -> Icon(
-                        painter = painterResource(R.drawable.ic_badminton),
+                        painter = sportIconPainter(CurrentSport.sport),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                         tint = iconStyle.color,
@@ -186,8 +233,9 @@ private fun NotificationRow(
                 Text(
                     text = item.body,
                     fontSize = 13.sp,
-                    color = Color.Gray,
-                    maxLines = 3,
+                    color = SecondaryText,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     lineHeight = 18.sp,
                 )
 
@@ -196,7 +244,7 @@ private fun NotificationRow(
                 Text(
                     text = timeAgo(item.createdAt),
                     fontSize = 11.sp,
-                    color = Color.LightGray,
+                    color = TertiaryText,
                 )
             }
 
@@ -206,7 +254,7 @@ private fun NotificationRow(
                         .padding(top = 4.dp)
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(BrandPurple),
+                        .background(AppAccent),
                 )
             }
         }
@@ -236,24 +284,28 @@ private fun EmptyState(modifier: Modifier = Modifier) {
     }
 }
 
+// iOS label colors: .secondary / .tertiary on a light background.
+private val SecondaryText = Color(0x993C3C43)
+private val TertiaryText = Color(0x4D3C3C43)
+
 private data class NotificationIconStyle(
     val icon: ImageVector,
     val color: Color,
-    val useBadmintonAsset: Boolean = false,
+    val useSportIcon: Boolean = false,
 )
 
 private fun notificationIconStyle(type: String): NotificationIconStyle = when (type) {
     "new_registration" -> NotificationIconStyle(Icons.Default.PersonAdd, Color(0xFF4CAF50))
-    "tournament_reminder" -> NotificationIconStyle(Icons.Default.Schedule, Color(0xFFFF9800))
-    "tournament_created" -> NotificationIconStyle(Icons.Default.EmojiEvents, BrandPurple)
+    "tournament_reminder" -> NotificationIconStyle(Icons.Default.Event, Color(0xFFFF9800))
+    "tournament_created" -> NotificationIconStyle(Icons.Outlined.EmojiEventsOutlined, AppAccent)
     "match_finished" -> NotificationIconStyle(Icons.Default.EmojiEvents, Color(0xFFFFC107))
     "tournament_cancelled" -> NotificationIconStyle(Icons.Default.Cancel, Color(0xFFE53935))
-    "session_created" -> NotificationIconStyle(Icons.Default.SportsHandball, Color(0xFF2196F3), useBadmintonAsset = true)
+    "session_created" -> NotificationIconStyle(Icons.Default.SportsHandball, Color(0xFF2196F3), useSportIcon = true)
     "session_joined" -> NotificationIconStyle(Icons.Default.People, Color(0xFF4CAF50))
     "session_left" -> NotificationIconStyle(Icons.Default.PersonRemove, Color(0xFFFF9800))
-    "session_finished" -> NotificationIconStyle(Icons.Default.Flag, Color(0xFF4CAF50))
+    "session_finished" -> NotificationIconStyle(Icons.Default.SportsScore, Color(0xFF4CAF50))
     "player_unregistered" -> NotificationIconStyle(Icons.Default.PersonRemove, Color(0xFFE53935))
-    else -> NotificationIconStyle(Icons.Default.Notifications, BrandPurple)
+    else -> NotificationIconStyle(Icons.Default.Notifications, AppAccent)
 }
 
 private fun timeAgo(date: Date): String {

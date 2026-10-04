@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.s2aglobal.tournmate.data.mapper.toPlaySession
 import com.s2aglobal.tournmate.domain.model.PlaySession
 import com.s2aglobal.tournmate.domain.model.PlaySessionStatus
+import com.s2aglobal.tournmate.domain.model.storedRawValue
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 import javax.inject.Inject
@@ -96,6 +97,6 @@ private fun PlaySession.toFirestoreMap(): Map<String, Any?> = buildMap {
     hostAvatarId?.let { put("hostAvatarId", it) }
     put("createdAt", Timestamp(createdAt))
     timeZone?.let { put("timeZone", it) }
-    put("sportType", sportType.rawValue)
+    put("sportType", sportType.storedRawValue(sportTypeRaw))
     put("attendeeIds", attendeeIds)
 }

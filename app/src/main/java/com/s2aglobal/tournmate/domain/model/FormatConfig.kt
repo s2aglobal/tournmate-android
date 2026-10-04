@@ -1,6 +1,8 @@
 package com.s2aglobal.tournmate.domain.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 enum class SeedingMode(val rawValue: String) {
     ELO_RANKED("eloRanked"),
@@ -39,6 +41,13 @@ data class FormatConfig(
     val teamsPerGroup: Int = 4,
     val advancingPerGroup: Int = 2,
     val groupTieBreaker: String = TieBreaker.HEAD_TO_HEAD.rawValue,
+    /**
+     * 0 (missing/null) = tournament created before tie-breakers were applied:
+     * standings use the legacy order and ignore [tieBreaker]/[groupTieBreaker].
+     * The wizard writes [CURRENT_TIE_BREAK_RULES_VERSION]; Edit keeps whatever is
+     * stored. Same key and Int type as iOS.
+     */
+    val tieBreakRulesVersion: Int = 0,
     val swissRounds: Int = 5,
     val maxParticipants: Int? = null,
 ) {
@@ -52,9 +61,9 @@ data class FormatConfig(
             MatchFormat.DOUBLE_ELIMINATION -> FormatConfig(
                 seedingMode = SeedingMode.ELO_RANKED.rawValue,
                 allowByes = true,
-                consolationBracket = true,
             )
             MatchFormat.ROUND_ROBIN -> FormatConfig(
+                seedingMode = SeedingMode.RANDOM.rawValue,
                 pointsPerWin = 2,
                 pointsPerDraw = 1,
                 pointsPerLoss = 0,
@@ -70,7 +79,56 @@ data class FormatConfig(
             MatchFormat.SWISS -> FormatConfig(
                 swissRounds = 5,
             )
-            MatchFormat.MANUAL_DRAW -> FormatConfig()
+            MatchFormat.MANUAL_DRAW -> FormatConfig(seedingMode = SeedingMode.MANUAL.rawValue)
         }
+
+        /**
+         * Tie-breaker for a tournament whose stored config has no tie-breaker (or
+         * no config at all). Standings ignored the setting until it was wired up,
+         * ordering ties by the sport's score difference; POINT_DIFF reproduces
+         * exactly that. New tournaments still default to HEAD_TO_HEAD, which every
+         * client writes explicitly. Mirrors iOS `FormatConfig.legacyTieBreaker`.
+         */
+        val LEGACY_TIE_BREAKER = TieBreaker.POINT_DIFF
+
+        /** Version the creation wizard writes ([tieBreakRulesVersion]). */
+        const val CURRENT_TIE_BREAK_RULES_VERSION = 1
+
+        fun decodeOrNull(json: String?): FormatConfig? {
+            if (json.isNullOrBlank()) return null
+            return try {
+                val obj = parseConfigObject(json)
+                ConfigJson.decodeFromJsonElement(serializer(), obj).copy(
+                    tieBreaker = storedTieBreaker(obj, "tieBreaker"),
+                    groupTieBreaker = storedTieBreaker(obj, "groupTieBreaker"),
+                )
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        /** The stored tie-breaker when present and known, else [LEGACY_TIE_BREAKER] (iOS decodes the same way). */
+        private fun storedTieBreaker(obj: JsonObject, key: String): String {
+            val raw = (obj[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+            return TieBreaker.entries.firstOrNull { it.rawValue == raw }?.rawValue ?: LEGACY_TIE_BREAKER.rawValue
+        }
+
+        /** Config used when a tournament has no readable config. Mirrors iOS `FormatConfig.fallback`. */
+        fun fallback(matchFormat: MatchFormat): FormatConfig =
+            defaults(matchFormat).copy(tieBreaker = LEGACY_TIE_BREAKER.rawValue, groupTieBreaker = LEGACY_TIE_BREAKER.rawValue)
+
+        /** Decodes leniently, falling back to the match format's defaults. */
+        fun decode(json: String?, matchFormat: MatchFormat): FormatConfig =
+            decodeOrNull(json) ?: fallback(matchFormat)
     }
+
+    /** Tie-breaker standings actually apply to the round-robin table (iOS `effectiveTieBreaker`). */
+    val effectiveTieBreaker: TieBreaker
+        get() = if (tieBreakRulesVersion >= 1) TieBreaker.fromRawValue(tieBreaker) else LEGACY_TIE_BREAKER
+
+    /** Same as [effectiveTieBreaker], for Group + Knockout group tables. */
+    val effectiveGroupTieBreaker: TieBreaker
+        get() = if (tieBreakRulesVersion >= 1) TieBreaker.fromRawValue(groupTieBreaker) else LEGACY_TIE_BREAKER
+
+    fun encode(): String = ConfigJson.encodeToString(serializer(), this)
 }

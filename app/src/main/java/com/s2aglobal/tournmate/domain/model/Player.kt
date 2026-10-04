@@ -12,6 +12,8 @@ data class Player(
     val createdAt: Date = Date(),
     val eloRatings: Map<String, Double> = mapOf("badminton" to 1200.0),
     val preferredSport: SportType = SportType.BADMINTON,
+    /** Original id when [preferredSport] is the GENERIC stand-in for a sport this build doesn't know; written back on save. */
+    val preferredSportRaw: String? = null,
     val streak: Int = 0,
     val firebaseUid: String? = null,
     val avatarId: String = PlayerAvatar.DEFAULT.id,
@@ -20,6 +22,10 @@ data class Player(
     val fcmToken: String? = null,
     val weightKg: Double? = null,
     val dateOfBirth: Date? = null,
+    /** Dominant hand from profile setup ("left" / "right"); null if never set. */
+    val playingHand: String? = null,
+    /** Self-reported level from profile setup ("beginner" / "intermediate" / "advanced" / "pro"). */
+    val skillLevel: String? = null,
 ) {
     val gender: Gender
         get() = Gender.fromRawValue(genderRaw)

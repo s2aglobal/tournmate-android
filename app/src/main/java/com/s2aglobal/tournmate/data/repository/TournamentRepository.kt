@@ -30,6 +30,8 @@ interface TournamentRepository {
         durationMinutes: Int?,
         ageGroup: AgeGroup,
         sportType: SportType,
+        scoringConfig: ScoringConfig? = null,
+        skillDivision: String? = null,
     )
     suspend fun updateTournament(
         tournament: Tournament,
@@ -52,6 +54,8 @@ interface TournamentRepository {
         prizeInfo: String?,
         durationMinutes: Int?,
         ageGroup: AgeGroup,
+        scoringConfig: ScoringConfig? = null,
+        skillDivision: String? = null,
     )
     suspend fun cancelTournament(tournament: Tournament)
     suspend fun deleteTournament(tournament: Tournament)

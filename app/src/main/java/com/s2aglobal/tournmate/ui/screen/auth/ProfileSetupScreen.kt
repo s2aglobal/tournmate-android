@@ -1,8 +1,12 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
+import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -12,11 +16,14 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,36 +31,40 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.SportsMartialArts
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.PanToolAlt
+import androidx.compose.material.icons.filled.SportsBasketball
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -61,31 +72,52 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.domain.model.Gender
 import com.s2aglobal.tournmate.domain.model.HomeRegionCountry
 import com.s2aglobal.tournmate.domain.model.PlayerAvatar
 import com.s2aglobal.tournmate.domain.model.SportType
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.service.region.RegionNormalizer
+import com.s2aglobal.tournmate.ui.component.BottomSheetPicker
+import com.s2aglobal.tournmate.ui.component.SportChangeRow
+import com.s2aglobal.tournmate.ui.component.SportPickerSheet
+import com.s2aglobal.tournmate.ui.component.TrophySpinner
+import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.ui.theme.DarkNavy
+import com.s2aglobal.tournmate.ui.theme.TournmatePurple
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+
+private val SystemGray6 = Color(0xFFF2F2F7)
+private const val MINIMUM_AGE = 13
 
 private enum class PlayingHand(val displayName: String) {
     LEFT("LEFT HANDED"),
@@ -97,513 +129,597 @@ private enum class ProfileSkillLevel(
     val subtitle: String,
     val icon: ImageVector,
 ) {
-    BEGINNER("BEGINNER", "Just starting out, learning the basics.", Icons.Default.FlashOn),
-    INTERMEDIATE("INTERMEDIATE", "Can rally and understand basic tactics.", Icons.Default.SportsMartialArts),
-    ADVANCED("ADVANCED", "Tournament regular, consistent shots.", Icons.Default.Star),
-    PRO("PRO", "National level player or high-rank.", Icons.Default.VerifiedUser),
+    BEGINNER("BEGINNER", "Just starting out, learning the basics.", Icons.Filled.Bolt),
+    INTERMEDIATE("INTERMEDIATE", "Can rally and understand basic tactics.", Icons.Filled.SportsBasketball),
+    ADVANCED("ADVANCED", "Tournament regular, consistent shots.", Icons.Outlined.EmojiEvents),
+    PRO("PRO", "National level player or high-rank.", Icons.Filled.Verified),
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun ageInYears(dob: Date): Int {
+    val birth = Calendar.getInstance().apply { time = dob }
+    val now = Calendar.getInstance()
+    var age = now.get(Calendar.YEAR) - birth.get(Calendar.YEAR)
+    val beforeBirthday = now.get(Calendar.MONTH) < birth.get(Calendar.MONTH) ||
+        (now.get(Calendar.MONTH) == birth.get(Calendar.MONTH) && now.get(Calendar.DAY_OF_MONTH) < birth.get(Calendar.DAY_OF_MONTH))
+    if (beforeBirthday) age -= 1
+    return age
+}
+
 @Composable
 fun ProfileSetupScreen(
     viewModel: ProfileSetupViewModel = hiltViewModel(),
-    initialName: String = "",
-    onBack: () -> Unit = {},
+    onSignOut: () -> Unit,
     onComplete: () -> Unit,
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var step by remember { mutableIntStateOf(1) }
-    var name by remember { mutableStateOf(initialName) }
+    var showSuccess by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    var nameLoaded by remember { mutableStateOf(false) }
     var selectedGender by remember { mutableStateOf<Gender?>(null) }
     var selectedDateOfBirth by remember { mutableStateOf<Date?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
-    var selectedSport by remember { mutableStateOf(SportType.BADMINTON) }
-    var selectedAvatar by remember { mutableStateOf(PlayerAvatar.DEFAULT) }
+    var selectedSport by remember { mutableStateOf(CurrentSport.sport) }
+    var selectedAvatar by remember { mutableStateOf(PlayerAvatar.SHUTTLECOCK) }
     var selectedCountry by remember { mutableStateOf(HomeRegionCountry.fallback) }
     var postalCode by remember { mutableStateOf("") }
-    var countryMenuExpanded by remember { mutableStateOf(false) }
+    var showCountryPicker by remember { mutableStateOf(false) }
     var playingHand by remember { mutableStateOf(PlayingHand.RIGHT) }
     var skillLevel by remember { mutableStateOf(ProfileSkillLevel.INTERMEDIATE) }
 
-    AnimatedContent(
-        targetState = step,
-        transitionSpec = {
-            if (targetState > initialState) {
-                slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
-            } else {
-                slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
-            }
-        },
-        label = "profileStep",
-    ) { currentStep ->
-        when (currentStep) {
-            1 -> ProfileInfoStep(
-                name = name,
-                onNameChange = { name = it },
-                selectedGender = selectedGender,
-                onGenderChange = { selectedGender = it },
-                selectedDateOfBirth = selectedDateOfBirth,
-                onDateOfBirthChange = { selectedDateOfBirth = it },
-                showDatePicker = showDatePicker,
-                onShowDatePicker = { showDatePicker = it },
-                selectedSport = selectedSport,
-                onSportChange = { selectedSport = it },
-                selectedAvatar = selectedAvatar,
-                onAvatarChange = { selectedAvatar = it },
-                selectedCountry = selectedCountry,
-                onCountryChange = { selectedCountry = it },
-                countryMenuExpanded = countryMenuExpanded,
-                onCountryMenuToggle = { countryMenuExpanded = it },
-                postalCode = postalCode,
-                onPostalCodeChange = { postalCode = it },
-                onBack = onBack,
-                onNext = { step = 2 },
-                isNextEnabled = name.length >= 2,
-            )
-            2 -> PlayingHandStep(
-                selectedHand = playingHand,
-                onHandChange = { playingHand = it },
-                onBack = { step = 1 },
-                onNext = { step = 3 },
-            )
-            3 -> SkillLevelStep(
-                selectedLevel = skillLevel,
-                onLevelChange = { skillLevel = it },
-                onBack = { step = 2 },
-                onCreateProfile = {
-                    viewModel.saveProfile(
-                        name = name,
-                        gender = selectedGender ?: Gender.PREFER_NOT_TO_SAY,
-                        avatarId = selectedAvatar.id,
-                        homeCountryCode = selectedCountry.code,
-                        homePostalCode = postalCode.ifBlank { null },
-                        dateOfBirth = selectedDateOfBirth,
-                        preferredSport = selectedSport,
-                        onComplete = { step = 4 },
-                    )
-                },
-            )
-            4 -> AllSetScreen(onContinue = onComplete)
+    LaunchedEffect(uiState.defaultName) {
+        val defaultName = uiState.defaultName
+        if (!nameLoaded && defaultName != null) {
+            nameLoaded = true
+            if (name.isEmpty()) name = defaultName
         }
+    }
+
+    val isUnderAge = selectedDateOfBirth?.let { ageInYears(it) < MINIMUM_AGE } ?: false
+    val isFormValid = run {
+        val nameOk = name.isNotBlank()
+        val countryOk = RegionNormalizer.normalizeCountryCode(selectedCountry.code) != null
+        val postalOk = postalCode.isBlank() ||
+            RegionNormalizer.validateHomePostalForCountry(selectedCountry.code, postalCode) == null
+        nameOk && countryOk && postalOk && selectedDateOfBirth != null && !isUnderAge
+    }
+
+    val goBack = { if (step > 1) step -= 1 else onSignOut() }
+    BackHandler(enabled = !showSuccess) { goBack() }
+
+    Crossfade(targetState = showSuccess, animationSpec = tween(400), label = "profileSuccess") { success ->
+        if (success) {
+            AllSetScreen(onContinue = onComplete)
+            return@Crossfade
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            AuthBackButton(
+                onClick = goBack,
+                modifier = Modifier.padding(top = 16.dp).padding(horizontal = 24.dp),
+            )
+
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
+                modifier = Modifier.weight(1f),
+                label = "profileStep",
+            ) { currentStep ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp),
+                ) {
+                    when (currentStep) {
+                        1 -> ProfileInfoStep(
+                            name = name,
+                            onNameChange = { name = it },
+                            selectedGender = selectedGender,
+                            onGenderToggle = { selectedGender = if (selectedGender == it) null else it },
+                            selectedDateOfBirth = selectedDateOfBirth,
+                            isUnderAge = isUnderAge,
+                            onShowDatePicker = { showDatePicker = true },
+                            selectedSport = selectedSport,
+                            onSportChange = { selectedSport = it },
+                            selectedAvatar = selectedAvatar,
+                            onAvatarChange = { selectedAvatar = it },
+                            selectedCountry = selectedCountry,
+                            onShowCountryPicker = { showCountryPicker = true },
+                            postalCode = postalCode,
+                            onPostalCodeChange = { postalCode = it },
+                        )
+                        2 -> PlayingHandStep(selectedHand = playingHand, onHandChange = { playingHand = it })
+                        3 -> SkillLevelStep(selectedLevel = skillLevel, onLevelChange = { skillLevel = it })
+                    }
+                }
+            }
+
+            if (uiState.error != null) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .fillMaxWidth()
+                        .background(Color.Red.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.Warning, null, tint = Color.Red, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(uiState.error.orEmpty(), fontSize = 12.sp, color = Color.Red)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            if (step < 3) {
+                val enabled = step != 1 || isFormValid
+                PrimaryPillButton(
+                    onClick = { step += 1 },
+                    enabled = enabled,
+                    modifier = Modifier.alpha(if (enabled) 1f else 0.4f),
+                ) {
+                    Text("NEXT STEP", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.ChevronRight, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                }
+            } else {
+                PrimaryPillButton(
+                    onClick = {
+                        viewModel.saveProfile(
+                            name = name,
+                            gender = selectedGender ?: Gender.PREFER_NOT_TO_SAY,
+                            avatarId = selectedAvatar.id,
+                            homeCountryCode = selectedCountry.code,
+                            homePostalRaw = postalCode,
+                            dateOfBirth = selectedDateOfBirth,
+                            preferredSport = selectedSport,
+                            playingHand = playingHand.name.lowercase(),
+                            skillLevel = skillLevel.name.lowercase(),
+                            onComplete = { showSuccess = true },
+                        )
+                    },
+                    enabled = !uiState.isSaving,
+                ) {
+                    Text("CREATE PROFILE", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    if (uiState.isSaving) {
+                        TrophySpinner(size = 18.dp, style = TrophySpinnerStyle.INLINE)
+                    } else {
+                        Icon(Icons.Outlined.CheckCircle, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDatePicker) {
+        DateOfBirthPicker(
+            initial = selectedDateOfBirth,
+            onConfirm = { selectedDateOfBirth = it; showDatePicker = false },
+            onDismiss = { showDatePicker = false },
+        )
+    }
+
+    if (showCountryPicker) {
+        BottomSheetPicker(
+            title = "HOME COUNTRY",
+            items = HomeRegionCountry.pickerOptions,
+            selectedItem = selectedCountry,
+            onItemSelected = { selectedCountry = it; showCountryPicker = false },
+            onDismiss = { showCountryPicker = false },
+            itemLabel = { it.name },
+            itemSubtitle = { it.code },
+            searchable = true,
+            searchFilter = { item, query ->
+                item.name.contains(query, ignoreCase = true) || item.code.contains(query, ignoreCase = true)
+            },
+        )
     }
 }
 
 // ── Step 1: Profile Info ─────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProfileInfoStep(
+private fun ColumnScope.ProfileInfoStep(
     name: String,
     onNameChange: (String) -> Unit,
     selectedGender: Gender?,
-    onGenderChange: (Gender) -> Unit,
+    onGenderToggle: (Gender) -> Unit,
     selectedDateOfBirth: Date?,
-    onDateOfBirthChange: (Date) -> Unit,
-    showDatePicker: Boolean,
-    onShowDatePicker: (Boolean) -> Unit,
+    isUnderAge: Boolean,
+    onShowDatePicker: () -> Unit,
     selectedSport: SportType,
     onSportChange: (SportType) -> Unit,
     selectedAvatar: PlayerAvatar,
     onAvatarChange: (PlayerAvatar) -> Unit,
     selectedCountry: HomeRegionCountry,
-    onCountryChange: (HomeRegionCountry) -> Unit,
-    countryMenuExpanded: Boolean,
-    onCountryMenuToggle: (Boolean) -> Unit,
+    onShowCountryPicker: () -> Unit,
     postalCode: String,
     onPostalCodeChange: (String) -> Unit,
-    onBack: () -> Unit,
-    onNext: () -> Unit,
-    isNextEnabled: Boolean,
 ) {
-    val sportOptions = listOf(SportType.BADMINTON, SportType.PICKLEBALL, SportType.TENNIS)
+    StepHeader("Set Up\nYour Profile", "Tell us a bit about yourself.")
+    Spacer(Modifier.height(24.dp))
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .statusBarsPadding(),
-    ) {
-        IconButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-        }
+    SectionLabel("FULL NAME")
+    Spacer(Modifier.height(8.dp))
+    FilledTextField(
+        value = name,
+        onValueChange = onNameChange,
+        placeholder = "John Doe",
+        icon = Icons.Outlined.Person,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+    )
+    Spacer(Modifier.height(24.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
-        ) {
-            Text("Create\nAccount", fontSize = 34.sp, fontWeight = FontWeight.Bold, lineHeight = 40.sp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Sign up to start your pro journey.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-            Spacer(modifier = Modifier.height(28.dp))
-
-            SectionLabel("FULL NAME")
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = name, onValueChange = onNameChange,
-                placeholder = { Text("Enter your name") },
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                leadingIcon = { Icon(Icons.Default.Person, null, tint = Color.Gray) },
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray, focusedBorderColor = BrandPurple),
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionLabel("GENDER (OPTIONAL)")
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                GenderButton("MALE", selectedGender == Gender.MALE, { onGenderChange(Gender.MALE) }, Modifier.weight(1f))
-                GenderButton("FEMALE", selectedGender == Gender.FEMALE, { onGenderChange(Gender.FEMALE) }, Modifier.weight(1f))
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionLabel("DATE OF BIRTH")
-            Spacer(modifier = Modifier.height(8.dp))
-            Surface(
-                modifier = Modifier.fillMaxWidth().clickable { onShowDatePicker(true) },
-                shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, Color.LightGray),
+    SectionLabel("GENDER", optional = true)
+    Spacer(Modifier.height(8.dp))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(Gender.MALE to "MALE", Gender.FEMALE to "FEMALE").forEach { (g, label) ->
+            val selected = selectedGender == g
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(if (selected) Color.Black else SystemGray6)
+                    .clickable { onGenderToggle(g) },
+                contentAlignment = Alignment.Center,
             ) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CalendarMonth, null, tint = Color.Gray)
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = selectedDateOfBirth?.let { formatDate(it) } ?: "Select your date of birth",
-                        color = if (selectedDateOfBirth != null) Color.Black else Color.Gray,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color.Gray)
-                }
+                Text(
+                    label, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp,
+                    color = if (selected) Color.White else Color.Black,
+                )
             }
-            Text("Required for age verification and tournament eligibility.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionLabel("Your Sport")
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                sportOptions.forEach { sport ->
-                    SportCard(sport, selectedSport == sport, { onSportChange(sport) }, Modifier.weight(1f))
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionLabel("AVATAR")
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                PlayerAvatar.selectable.forEach { avatar ->
-                    val isSelected = avatar == selectedAvatar
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current).data(avatar.avatarUrl(64)).crossfade(true).build(),
-                            contentDescription = avatar.displayName,
-                            modifier = Modifier.size(52.dp).clip(CircleShape)
-                                .then(if (isSelected) Modifier.border(3.dp, BrandPurple, CircleShape) else Modifier.border(1.dp, Color.LightGray, CircleShape))
-                                .clickable { onAvatarChange(avatar) },
-                            contentScale = ContentScale.Crop,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(avatar.displayName, style = MaterialTheme.typography.labelSmall, color = if (isSelected) BrandPurple else Color.Gray)
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionLabel("HOME COUNTRY")
-            Spacer(modifier = Modifier.height(8.dp))
-            Box {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().clickable { onCountryMenuToggle(true) },
-                    shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, Color.LightGray),
-                ) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("\uD83C\uDF10", fontSize = 20.sp)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(selectedCountry.name, fontWeight = FontWeight.Medium)
-                            Text(selectedCountry.code, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                        }
-                        Text("\u25BE", fontSize = 16.sp, color = Color.Gray)
-                    }
-                }
-                DropdownMenu(expanded = countryMenuExpanded, onDismissRequest = { onCountryMenuToggle(false) }) {
-                    HomeRegionCountry.pickerOptions.forEach { country ->
-                        DropdownMenuItem(
-                            text = { Text("${country.name} (${country.code})") },
-                            onClick = { onCountryChange(country); onCountryMenuToggle(false) },
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionLabel("POSTAL / ZIP (OPTIONAL)")
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = postalCode, onValueChange = onPostalCodeChange,
-                placeholder = { Text("75201") },
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray, focusedBorderColor = BrandPurple),
-            )
-            Text(
-                "You'll see tournaments in your country. Postal / ZIP must match that country's format (e.g. 5-digit US ZIP, 6-digit India PIN).",
-                style = MaterialTheme.typography.bodySmall, color = Color.Gray,
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Button(
-                onClick = onNext, modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
-                enabled = isNextEnabled,
-            ) {
-                Text("NEXT STEP  \u203A", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-            }
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
+    Spacer(Modifier.height(24.dp))
 
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = selectedDateOfBirth?.time
-                ?: Calendar.getInstance().apply { add(Calendar.YEAR, -20) }.timeInMillis,
+    SectionLabel("DATE OF BIRTH")
+    Spacer(Modifier.height(8.dp))
+    FilledRow(onClick = onShowDatePicker) {
+        Icon(Icons.Outlined.CalendarMonth, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = selectedDateOfBirth?.let { formatDate(it) } ?: "Select your date of birth",
+            fontSize = 15.sp,
+            color = if (selectedDateOfBirth != null) Color.Black else Color.Gray,
+            modifier = Modifier.weight(1f),
         )
-        DatePickerDialog(
-            onDismissRequest = { onShowDatePicker(false) },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                        cal.timeInMillis = millis
-                        val localCal = Calendar.getInstance()
-                        localCal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
-                        localCal.set(Calendar.MILLISECOND, 0)
-                        onDateOfBirthChange(localCal.time)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+    }
+    Spacer(Modifier.height(8.dp))
+    if (isUnderAge) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Warning, null, tint = Color.Red, modifier = Modifier.size(12.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("You must be at least $MINIMUM_AGE years old to use TournMate.", fontSize = 12.sp, color = Color.Red)
+        }
+    } else {
+        Text("Required for age verification and tournament eligibility.", fontSize = 12.sp, color = Color.Gray)
+    }
+    Spacer(Modifier.height(24.dp))
+
+    SectionLabel("YOUR SPORT")
+    Spacer(Modifier.height(12.dp))
+    // Local selection only; saved with the profile as before.
+    var showSportPicker by remember { mutableStateOf(false) }
+    SportChangeRow(selectedSport) { showSportPicker = true }
+    if (showSportPicker) {
+        SportPickerSheet(current = selectedSport, onSelect = onSportChange, onDismiss = { showSportPicker = false })
+    }
+    Spacer(Modifier.height(24.dp))
+
+    SectionLabel("AVATAR")
+    Spacer(Modifier.height(8.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SystemGray6, RoundedCornerShape(14.dp))
+            .padding(10.dp)
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        PlayerAvatar.selectable.forEach { avatar ->
+            val isSelected = avatar == selectedAvatar
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onAvatarChange(avatar) },
+            ) {
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current).data(avatar.avatarUrl(64)).crossfade(true).build(),
+                        contentDescription = avatar.displayName,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .then(if (isSelected) Modifier.border(2.dp, TournmatePurple, CircleShape) else Modifier),
+                        contentScale = ContentScale.Crop,
+                    )
+                    if (isSelected) {
+                        Box(
+                            Modifier
+                                .offset(x = 2.dp, y = 2.dp)
+                                .size(18.dp)
+                                .background(TournmatePurple, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                        }
                     }
-                    onShowDatePicker(false)
-                }) { Text("OK") }
+                }
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    avatar.displayName,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isSelected) TournmatePurple else Color.Gray,
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(24.dp))
+
+    SectionLabel("HOME COUNTRY")
+    Spacer(Modifier.height(8.dp))
+    FilledRow(onClick = onShowCountryPicker) {
+        Icon(Icons.Outlined.Public, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(selectedCountry.name, fontSize = 15.sp, color = Color.Black)
+            Text(selectedCountry.code, fontSize = 11.sp, color = Color.Gray)
+        }
+        Icon(Icons.Filled.KeyboardArrowDown, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+    }
+    Spacer(Modifier.height(24.dp))
+
+    SectionLabel("POSTAL / ZIP", optional = true)
+    Spacer(Modifier.height(8.dp))
+    FilledTextField(
+        value = postalCode,
+        onValueChange = onPostalCodeChange,
+        placeholder = "75201",
+        icon = Icons.Outlined.LocationOn,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
+    )
+    Spacer(Modifier.height(24.dp))
+
+    Text(
+        "You’ll see tournaments in your country. Postal / ZIP must match that country’s format (e.g. 5-digit US ZIP, 6-digit India PIN).",
+        fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp,
+    )
+    Spacer(Modifier.height(24.dp))
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateOfBirthPicker(initial: Date?, onConfirm: (Date) -> Unit, onDismiss: () -> Unit) {
+    val maxMillis = remember {
+        Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { add(Calendar.YEAR, -5) }.timeInMillis
+    }
+    val draftMillis = remember(initial) {
+        initial?.let {
+            val local = Calendar.getInstance().apply { time = it }
+            Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                clear()
+                set(local.get(Calendar.YEAR), local.get(Calendar.MONTH), local.get(Calendar.DAY_OF_MONTH))
+            }.timeInMillis
+        } ?: Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { add(Calendar.YEAR, -18) }.timeInMillis
+    }
+    val maxYear = remember { Calendar.getInstance().get(Calendar.YEAR) - 5 }
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = draftMillis,
+        yearRange = 1900..maxYear,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= maxMillis
+            override fun isSelectableYear(year: Int) = year <= maxYear
+        },
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { millis ->
+                    val utc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = millis }
+                    val local = Calendar.getInstance().apply {
+                        clear()
+                        set(utc.get(Calendar.YEAR), utc.get(Calendar.MONTH), utc.get(Calendar.DAY_OF_MONTH))
+                    }
+                    onConfirm(local.time)
+                } ?: onDismiss()
+            }) {
+                Text("CONFIRM", fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = TournmatePurple)
+            }
+        },
+    ) {
+        DatePicker(
+            state = state,
+            title = {
+                Text(
+                    "DATE OF BIRTH",
+                    fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
+                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp),
+                )
             },
-            dismissButton = { TextButton(onClick = { onShowDatePicker(false) }) { Text("Cancel") } },
-        ) { DatePicker(state = datePickerState) }
+        )
     }
 }
 
 // ── Step 2: Playing Hand ─────────────────────────────────────────────────────
 
 @Composable
-private fun PlayingHandStep(
-    selectedHand: PlayingHand,
-    onHandChange: (PlayingHand) -> Unit,
-    onBack: () -> Unit,
-    onNext: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().background(Color.White).statusBarsPadding(),
-    ) {
-        IconButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-        }
+private fun PlayingHandStep(selectedHand: PlayingHand, onHandChange: (PlayingHand) -> Unit) {
+    StepHeader("Which is your\nplaying hand?", "This helps us match you for doubles.")
+    Spacer(Modifier.height(32.dp))
 
-        Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Which is your\nplaying hand?", fontSize = 30.sp, fontWeight = FontWeight.Bold, lineHeight = 36.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("This helps us match you for doubles.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                PlayingHand.entries.forEach { hand ->
-                    val isSelected = hand == selectedHand
-                    Surface(
-                        modifier = Modifier.weight(1f).clickable { onHandChange(hand) },
-                        shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) BrandPurple else Color.LightGray),
-                        color = Color.White,
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        PlayingHand.entries.forEach { hand ->
+            val isSelected = hand == selectedHand
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable { onHandChange(hand) },
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(
+                    if (isSelected) 2.dp else 1.dp,
+                    if (isSelected) TournmatePurple else Color.Gray.copy(alpha = 0.12f),
+                ),
+                color = Color.White,
+            ) {
+                Column(
+                    modifier = Modifier.padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier
+                            .size(64.dp)
+                            .background(
+                                if (isSelected) TournmatePurple.copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.06f),
+                                RoundedCornerShape(16.dp),
+                            ),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(64.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                color = if (isSelected) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = if (hand == PlayingHand.LEFT) "\uD83E\uDD1A" else "\uD83D\uDC49",
-                                        fontSize = 28.sp,
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                hand.displayName,
-                                fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                color = if (isSelected) BrandPurple else Color.Gray,
-                            )
-                        }
+                        // Index-finger hand rotated to point sideways; mirrored for the left hand.
+                        Icon(
+                            Icons.Filled.PanToolAlt, null,
+                            tint = if (isSelected) TournmatePurple else Color.Gray.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .size(30.dp)
+                                .scale(scaleX = if (hand == PlayingHand.LEFT) -1f else 1f, scaleY = 1f)
+                                .rotate(90f),
+                        )
                     }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        hand.displayName,
+                        fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
+                        color = if (isSelected) TournmatePurple else Color.Gray,
+                    )
                 }
             }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                onClick = onNext, modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
-            ) {
-                Text("NEXT STEP  \u203A", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-            }
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
+    Spacer(Modifier.height(24.dp))
 }
 
 // ── Step 3: Skill Level ──────────────────────────────────────────────────────
 
 @Composable
-private fun SkillLevelStep(
-    selectedLevel: ProfileSkillLevel,
-    onLevelChange: (ProfileSkillLevel) -> Unit,
-    onBack: () -> Unit,
-    onCreateProfile: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().background(Color.White).statusBarsPadding(),
-    ) {
-        IconButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-        }
+private fun SkillLevelStep(selectedLevel: ProfileSkillLevel, onLevelChange: (ProfileSkillLevel) -> Unit) {
+    StepHeader("What's your\nskill level?", "Be honest! It ensures fair matches.")
+    Spacer(Modifier.height(24.dp))
 
-        Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("What's your\nskill level?", fontSize = 30.sp, fontWeight = FontWeight.Bold, lineHeight = 36.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Be honest! It ensures fair matches.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-            Spacer(modifier = Modifier.height(32.dp))
-
-            ProfileSkillLevel.entries.forEach { level ->
-                val isSelected = level == selectedLevel
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .clickable { onLevelChange(level) },
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) BrandPurple else Color.LightGray),
-                    color = Color.White,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ProfileSkillLevel.entries.forEach { level ->
+            val isSelected = level == selectedLevel
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onLevelChange(level) },
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(
+                    if (isSelected) 2.dp else 1.dp,
+                    if (isSelected) TournmatePurple else Color.Gray.copy(alpha = 0.1f),
+                ),
+                color = Color.White,
+            ) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                if (isSelected) TournmatePurple.copy(alpha = 0.15f) else Color.Gray.copy(alpha = 0.06f),
+                                RoundedCornerShape(12.dp),
+                            ),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Surface(
-                            modifier = Modifier.size(44.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(level.icon, null, tint = if (isSelected) BrandPurple else Color.Gray, modifier = Modifier.size(22.dp))
-                            }
-                        }
-                        Spacer(Modifier.width(16.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(level.displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text(level.subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                        }
-                        if (isSelected) {
-                            Icon(Icons.Default.CheckCircle, null, tint = BrandPurple, modifier = Modifier.size(24.dp))
-                        }
+                        Icon(
+                            level.icon, null,
+                            tint = if (isSelected) TournmatePurple else Color.Gray.copy(alpha = 0.5f),
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            level.displayName, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp,
+                            color = if (isSelected) TournmatePurple else Color.Black,
+                        )
+                        Text(level.subtitle, fontSize = 12.sp, color = Color.Gray, maxLines = 2)
+                    }
+                    if (isSelected) {
+                        Icon(Icons.Filled.CheckCircle, null, tint = TournmatePurple, modifier = Modifier.size(22.dp))
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                onClick = onCreateProfile, modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
-            ) {
-                Text("CREATE PROFILE  \u2714", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-            }
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
+    Spacer(Modifier.height(24.dp))
 }
 
 // ── Success: You're All Set! ─────────────────────────────────────────────────
 
 @Composable
 private fun AllSetScreen(onContinue: () -> Unit) {
-    Box(
+    LightSystemBarIcons()
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1A0533), Color(0xFF4A148C)),
-                )
-            ),
-        contentAlignment = Alignment.Center,
+            .background(Brush.verticalGradient(listOf(TournmatePurple, DarkNavy)))
+            .statusBarsPadding()
+            .navigationBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 32.dp),
+        Spacer(Modifier.weight(1f))
+
+        Box(
+            Modifier
+                .size(88.dp)
+                .shadow(24.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.15f), spotColor = Color.Black.copy(alpha = 0.15f))
+                .background(Color.White, RoundedCornerShape(24.dp)),
+            contentAlignment = Alignment.Center,
         ) {
-            Surface(
-                modifier = Modifier.size(80.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = Color.White,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(44.dp),
-                        tint = BrandPurple,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
-            Text(
-                "You're All Set!",
-                fontSize = 32.sp, fontWeight = FontWeight.Bold,
-                color = Color.White, textAlign = TextAlign.Center,
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                "Welcome to the court,\nChampion. Your profile has\nbeen created successfully.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center,
-                lineHeight = 24.sp,
-            )
+            Icon(Icons.Outlined.CheckCircle, null, tint = TournmatePurple, modifier = Modifier.size(44.dp))
         }
+
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "You're All Set!",
+            fontSize = 36.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic,
+            color = Color.White, textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(24.dp))
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = Color.White.copy(alpha = 0.85f))) { append("Welcome to the court,\n") }
+                withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)) { append("Champion") }
+                withStyle(SpanStyle(color = Color.White.copy(alpha = 0.85f))) { append(". Your profile has\nbeen created successfully.") }
+            },
+            fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 32.dp),
+        )
+
+        Spacer(Modifier.weight(1f))
 
         Button(
             onClick = onContinue,
             modifier = Modifier
-                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 32.dp, vertical = 48.dp)
-                .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
+                .padding(horizontal = 32.dp)
+                .padding(bottom = 50.dp)
+                .height(58.dp),
+            shape = RoundedCornerShape(29.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.White),
         ) {
-            Text("GO TO DASHBOARD", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
+            Text("GO TO DASHBOARD", fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = 1.5.sp, color = Color.Black)
         }
     }
 }
@@ -611,48 +727,86 @@ private fun AllSetScreen(onContinue: () -> Unit) {
 // ── Shared Components ────────────────────────────────────────────────────────
 
 @Composable
-private fun SectionLabel(text: String) {
-    Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray, letterSpacing = 0.5.sp)
+private fun StepHeader(title: String, subtitle: String) {
+    Spacer(Modifier.height(20.dp))
+    Text(title, fontSize = 34.sp, fontWeight = FontWeight.Bold, lineHeight = 40.sp, color = Color.Black)
+    Spacer(Modifier.height(10.dp))
+    Text(subtitle, fontSize = 16.sp, color = Color.Gray)
 }
 
 @Composable
-private fun GenderButton(label: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedButton(
-        onClick = onClick, modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = if (isSelected) BrandPurple.copy(alpha = 0.08f) else Color.Transparent,
-            contentColor = if (isSelected) BrandPurple else Color.DarkGray,
-        ),
-        border = BorderStroke(1.dp, if (isSelected) BrandPurple else Color.LightGray),
-    ) {
-        Text(label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, fontSize = 14.sp)
-    }
-}
-
-@Composable
-private fun SportCard(sport: SportType, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val iconRes = when (sport) {
-        SportType.BADMINTON -> R.drawable.ic_badminton
-        SportType.PICKLEBALL -> R.drawable.ic_figure_badminton
-        SportType.TENNIS -> R.drawable.ic_sportscourt
-        else -> R.drawable.ic_badminton
-    }
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) BrandPurple else Color.LightGray),
-        color = if (isSelected) BrandPurple.copy(alpha = 0.05f) else Color.White,
-    ) {
-        Column(Modifier.padding(vertical = 16.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(painterResource(id = iconRes), sport.displayName, Modifier.size(32.dp), tint = if (isSelected) BrandPurple else Color.Gray)
-            Spacer(Modifier.height(8.dp))
-            Text(sport.displayName, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) BrandPurple else Color.DarkGray)
+private fun SectionLabel(text: String, optional: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.Black)
+        if (optional) {
+            Spacer(Modifier.width(4.dp))
+            Text("(OPTIONAL)", fontSize = 9.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp, color = Color.Gray)
         }
     }
 }
 
-private fun formatDate(date: Date): String {
-    val sdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-    return sdf.format(date)
+@Composable
+private fun FilledRow(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(SystemGray6)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) { content() }
 }
+
+@Composable
+private fun FilledTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    icon: ImageVector,
+    keyboardOptions: KeyboardOptions,
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text(placeholder, color = Color.Gray, fontSize = 15.sp) },
+        leadingIcon = { Icon(icon, null, tint = Color.Gray, modifier = Modifier.size(16.dp)) },
+        singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = SystemGray6,
+            unfocusedContainerColor = SystemGray6,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            cursorColor = TournmatePurple,
+        ),
+        keyboardOptions = keyboardOptions,
+    )
+}
+
+@Composable
+private fun PrimaryPillButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 34.dp)
+            .fillMaxWidth()
+            .height(56.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = TournmatePurple,
+            disabledContainerColor = TournmatePurple,
+            disabledContentColor = Color.White,
+        ),
+    ) { content() }
+}
+
+private fun formatDate(date: Date): String = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(date)

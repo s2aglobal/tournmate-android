@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Golf: figure at the top of the swing, club raised overhead. Original drawing (not traced from any symbol set). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Head -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M14.8,6.2 m-2.1,0 a2.1,2.1 0,1 0,4.2,0 a2.1,2.1 0,1 0,-4.2,0z" />
+
+    <!-- Club -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M10.4,3.8 L7.2,2 L6.4,3" />
+
+    <!-- Arms -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M13.6,9.6 L11.4,7.4 L10.4,3.8" />
+
+    <!-- Torso -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3.1"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M13.8,9.6 L13.2,14.6" />
+
+    <!-- Back leg -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M13,14.4 L11.6,17.4 L11.8,21.2" />
+
+    <!-- Front leg -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M13.6,14.4 L15.4,17.8 L16.2,21.2" />
+</vector>

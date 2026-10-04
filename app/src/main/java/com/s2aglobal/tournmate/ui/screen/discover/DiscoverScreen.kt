@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.ui.screen.discover
 
+import com.s2aglobal.tournmate.ui.component.LocalTabBarClearance
+import com.s2aglobal.tournmate.ui.component.TabBarContentGap
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -35,14 +37,17 @@ import androidx.compose.ui.res.painterResource
 import com.s2aglobal.tournmate.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.s2aglobal.tournmate.domain.model.BadmintonRules
+import com.s2aglobal.tournmate.domain.model.rulebook
 import com.s2aglobal.tournmate.domain.model.RuleSection
 import com.s2aglobal.tournmate.domain.model.SportType
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.theme.AppAccentTint
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.util.openInBrowser
 
 private val GroupedBg = Color(0xFFF2F2F7)
@@ -57,7 +62,12 @@ fun DiscoverScreen(
 
     val activeRule = selectedRule
     if (activeRule != null) {
-        RuleDetailScreen(section = activeRule, onBack = { selectedRule = null })
+        RuleDetailScreen(
+            modifier = modifier,
+            section = activeRule,
+            source = sport.rulebook?.source ?: "Official governing body",
+            onBack = { selectedRule = null },
+        )
         return
     }
 
@@ -125,15 +135,18 @@ private fun DiscoverContent(
             },
         )
 
-        GridSection(
-            title = "Badminton Rules",
-            icon = Icons.Filled.MenuBook,
-            items = BadmintonRules.sections.map { section ->
-                GridCardData(section.icon, section.title, section.subtitle) { onRuleClick(section) }
-            },
-        )
+        sport.rulebook?.let { rulebook ->
+            GridSection(
+                title = "${sport.displayName} Rules",
+                icon = Icons.Filled.MenuBook,
+                items = rulebook.sections.map { section ->
+                    GridCardData(section.icon, section.title, section.subtitle) { onRuleClick(section) }
+                },
+            )
+        }
 
-        Spacer(Modifier.height(80.dp))
+        // Column spacing (24) + this keeps the last section above the floating tab bar.
+        Spacer(Modifier.height(LocalTabBarClearance.current))
         }
     }
 }
@@ -150,14 +163,10 @@ private fun HeaderSection(sport: SportType) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            modifier = Modifier.size(72.dp).clip(CircleShape).background(BrandPurple.copy(alpha = 0.10f)),
+            modifier = Modifier.size(72.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            val iconPainter: Painter = when (sport) {
-                SportType.BADMINTON -> painterResource(R.drawable.ic_badminton)
-                else -> rememberVectorPainter(Icons.Filled.SportsTennis)
-            }
-            Icon(iconPainter, null, Modifier.size(34.dp), tint = BrandPurple)
+            SportArtworkImage(sport, 44.dp)
         }
         Text("Your ${sport.displayName} Hub", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(
@@ -185,15 +194,15 @@ private fun QuickLinksBar(sport: SportType, onClick: (DiscoverLink) -> Unit) {
                 onClick = { onClick(link) },
                 shape = CircleShape,
                 color = Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BrandPurple.copy(alpha = 0.25f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppAccent.copy(alpha = 0.25f)),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Icon(link.icon, null, Modifier.size(15.dp), tint = BrandPurple)
-                    Text(link.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = BrandPurple)
+                    Icon(link.icon, null, Modifier.size(15.dp), tint = AppAccent)
+                    Text(link.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AppAccent)
                 }
             }
         }
@@ -211,7 +220,7 @@ private fun SectionHeader(title: String, icon: ImageVector) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(icon, null, Modifier.size(20.dp), tint = BrandPurple)
+        Icon(icon, null, Modifier.size(20.dp), tint = AppAccent)
         Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     }
 }
@@ -239,10 +248,10 @@ private fun NewsSection(sport: SportType, onClick: (DiscoverLink) -> Unit) {
                     Column(Modifier.padding(14.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Box(
-                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(BrandPurple.copy(alpha = 0.08f)),
+                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(AppAccent.copy(alpha = 0.08f)),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(link.icon, null, Modifier.size(22.dp), tint = BrandPurple)
+                                Icon(link.icon, null, Modifier.size(22.dp), tint = AppAccent)
                             }
                             Spacer(Modifier.weight(1f))
                             Icon(Icons.Filled.ArrowOutward, null, Modifier.size(14.dp), tint = Color.Gray.copy(alpha = 0.5f))
@@ -252,12 +261,12 @@ private fun NewsSection(sport: SportType, onClick: (DiscoverLink) -> Unit) {
                         Spacer(Modifier.height(4.dp))
                         Text(link.subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 2, lineHeight = 18.sp)
                         Spacer(Modifier.weight(1f))
-                        Surface(shape = CircleShape, color = BrandPurple.copy(alpha = 0.10f)) {
+                        Surface(shape = CircleShape, color = AppAccent.copy(alpha = 0.10f)) {
                             Text(
                                 link.source,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = BrandPurple,
+                                color = AppAccent,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -298,17 +307,17 @@ private fun ListSection(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         Box(
-                            modifier = Modifier.size(42.dp).clip(CircleShape).background(BrandPurple.copy(alpha = 0.10f)),
+                            modifier = Modifier.size(42.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.10f)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(link.icon, null, Modifier.size(20.dp), tint = BrandPurple)
+                            Icon(link.icon, null, Modifier.size(20.dp), tint = AppAccent)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(link.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                             Text(link.subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 1)
                         }
-                        Text(link.source, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = BrandPurple)
-                        Icon(Icons.Filled.ChevronRight, null, Modifier.size(16.dp), tint = BrandPurple)
+                        Text(link.source, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = AppAccent)
+                        Icon(Icons.Filled.ChevronRight, null, Modifier.size(16.dp), tint = AppAccent)
                     }
                     if (index < links.size - 1) {
                         HorizontalDivider(Modifier.padding(start = 72.dp), color = GroupedBg)
@@ -362,10 +371,10 @@ private fun GridCard(data: GridCardData, modifier: Modifier = Modifier) {
         Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(38.dp).clip(CircleShape).background(BrandPurple.copy(alpha = 0.10f)),
+                    modifier = Modifier.size(38.dp).clip(CircleShape).background(AppAccent.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(data.icon, null, Modifier.size(18.dp), tint = BrandPurple)
+                    Icon(data.icon, null, Modifier.size(18.dp), tint = AppAccent)
                 }
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Filled.ChevronRight, null, Modifier.size(14.dp), tint = Color.Gray.copy(alpha = 0.5f))
@@ -384,19 +393,37 @@ private fun GridCard(data: GridCardData, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RuleDetailScreen(section: RuleSection, onBack: () -> Unit) {
+private fun RuleDetailScreen(
+    section: RuleSection,
+    source: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     BackHandler { onBack() }
 
+    // Hosted inside MainScreen's Scaffold, whose padding already clears the status
+    // bar and bottom nav bar — so no system-bar insets here (iOS inline nav title).
     Scaffold(
+        modifier = modifier,
+        contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(
-                title = { Text(section.title, fontWeight = FontWeight.SemiBold) },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        section.title,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = BrandPurple)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = AppAccent)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = GroupedBg),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = GroupedBg),
+                windowInsets = WindowInsets(0),
             )
         },
         containerColor = GroupedBg,
@@ -407,50 +434,46 @@ private fun RuleDetailScreen(section: RuleSection, onBack: () -> Unit) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Spacer(Modifier.height(4.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 Box(
-                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(BrandPurple.copy(alpha = 0.10f)),
+                    modifier = Modifier.size(60.dp).clip(CircleShape).background(AppAccentTint),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(section.icon, null, Modifier.size(24.dp), tint = BrandPurple)
+                    Icon(section.icon, null, Modifier.size(26.dp), tint = AppAccent)
                 }
-                Text(section.subtitle, fontSize = 14.sp, color = Color.Gray)
+                Text(section.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(section.subtitle, fontSize = 15.sp, color = Color.Gray, textAlign = TextAlign.Center)
             }
 
             section.rules.forEachIndexed { index, rule ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = Color.White,
                     shadowElevation = 2.dp,
                 ) {
                     Column(Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Box(
-                                modifier = Modifier.size(26.dp).clip(CircleShape).background(BrandPurple),
+                                modifier = Modifier.size(24.dp).clip(CircleShape).background(AppAccentTint),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("${index + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("${index + 1}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
                             }
-                            Text(rule.title, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(rule.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Spacer(Modifier.height(10.dp))
-                        Text(rule.content, fontSize = 14.sp, color = Color(0xFF3A3A3C), lineHeight = 21.sp)
+                        Text(rule.content, fontSize = 16.sp, color = Color.Black.copy(alpha = 0.85f), lineHeight = 24.sp)
                     }
                 }
             }
 
-            Text(
-                "Source: BWF Laws of Badminton",
-                fontSize = 11.sp,
-                color = Color.Gray,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                textAlign = TextAlign.Center,
-            )
             Spacer(Modifier.height(20.dp))
         }
     }

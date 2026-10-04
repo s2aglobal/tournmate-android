@@ -1,6 +1,14 @@
 package com.s2aglobal.tournmate.ui.screen.openplay
 
+import com.s2aglobal.tournmate.ui.component.sheetScrollLikeIos
+import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.ui.theme.gearNoun
 import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.border
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import kotlin.math.roundToInt
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -14,6 +22,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Cancel
+import androidx.compose.foundation.clickable
+import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
+import com.s2aglobal.tournmate.ui.component.TrophySpinner
+import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -77,7 +90,9 @@ fun OpenPlayDetailScreen(
     onPlayerClick: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault()) }
+    // Same back-stack-scoped instance the nav host uses; provides calorie + status state.
+    val detailVM: OpenPlayDetailViewModel = hiltViewModel()
+    val detailState by detailVM.uiState.collectAsState()
     val isHost = firebaseUid != null && session.hostId == firebaseUid
     val isAttending = currentPlayerId != null && session.attendeeIds.contains(currentPlayerId)
     var showLeaveConfirm by remember { mutableStateOf(false) }
@@ -87,21 +102,21 @@ fun OpenPlayDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Session Details", fontWeight = FontWeight.Bold) },
+            CenterAlignedTopAppBar(
+                title = { Text("Session Details", fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = AppAccent)
                     }
                 },
                 actions = {
                     IconButton(
                         onClick = { ShareUtil.shareSession(context, session) },
                     ) {
-                        Icon(Icons.Default.Share, "Share")
+                        Icon(Icons.Filled.IosShare, "Share", tint = AppAccent)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
             )
         },
         containerColor = Color(0xFFF2F2F7),
@@ -149,7 +164,31 @@ fun OpenPlayDetailScreen(
                 )
             }
 
-            if (isHost && session.status == PlaySessionStatus.ACTIVE && !session.isPast) {
+            if (detailState.canLogCalories) {
+                item {
+                    CalorieCard(
+                        state = detailState,
+                        sport = session.sportType,
+                        onWeightChange = detailVM::setCalorieWeight,
+                        onLog = detailVM::logCalories,
+                    )
+                }
+            }
+
+            detailState.statusMessage?.let { msg ->
+                item {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.Info, null, Modifier.size(18.dp), tint = AppAccent)
+                        Text(msg, fontSize = 15.sp, color = Color.Gray)
+                    }
+                }
+            }
+
+            if (isHost && session.status == PlaySessionStatus.ACTIVE) {
                 item {
                     HostActionsCard(
                         onEdit = { showEditSheet = true },
@@ -194,7 +233,11 @@ fun OpenPlayDetailScreen(
             title = { Text("Cancel Session?") },
             text = { Text("This will mark the session as cancelled. Attendees will be notified.") },
             confirmButton = {
-                TextButton(onClick = { showCancelConfirm = false; onCancel() }) {
+                TextButton(onClick = {
+                    showCancelConfirm = false
+                    Toast.makeText(context, "Session cancelled", Toast.LENGTH_SHORT).show()
+                    onCancel()
+                }) {
                     Text("Cancel Session", color = ErrorRed)
                 }
             },
@@ -210,7 +253,11 @@ fun OpenPlayDetailScreen(
             title = { Text("Finish Session?") },
             text = { Text("This will mark the session as complete. Players will be prompted to log their calories.") },
             confirmButton = {
-                TextButton(onClick = { showFinishConfirm = false; onFinish() }) {
+                TextButton(onClick = {
+                    showFinishConfirm = false
+                    Toast.makeText(context, "Session completed!", Toast.LENGTH_SHORT).show()
+                    onFinish()
+                }) {
                     Text("Finish", color = SuccessGreen)
                 }
             },
@@ -239,7 +286,7 @@ private fun HeroSection(session: PlaySession) {
             ),
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_figure_badminton),
+            painter = sportIconPainter(session.sportType),
             contentDescription = null,
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -329,9 +376,9 @@ private fun SessionInfoCard(session: PlaySession) {
             if (session.preferredAgeGroup != AgeGroup.OPEN) {
                 add(Triple(Icons.Default.Person, "Age Group", session.preferredAgeGroup.displayName) to Color(0xFF009688))
             }
-            add(Triple(Icons.Default.Group, "Attendees", "${session.attendeeCount} joined") to BrandPurple)
+            add(Triple(Icons.Default.Group, "Attendees", "${session.attendeeCount} joined") to AppAccent)
             val costValue = session.formattedCost ?: "Free"
-            val costColor = if (session.hasCost) WarningOrange else BrandPurple
+            val costColor = if (session.hasCost) WarningOrange else AppAccent
             add(Triple(Icons.Default.LocalOffer, "Cost / Person", costValue) to costColor)
         }
 
@@ -388,7 +435,7 @@ private fun SessionInfoCard(session: PlaySession) {
         session.notes?.takeIf { it.isNotBlank() }?.let { notes ->
             Spacer(modifier = Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Notes, null, Modifier.size(14.dp), tint = BrandPurple)
+                Icon(Icons.Default.Notes, null, Modifier.size(14.dp), tint = AppAccent)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Notes", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray)
             }
@@ -437,7 +484,8 @@ private fun VenueCard(session: PlaySession) {
                         tiltGesturesEnabled = false,
                     ),
                 ) {
-                    Marker(state = MarkerState(position = latLng), title = session.venue)
+                    val markerState = remember(latLng) { MarkerState(position = latLng) }
+                    Marker(state = markerState, title = session.venue)
                 }
             } else {
                 Box(
@@ -447,7 +495,7 @@ private fun VenueCard(session: PlaySession) {
                         .background(Color(0xFFF2F2F7)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.Map, null, tint = BrandPurple.copy(alpha = 0.5f))
+                    Icon(Icons.Default.Map, null, tint = AppAccent.copy(alpha = 0.5f))
                 }
             }
 
@@ -486,10 +534,10 @@ private fun VenueCard(session: PlaySession) {
                             Icons.Default.Directions,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = BrandPurple,
+                            tint = AppAccent,
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Directions", color = BrandPurple, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        Text("Directions", color = AppAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                     }
                 }
             }
@@ -530,22 +578,22 @@ private fun YourStatusCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(BrandPurple.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
+                        .background(AppAccent.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(BrandPurple.copy(alpha = 0.12f), CircleShape),
+                            .background(AppAccent.copy(alpha = 0.12f), CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Default.CheckCircle, null, tint = BrandPurple)
+                        Icon(Icons.Default.CheckCircle, null, tint = AppAccent)
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("You're in!", fontWeight = FontWeight.Bold, color = BrandPurple, fontSize = 14.sp)
-                        Text("See you on the court 🏸", fontSize = 12.sp, color = Color.Gray)
+                        Text("You're in!", fontWeight = FontWeight.Bold, color = AppAccent, fontSize = 14.sp)
+                        Text("See you on the court!", fontSize = 12.sp, color = Color.Gray)
                         if (session.hasCost) {
                             Text(
                                 "Cost: ${session.formattedCost}",
@@ -554,9 +602,17 @@ private fun YourStatusCard(
                             )
                         }
                     }
-                    TextButton(onClick = onLeave) {
-                        Text("Leave", color = ErrorRed, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                    }
+                    Text(
+                        "Leave",
+                        color = ErrorRed,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(ErrorRed.copy(alpha = 0.08f), CircleShape)
+                            .clickable(onClick = onLeave)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
                 }
             }
             hasProfile -> {
@@ -578,27 +634,20 @@ private fun YourStatusCard(
                             )
                         }
                     }
-                    Button(
+                    AppPrimaryButton(
                         onClick = onJoin,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = session.isJoinable && !isLoading,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                        enabled = !isLoading,
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp,
-                            )
+                            TrophySpinner(size = 18.dp, style = TrophySpinnerStyle.INLINE)
                         } else {
                             Icon(
-                                painter = painterResource(R.drawable.ic_figure_badminton),
+                                painter = sportIconPainter(session.sportType),
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Join This Session", fontWeight = FontWeight.SemiBold)
+                            Text("Join This Session")
                         }
                     }
                 }
@@ -648,7 +697,7 @@ private fun AttendeesCard(
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(
-                    color = BrandPurple,
+                    color = AppAccent,
                     strokeWidth = 2.dp,
                 )
             }
@@ -657,11 +706,194 @@ private fun AttendeesCard(
                 attendees.forEach { player ->
                     AttendeeRow(
                         player = player,
+                        sport = session.sportType,
                         isHost = player.firebaseUid == session.hostId,
                         onClick = { onPlayerClick(player.id.toString().uppercase()) },
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CalorieCard(
+    state: OpenPlayDetailUiState,
+    sport: SportType,
+    onWeightChange: (Double) -> Unit,
+    onLog: () -> Unit,
+) {
+    val flameGradient = Brush.linearGradient(listOf(WarningOrange, ErrorRed.copy(alpha = 0.8f)))
+    val heartGradient = Brush.linearGradient(listOf(Color.Red, Color(0xFFFF2D55)))
+    Column(
+        modifier = Modifier.padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        DetailSectionHeader(title = "Calorie Tracking", icon = Icons.Default.LocalFireDepartment)
+
+        val record = state.existingCalorieRecord
+        val hcCalories = state.healthConnectCalories
+        when {
+            record != null -> {
+                val shape = RoundedCornerShape(16.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(shape)
+                        .background(Brush.horizontalGradient(listOf(WarningOrange.copy(alpha = 0.08f), ErrorRed.copy(alpha = 0.05f))))
+                        .border(1.dp, WarningOrange.copy(alpha = 0.2f), shape)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    GradientCircleIcon(Icons.Default.LocalFireDepartment, flameGradient, 52.dp)
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(formatKcal(record.calories), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        val fromHealthConnect = record.source == CalorieSource.HEALTH_CONNECT
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (fromHealthConnect) Icons.Default.Favorite else Icons.Default.Functions,
+                                null, Modifier.size(11.dp), tint = Color.Gray,
+                            )
+                            Text(
+                                if (fromHealthConnect) "From Health Connect" else "Estimated (MET)",
+                                fontSize = 12.sp, color = Color.Gray,
+                            )
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("${record.durationMinutes} min", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("${record.weightUsedKg.toInt()} kg", fontSize = 11.sp, color = Color.Gray)
+                    }
+                }
+            }
+            state.isFetchingHealthConnect -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF2F2F7), RoundedCornerShape(16.dp))
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(Modifier.size(24.dp), color = AppAccent, strokeWidth = 2.dp)
+                    Text("Checking Health Connect…", fontSize = 15.sp, color = Color.Gray)
+                }
+            }
+            hcCalories != null -> {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        GradientCircleIcon(Icons.Default.Favorite, heartGradient, 44.dp)
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Health Connect Detected", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Workout data found for this session", fontSize = 12.sp, color = Color.Gray)
+                        }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Red.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("${hcCalories.toInt()} kcal", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                            Text("from Health Connect workout", fontSize = 12.sp, color = Color.Gray)
+                        }
+                        Icon(Icons.Default.Watch, null, Modifier.size(32.dp), tint = Color.Red.copy(alpha = 0.6f))
+                    }
+                    CalorieActionButton(
+                        text = if (state.isLoggingCalories) "Saving…" else "Save to My Stats",
+                        icon = Icons.Default.CheckCircle,
+                        gradient = Brush.horizontalGradient(listOf(Color.Red, Color(0xFFFF2D55))),
+                        isLoading = state.isLoggingCalories,
+                        onClick = onLog,
+                    )
+                }
+            }
+            else -> {
+                Surface(shape = RoundedCornerShape(16.dp), color = Color.White, shadowElevation = 2.dp) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            GradientCircleIcon(Icons.Default.LocalFireDepartment, flameGradient, 44.dp)
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("Estimate Your Burn", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                                Text("No Health Connect data found — we'll estimate for you", fontSize = 12.sp, color = Color.Gray)
+                            }
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Your weight", fontSize = 15.sp, modifier = Modifier.weight(1f))
+                                Text("${state.calorieWeight.toInt()} kg", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = WarningOrange)
+                            }
+                            Slider(
+                                value = state.calorieWeight.toFloat().coerceIn(30f, 180f),
+                                onValueChange = { onWeightChange(it.roundToInt().toDouble()) },
+                                valueRange = 30f..180f,
+                                steps = 149,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = WarningOrange,
+                                    activeTrackColor = WarningOrange,
+                                    activeTickColor = Color.Transparent,
+                                    inactiveTickColor = Color.Transparent,
+                                ),
+                            )
+                        }
+                        CalorieActionButton(
+                            text = if (state.isLoggingCalories) "Calculating…" else "Log Calories",
+                            icon = Icons.Default.LocalFireDepartment,
+                            gradient = Brush.horizontalGradient(listOf(WarningOrange, ErrorRed.copy(alpha = 0.8f))),
+                            isLoading = state.isLoggingCalories,
+                            onClick = onLog,
+                        )
+                        Text(
+                            "Tip: Track your ${sport.displayName} workout with an app that syncs to Health Connect for accurate tracking next time.",
+                            fontSize = 11.sp,
+                            color = Color.LightGray,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GradientCircleIcon(icon: ImageVector, gradient: Brush, size: androidx.compose.ui.unit.Dp) {
+    Box(
+        modifier = Modifier.size(size).clip(CircleShape).background(gradient),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, Modifier.size(size * 0.45f), tint = Color.White)
+    }
+}
+
+@Composable
+private fun CalorieActionButton(
+    text: String,
+    icon: ImageVector,
+    gradient: Brush,
+    isLoading: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = !isLoading,
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.background(gradient).padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
+                Icon(icon, null, Modifier.size(18.dp), tint = Color.White)
+            }
+            Text(text, fontWeight = FontWeight.SemiBold, color = Color.White)
         }
     }
 }
@@ -673,7 +905,7 @@ private fun HostActionsCard(
     onCancel: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         DetailSectionHeader(title = "Host Actions", icon = Icons.Default.Settings)
@@ -682,22 +914,22 @@ private fun HostActionsCard(
             onClick = onEdit,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+            colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
         ) {
-            Icon(Icons.Default.Edit, null, Modifier.size(16.dp))
+            Icon(Icons.Default.Edit, null, Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Edit Session", fontWeight = FontWeight.Bold)
+            Text("Edit Session", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
 
         Button(
             onClick = onFinish,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF34C759), contentColor = Color.White),
         ) {
-            Icon(Icons.Default.Flag, null, Modifier.size(16.dp))
+            Icon(Icons.Filled.SportsScore, null, Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Finish Session", fontWeight = FontWeight.Bold)
+            Text("Finish Session", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
 
         OutlinedButton(
@@ -710,9 +942,9 @@ private fun HostActionsCard(
             ),
             border = androidx.compose.foundation.BorderStroke(1.dp, ErrorRed.copy(alpha = 0.3f)),
         ) {
-            Icon(Icons.Default.Cancel, null, Modifier.size(16.dp))
+            Icon(Icons.Outlined.Cancel, null, Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Cancel Session", fontWeight = FontWeight.Bold)
+            Text("Cancel Session", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -743,8 +975,8 @@ private fun DetailSectionHeader(title: String, icon: ImageVector) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = BrandPurple, modifier = Modifier.size(18.dp))
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = BrandPurple)
+        Icon(icon, contentDescription = null, tint = AppAccent, modifier = Modifier.size(18.dp))
+        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppAccent)
     }
     Spacer(modifier = Modifier.height(14.dp))
 }
@@ -797,6 +1029,7 @@ private fun StatusMessageRow(
 @Composable
 private fun AttendeeRow(
     player: Player,
+    sport: SportType,
     isHost: Boolean,
     onClick: () -> Unit,
 ) {
@@ -838,19 +1071,19 @@ private fun AttendeeRow(
                     if (isHost) {
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = BrandPurple.copy(alpha = 0.15f),
+                            color = AppAccent.copy(alpha = 0.15f),
                         ) {
                             Text(
                                 "Host",
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = BrandPurple,
+                                color = AppAccent,
                             )
                         }
                     }
                 }
-                Text("Elo: ${player.elo.toInt()}", fontSize = 11.sp, color = Color.Gray)
+                Text("Elo: ${player.elo(sport).toInt()}", fontSize = 11.sp, color = Color.Gray)
             }
             Icon(
                 Icons.Default.ChevronRight,
@@ -863,7 +1096,7 @@ private fun AttendeeRow(
 }
 
 private fun detailSkillLevelColor(level: SkillLevel): Color = when (level) {
-    SkillLevel.ALL_LEVELS -> BrandPurple
+    SkillLevel.ALL_LEVELS -> AppAccent
     SkillLevel.BEGINNER -> Color(0xFF2196F3)
     SkillLevel.INTERMEDIATE -> WarningOrange
     SkillLevel.ADVANCED -> ErrorRed
@@ -910,10 +1143,12 @@ private fun EditSessionSheet(
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var isSaving by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        dragHandle = null,
         containerColor = Color(0xFFF2F2F7),
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
     ) {
@@ -921,7 +1156,7 @@ private fun EditSessionSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF2F2F7))
-                .verticalScroll(rememberScrollState()),
+                .sheetScrollLikeIos().verticalScroll(rememberScrollState()),
         ) {
             Box(
                 modifier = Modifier
@@ -932,14 +1167,49 @@ private fun EditSessionSheet(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.CenterStart),
                 ) {
-                    Text("Cancel", color = BrandPurple, fontSize = 16.sp)
+                    Text("Cancel", color = AppAccent, fontSize = 16.sp)
                 }
                 Text(
                     "Edit Session",
                     fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.align(Alignment.Center),
                 )
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 12.dp)
+                            .size(20.dp),
+                        color = AppAccent,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    TextButton(
+                        onClick = {
+                            isSaving = true
+                            onSave(
+                                title.trim(),
+                                selectedDate,
+                                if (selectedDuration == 0) null else selectedDuration,
+                                skillLevel,
+                                gameType,
+                                ageGroup,
+                                costText.toDoubleOrNull(),
+                                notes.ifBlank { null },
+                            )
+                        },
+                        enabled = title.isNotBlank() && !isSaving,
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                    ) {
+                        Text(
+                            "Save",
+                            color = if (title.isNotBlank()) AppAccent else Color.Gray.copy(alpha = 0.5f),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
             }
 
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -957,7 +1227,7 @@ private fun EditSessionSheet(
                             modifier = Modifier.weight(1f),
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CalendarToday, null, tint = BrandPurple, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.CalendarToday, null, tint = AppAccent, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(dateFormatter.format(selectedDate), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             }
@@ -970,7 +1240,7 @@ private fun EditSessionSheet(
                             modifier = Modifier.weight(1f),
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Schedule, null, tint = BrandPurple, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Schedule, null, tint = AppAccent, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(timeFormatter.format(selectedDate), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             }
@@ -988,7 +1258,7 @@ private fun EditSessionSheet(
                             Surface(
                                 onClick = { selectedDuration = mins },
                                 shape = RoundedCornerShape(50),
-                                color = if (isSelected) BrandPurple else Color.White,
+                                color = if (isSelected) AppAccent else Color.White,
                                 shadowElevation = if (isSelected) 0.dp else 1.dp,
                             ) {
                                 Text(
@@ -1004,61 +1274,15 @@ private fun EditSessionSheet(
                 }
 
                 FormSection("Skill Level") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        SkillLevel.entries.forEach { level ->
-                            val isSelected = skillLevel == level
-                            Surface(
-                                onClick = { skillLevel = level },
-                                shape = RoundedCornerShape(50),
-                                color = if (isSelected) Color.White else Color.Transparent,
-                                shadowElevation = if (isSelected) 2.dp else 0.dp,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    level.displayName,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
+                    SegmentedPicker(SkillLevel.entries, skillLevel, { it.displayName }) { skillLevel = it }
                 }
 
                 FormSection("Game Type") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        CasualGameType.entries.forEach { type ->
-                            val isSelected = gameType == type
-                            Surface(
-                                onClick = { gameType = type },
-                                shape = RoundedCornerShape(50),
-                                color = if (isSelected) Color.White else Color.Transparent,
-                                shadowElevation = if (isSelected) 2.dp else 0.dp,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    type.displayName,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
+                    SegmentedPicker(CasualGameType.entries, gameType, { it.displayName }) { gameType = it }
                 }
 
                 FormSection("Preferred Age Group") {
-                    AgeGroupDropdown(selected = ageGroup, onSelected = { ageGroup = it })
+                    AgeGroupDropdown(selected = ageGroup, options = session.sportType.ageGroupsIncluding(session.preferredAgeGroup), onSelected = { ageGroup = it })
                 }
 
                 FormSection("Cost per Person (Optional)") {
@@ -1067,7 +1291,7 @@ private fun EditSessionSheet(
                             modifier = Modifier.fillMaxWidth().padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("$", color = BrandPurple, fontWeight = FontWeight.Bold)
+                            Text("$", color = AppAccent, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.width(8.dp))
                             androidx.compose.foundation.text.BasicTextField(
                                 value = costText,
@@ -1088,33 +1312,12 @@ private fun EditSessionSheet(
                     FormTextField(
                         value = notes,
                         onValueChange = { notes = it.take(500) },
-                        placeholder = "e.g. Court 3, bring shuttlecocks",
+                        placeholder = "e.g. Court 3, bring your own ${CurrentSport.sport.gearNoun}",
                         singleLine = false,
                         minHeight = 80.dp,
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        onSave(
-                            title.trim(),
-                            selectedDate,
-                            if (selectedDuration == 0) null else selectedDuration,
-                            skillLevel,
-                            gameType,
-                            ageGroup,
-                            costText.toDoubleOrNull(),
-                            notes.ifBlank { null },
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    enabled = title.trim().isNotEmpty(),
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Text("Save Changes", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }

@@ -27,6 +27,8 @@ data class PlaySession(
     val createdAt: Date = Date(),
     val timeZone: String? = null,
     val sportType: SportType = SportType.BADMINTON,
+    /** Original id when [sportType] is the GENERIC stand-in for a sport this build doesn't know; written back on save. */
+    val sportTypeRaw: String? = null,
     val attendeeIds: List<String> = emptyList(),
     val attendees: List<Player> = emptyList(),
 ) {

@@ -3,6 +3,7 @@ package com.s2aglobal.tournmate.ui.screen.court
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.domain.model.HomeRegionCountry
 import com.s2aglobal.tournmate.domain.model.Player
@@ -13,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -37,7 +39,7 @@ data class CourtFinderUiState(
         get() = if (usesHomeRegion) {
             "Court search follows your home country from Profile — the same region as tournaments and Open Play."
         } else {
-            "Find badminton courts near where you play. Add your home region in Profile to match local listings."
+            "Find ${CurrentSport.sport.inlineName} courts near where you play. Add your home region in Profile to match local listings."
         }
 
     val zipExamples: List<String> get() = popularExamples.map { it.zip }
@@ -113,7 +115,7 @@ class CourtFinderViewModel @Inject constructor(
                 it.copy(isLoading = true, errorMessage = null, hasSearched = true, courts = emptyList())
             }
 
-            val results = runCatching { searchService.searchCourts(trimmed) }.getOrElse { emptyList() }
+            val results = runCatching { searchService.searchCourts(trimmed, currentUserStore.preferredSportFlow.first(), includePhone = true) }.getOrElse { emptyList() }
             _uiState.update { it.copy(courts = results, isLoading = false) }
         }
     }
@@ -150,7 +152,7 @@ class CourtFinderViewModel @Inject constructor(
                 it.copy(isLoading = true, errorMessage = null, hasSearched = true, courts = emptyList())
             }
 
-            val results = runCatching { searchService.searchNearby(latitude, longitude) }.getOrElse { emptyList() }
+            val results = runCatching { searchService.searchNearby(latitude, longitude, currentUserStore.preferredSportFlow.first(), includePhone = true) }.getOrElse { emptyList() }
             _uiState.update { it.copy(courts = results, isLoading = false) }
         }
     }

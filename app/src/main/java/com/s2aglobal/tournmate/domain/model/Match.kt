@@ -26,6 +26,8 @@ data class Match(
     val bracketPosition: Int? = null,
     val groupLabel: String? = null,
     val sportType: SportType = SportType.BADMINTON,
+    /** Original id when [sportType] is the GENERIC stand-in for a sport this build doesn't know; written back on save. */
+    val sportTypeRaw: String? = null,
     val submittedBy: String? = null,
     val confirmedBy: String? = null,
     val tournament: Tournament = Tournament(),
@@ -80,11 +82,24 @@ data class Match(
         teamA.contains(playerId) || teamB.contains(playerId)
 
     companion object {
+        /**
+         * Winning registration id for a score (games won, or a simple score);
+         * `null` for a draw. Mirrors iOS `Match.winnerId`.
+         */
+        fun winnerId(scoreA: Int, scoreB: Int, teamAId: String, teamBId: String): String? = when {
+            scoreA > scoreB -> teamAId
+            scoreB > scoreA -> teamBId
+            else -> null
+        }
+
         fun bracketRoundName(roundNumber: Int, totalRounds: Int): String =
-            when (totalRounds - roundNumber) {
-                0 -> "Final"
-                1 -> "Semi-Final"
-                2 -> "Quarter-Final"
+            // Mirrors iOS `Match.bracketRoundName`.
+            when (val fromFinal = totalRounds - roundNumber) {
+                0 -> "Finals"
+                1 -> "Semi Finals"
+                2 -> "Quarter Finals"
+                // Outside a real bracket (round-robin rounds, unknown total) → "Round N".
+                in 3..15 -> "Round of ${1 shl (fromFinal + 1)}"
                 else -> "Round $roundNumber"
             }
     }

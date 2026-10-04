@@ -1,11 +1,21 @@
 package com.s2aglobal.tournmate.ui.theme
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 // Matches iOS AppTheme.swift exactly
-val BrandPurple = Color(0xFF630893)
-val BrandPurpleLight = Color(0xFF630893).copy(alpha = 0.10f)
-val BrandPurpleDark = Color(0xFF53057D)
+
+// Fixed brand identity (logo, sign-in, update screen). Never sport-dependent.
+val TournmatePurple = Color(0xFF630893)
+val TournmatePurpleDark = Color(0xFF53057D)
+
+// Accent tokens — follow the user's sport (see CurrentSport). Use these for every UI accent.
+val AppAccent: Color get() = CurrentSport.theme.primary
+val AppAccentDeep: Color get() = CurrentSport.theme.primaryDeep
+val AppAccentTint: Color get() = CurrentSport.theme.tint
+
+/** Accent gradient (leading → trailing), iOS `LinearGradient.brand`. */
+val AccentGradient: Brush get() = Brush.horizontalGradient(listOf(AppAccent, AppAccentDeep))
 
 val DarkNavy = Color(0xFF0F172A)
 val DarkNavyLight = Color(0xFF1E293B)

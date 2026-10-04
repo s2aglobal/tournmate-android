@@ -1,7 +1,13 @@
 package com.s2aglobal.tournmate.ui.screen
 
+import androidx.compose.material3.ripple
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
+import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -11,6 +17,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,14 +30,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,19 +49,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.s2aglobal.tournmate.ui.screen.notification.NotificationInboxViewModel
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.SportType
+import com.s2aglobal.tournmate.ui.component.SportHeroBanner
+import com.s2aglobal.tournmate.ui.component.SportPickerSheet
+import com.s2aglobal.tournmate.ui.component.SportSwitcherViewModel
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.screen.openplay.CreateSessionSheet
 import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayListScreen
 import com.s2aglobal.tournmate.ui.screen.openplay.OpenPlayListViewModel
 import com.s2aglobal.tournmate.ui.screen.tournament.PublishTournamentScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListScreen
 import com.s2aglobal.tournmate.ui.screen.tournament.TournamentListViewModel
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import java.util.Calendar
 
 @Composable
@@ -70,6 +93,23 @@ fun PlayTabScreen(
     val tournamentListVM: TournamentListViewModel = hiltViewModel()
     val openPlayVM: OpenPlayListViewModel = hiltViewModel()
     val uiState by tournamentListVM.uiState.collectAsState()
+    val sportSwitcherVM: SportSwitcherViewModel = hiltViewModel()
+    var showSportSwitcher by remember { mutableStateOf(false) }
+    val sport = CurrentSport.sport
+    val context = LocalContext.current
+    val openPlayState by openPlayVM.uiState.collectAsState()
+
+    val notificationVM: NotificationInboxViewModel = hiltViewModel()
+    val notificationState by notificationVM.uiState.collectAsState()
+    val unreadCount = notificationState.notifications.count { !it.read }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) notificationVM.load()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -84,7 +124,14 @@ fun PlayTabScreen(
                     if (selectedSegment == 0) showPublish = true
                     else showCreateSession = true
                 },
+                unreadCount = unreadCount,
                 onNotificationClick = onNavigateToNotifications,
+            )
+
+            SportHeroBanner(
+                sport = sport,
+                onSwitch = { showSportSwitcher = true },
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 6.dp),
             )
 
             PillTabSwitcher(
@@ -92,27 +139,33 @@ fun PlayTabScreen(
                 onTabSelected = { selectedSegment = it },
             )
 
-            when (selectedSegment) {
-                0 -> TournamentListScreen(
-                    isGuest = isGuestMode,
-                    onTournamentClick = { tournament ->
-                        onNavigateToTournamentDetail(tournament.id.toString().uppercase())
-                    },
-                    onHostClick = { showPublish = true },
-                    viewModel = tournamentListVM,
-                )
-                1 -> OpenPlayListScreen(
-                    viewModel = openPlayVM,
-                    isGuest = isGuestMode,
-                    onSessionClick = { session ->
-                        onNavigateToSessionDetail(session.id.toString().uppercase())
-                    },
-                    onHostClick = { showCreateSession = true },
-                )
+            // Both lists stay composed (iOS ZStack + opacity) so scroll position and filters persist.
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                Box(modifier = Modifier.segmentLayer(selectedSegment == 0)) {
+                    TournamentListScreen(
+                        isGuest = isGuestMode,
+                        onTournamentClick = { tournament ->
+                            onNavigateToTournamentDetail(tournament.id.toString().uppercase())
+                        },
+                        onHostClick = { showPublish = true },
+                        viewModel = tournamentListVM,
+                    )
+                }
+                Box(modifier = Modifier.segmentLayer(selectedSegment == 1)) {
+                    OpenPlayListScreen(
+                        viewModel = openPlayVM,
+                        isGuest = isGuestMode,
+                        onSessionClick = { session ->
+                            onNavigateToSessionDetail(session.id.toString().uppercase())
+                        },
+                        onHostClick = { showCreateSession = true },
+                    )
+                }
             }
         }
 
-        if (showPublish && !isGuestMode) {
+        // iOS presents the wizard as a fullScreenCover — it hides the tab bar.
+        if (showPublish && !isGuestMode) FullScreenCover(onDismissRequest = { showPublish = false }) {
             PublishTournamentScreen(
                 firebaseUid = uiState.firebaseUid,
                 preferredSport = uiState.preferredSport,
@@ -121,7 +174,7 @@ fun PlayTabScreen(
                               format, matchFormat, formatConfig,
                               randomPairing, registrationDeadline, createdBy,
                               entryFee, currency, paymentInfo, prizeInfo,
-                              durationMinutes, ageGroup, sportType ->
+                              durationMinutes, ageGroup, sportType, scoringConfig, skillDivision, onResult ->
                     tournamentListVM.create(
                         title = title, date = date,
                         location = location, locationAddress = locationAddress,
@@ -131,6 +184,7 @@ fun PlayTabScreen(
                         createdBy = createdBy, entryFee = entryFee, currency = currency,
                         paymentInfo = paymentInfo, prizeInfo = prizeInfo,
                         durationMinutes = durationMinutes, ageGroup = ageGroup, sportType = sportType,
+                        scoringConfig = scoringConfig, skillDivision = skillDivision, onResult = onResult,
                     )
                 },
                 onDismiss = { showPublish = false },
@@ -139,9 +193,20 @@ fun PlayTabScreen(
 
     }
 
+    if (showSportSwitcher) {
+        SportPickerSheet(
+            current = sport,
+            onSelect = sportSwitcherVM::select,
+            onDismiss = { showSportSwitcher = false },
+        )
+    }
+
     if (showCreateSession && !isGuestMode) {
         CreateSessionSheet(
             preferredSport = uiState.preferredSport,
+            isPosting = openPlayState.isCreating,
+            postError = openPlayState.createError,
+            onClearPostError = openPlayVM::clearCreateError,
             onPost = { title, venue, venueAddress, venueLatitude, venueLongitude,
                        date, durationMinutes, skillLevel, gameType,
                        costPerPerson, currency, notes, ageGroup, sportType ->
@@ -152,9 +217,17 @@ fun PlayTabScreen(
                     skillLevel = skillLevel, gameType = gameType,
                     costPerPerson = costPerPerson, currency = currency,
                     notes = notes, ageGroup = ageGroup, sportType = sportType,
-                )
+                ) { ok ->
+                    if (ok) {
+                        showCreateSession = false
+                        Toast.makeText(context, "Session posted!", Toast.LENGTH_SHORT).show()
+                    }
+                }
             },
-            onDismiss = { showCreateSession = false },
+            onDismiss = {
+                showCreateSession = false
+                openPlayVM.clearCreateError()
+            },
         )
     }
 }
@@ -163,6 +236,7 @@ fun PlayTabScreen(
 private fun PlayHeader(
     selectedSegment: Int,
     showHostButton: Boolean = true,
+    unreadCount: Int = 0,
     onHostClick: () -> Unit,
     onNotificationClick: () -> Unit,
 ) {
@@ -171,10 +245,10 @@ private fun PlayHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = "Play.",
                 fontSize = 34.sp,
@@ -192,23 +266,64 @@ private fun PlayHeader(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        IconButton(onClick = onNotificationClick) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = "Notifications",
-                modifier = Modifier.size(24.dp),
-                tint = Color.Black,
-            )
+        // iOS: 22pt bell in a 40pt plain button frame.
+        Box(
+            // No clip: it would cut the badge off. A round unbounded ripple keeps the touch feedback circular.
+            modifier = Modifier
+                .size(40.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple(bounded = false, radius = 20.dp),
+                    onClickLabel = "Notifications",
+                    onClick = onNotificationClick,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box {
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = "Notifications",
+                    // Material's bell glyph has more padding than SF `bell`; 24dp matches iOS 22pt visually.
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.Black,
+                )
+                // iOS: 9pt bold count in a red circle at the bell's top-right corner. Centred on the
+                // corner (not inside the glyph) so 2-digit counts don't cover the bell.
+                if (unreadCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 10.dp, y = (-7).dp)
+                            .wrapContentSize(unbounded = true)
+                            .height(17.dp)
+                            .defaultMinSize(minWidth = 17.dp)
+                            .background(Color.Red, CircleShape)
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "${minOf(unreadCount, 99)}",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                }
+            }
         }
 
         if (showHostButton) {
             Spacer(modifier = Modifier.width(6.dp))
 
+            val hostColor by animateColorAsState(AppAccent, tween(300), label = "hostColor")
             Surface(
                 onClick = onHostClick,
+                modifier = Modifier.shadow(8.dp, RoundedCornerShape(50), ambientColor = hostColor.copy(alpha = 0.3f), spotColor = hostColor.copy(alpha = 0.3f)),
                 shape = RoundedCornerShape(50),
-                color = BrandPurple,
-                shadowElevation = 8.dp,
+                color = hostColor,
             ) {
                 Row(
                     modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
@@ -249,8 +364,8 @@ private fun PillTabSwitcher(
     onTabSelected: (Int) -> Unit,
 ) {
     val tabs = listOf(
-        PillTab("TOURNAMENTS", Icons.Default.EmojiEvents),
-        PillTab("OPEN PLAY", Icons.Default.People),
+        PillTab("TOURNAMENTS", Icons.Outlined.EmojiEvents),
+        PillTab("OPEN PLAY", Icons.Filled.Groups),
     )
 
     BoxWithConstraints(
@@ -272,6 +387,7 @@ private fun PillTabSwitcher(
                 .height(48.dp),
             shape = RoundedCornerShape(24.dp),
             color = Color(0xFFE5E5EA).copy(alpha = 0.55f),
+            border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.12f)),
         ) {
             Box {
                 Surface(
@@ -280,7 +396,12 @@ private fun PillTabSwitcher(
                         .width(tabWidth)
                         .height(38.dp)
                         .align(Alignment.CenterStart)
-                        .shadow(6.dp, RoundedCornerShape(19.dp)),
+                        .shadow(
+                            6.dp,
+                            RoundedCornerShape(19.dp),
+                            ambientColor = Color.Black.copy(alpha = 0.08f),
+                            spotColor = Color.Black.copy(alpha = 0.08f),
+                        ),
                     shape = RoundedCornerShape(19.dp),
                     color = Color.White,
                 ) {}
@@ -306,14 +427,14 @@ private fun PillTabSwitcher(
                                     imageVector = tab.icon,
                                     contentDescription = null,
                                     modifier = Modifier.size(13.dp),
-                                    tint = if (selectedIndex == index) BrandPurple else Color.Gray,
+                                    tint = if (selectedIndex == index) AppAccent else Color.Gray,
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = tab.label,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (selectedIndex == index) BrandPurple else Color.Gray,
+                                    color = if (selectedIndex == index) AppAccent else Color.Gray,
                                     letterSpacing = 0.8.sp,
                                 )
                             }
@@ -324,6 +445,23 @@ private fun PillTabSwitcher(
         }
     }
 }
+
+private fun Modifier.segmentLayer(active: Boolean): Modifier = this
+    .fillMaxSize()
+    .zIndex(if (active) 1f else 0f)
+    .graphicsLayer { alpha = if (active) 1f else 0f }
+    .then(
+        if (active) Modifier
+        else Modifier
+            .clearAndSetSemantics {}
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                    }
+                }
+            }
+    )
 
 private data class PillTab(
     val label: String,

@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
+import com.s2aglobal.tournmate.ui.component.PrimaryCapsuleButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,9 +26,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
+import com.s2aglobal.tournmate.ui.component.SkillDivisionPicker
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.util.DatePickerUtils
-import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -44,8 +47,11 @@ fun EditTournamentSheet(
         registrationDeadline: Date,
         entryFee: Double?, currency: String, paymentInfo: String?,
         prizeInfo: String?, durationMinutes: Int?, ageGroup: AgeGroup,
+        scoringConfig: ScoringConfig?, skillDivision: String?,
     ) -> Unit,
     onCancel: () -> Unit,
+    /** Scoring is locked once matches exist so results stay consistent. */
+    canEditScoring: Boolean = true,
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -71,17 +77,24 @@ fun EditTournamentSheet(
         mutableStateOf(tournament.durationMinutes?.toString() ?: "")
     }
     var editAgeGroup by remember { mutableStateOf(tournament.ageGroup) }
+    var editSkillDivision by remember { mutableStateOf(tournament.skillDivision) }
 
-    val existingConfig: FormatConfig = remember(tournament) {
-        try {
-            Json.decodeFromString<FormatConfig>(tournament.formatConfigData ?: "{}")
-        } catch (_: Exception) { FormatConfig() }
+    val existingConfig: FormatConfig? = remember(tournament) {
+        FormatConfig.decodeOrNull(tournament.formatConfigData)
     }
-    var editFormatConfig by remember { mutableStateOf(existingConfig) }
+    var editFormatConfig by remember {
+        mutableStateOf(existingConfig ?: FormatConfig.fallback(tournament.matchFormat))
+    }
+    // Only write the config when it was loaded or the organizer touched it, so an
+    // unreadable stored config is never replaced with blank defaults.
+    var formatConfigEdited by remember { mutableStateOf(false) }
+    var editScoringConfig by remember { mutableStateOf(tournament.scoringConfig) }
 
     var showVenuePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showDeadlineDatePicker by remember { mutableStateOf(false) }
+    var showDeadlineTimePicker by remember { mutableStateOf(false) }
     var showEventTypePicker by remember { mutableStateOf(false) }
     var showMatchFormatPicker by remember { mutableStateOf(false) }
 
@@ -91,7 +104,8 @@ fun EditTournamentSheet(
 
     val canSave = editTitle.trim().isNotEmpty() && editVenueName.isNotEmpty()
 
-    if (showVenuePicker) {
+    // iOS presents the venue picker with .fullScreenCover over the edit sheet.
+    if (showVenuePicker) FullScreenCover(onDismissRequest = { showVenuePicker = false }) {
         VenuePickerScreen(
             sportType = tournament.sportType,
             onVenueSelected = { name, address, lat, lng ->
@@ -103,7 +117,6 @@ fun EditTournamentSheet(
             },
             onCancel = { showVenuePicker = false },
         )
-        return
     }
 
     BackHandler { onCancel() }
@@ -129,11 +142,11 @@ fun EditTournamentSheet(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = BrandPurple.copy(alpha = 0.12f),
+                        color = AppAccent.copy(alpha = 0.12f),
                         modifier = Modifier.size(60.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Edit, null, tint = BrandPurple, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.Edit, null, tint = AppAccent, modifier = Modifier.size(28.dp))
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -147,8 +160,9 @@ fun EditTournamentSheet(
                     onValueChange = { editTitle = it },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
+                    placeholder = { Text("Tournament Name") },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BrandPurple,
+                        focusedBorderColor = AppAccent,
                         unfocusedBorderColor = Color(0xFFE5E5EA),
                         unfocusedContainerColor = Color(0xFFF2F2F7),
                         focusedContainerColor = Color(0xFFF2F2F7),
@@ -169,8 +183,36 @@ fun EditTournamentSheet(
                     }
                 }
 
+                // Division
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionLabel("DIVISION")
+                    EditAgeGroupDropdown(editAgeGroup, tournament.sportType.ageGroupsIncluding(tournament.ageGroup)) { editAgeGroup = it }
+                    if (tournament.sportType.skillDivisions.isNotEmpty()) {
+                        SkillDivisionPicker(
+                            sport = tournament.sportType,
+                            selection = editSkillDivision,
+                            onSelectionChange = { editSkillDivision = it },
+                        )
+                    }
+                }
+
+                if (canEditScoring) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SectionLabel("SCORING")
+                        ScoringConfigEditor(
+                            sport = tournament.sportType,
+                            config = editScoringConfig,
+                            onConfigChange = { editScoringConfig = it },
+                            singleGameOnly = editMatchFormat == MatchFormat.ROUND_ROBIN,
+                        )
+                    }
+                }
+
                 // Format Config
-                EditFormatConfigSection(editMatchFormat, editFormatConfig) { editFormatConfig = it }
+                EditFormatConfigSection(editMatchFormat, editFormatConfig) {
+                    editFormatConfig = it
+                    formatConfigEdited = true
+                }
 
                 // Random Pairing
                 if (editFormat.isDoubles) {
@@ -182,7 +224,7 @@ fun EditTournamentSheet(
                             modifier = Modifier.padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.Shuffle, null, tint = BrandPurple, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Shuffle, null, tint = AppAccent, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("Random Pairing", fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -191,7 +233,7 @@ fun EditTournamentSheet(
                             Switch(
                                 checked = editRandomPairing,
                                 onCheckedChange = { editRandomPairing = it },
-                                colors = SwitchDefaults.colors(checkedTrackColor = BrandPurple),
+                                colors = SwitchDefaults.colors(checkedTrackColor = AppAccent),
                             )
                         }
                     }
@@ -208,9 +250,9 @@ fun EditTournamentSheet(
                         modifier = Modifier.fillMaxWidth().padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Surface(shape = CircleShape, color = BrandPurple.copy(alpha = 0.1f), modifier = Modifier.size(40.dp)) {
+                        Surface(shape = CircleShape, color = AppAccent.copy(alpha = 0.1f), modifier = Modifier.size(40.dp)) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.LocationOn, null, tint = BrandPurple, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.LocationOn, null, tint = AppAccent, modifier = Modifier.size(20.dp))
                             }
                         }
                         Spacer(Modifier.width(14.dp))
@@ -261,7 +303,7 @@ fun EditTournamentSheet(
                 SectionLabel("REGISTRATION DEADLINE")
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Surface(
-                        onClick = { /* deadline date picker - reusing date picker */ },
+                        onClick = { showDeadlineDatePicker = true },
                         shape = RoundedCornerShape(14.dp),
                         color = Color(0xFFF2F2F7),
                         modifier = Modifier.weight(1f),
@@ -273,6 +315,7 @@ fun EditTournamentSheet(
                         }
                     }
                     Surface(
+                        onClick = { showDeadlineTimePicker = true },
                         shape = RoundedCornerShape(14.dp),
                         color = Color(0xFFF2F2F7),
                         modifier = Modifier.weight(1f),
@@ -296,7 +339,7 @@ fun EditTournamentSheet(
                         Spacer(Modifier.width(8.dp))
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BrandPurple,
+                        focusedBorderColor = AppAccent,
                         unfocusedBorderColor = Color(0xFFE5E5EA),
                         unfocusedContainerColor = Color(0xFFF2F2F7),
                         focusedContainerColor = Color(0xFFF2F2F7),
@@ -316,7 +359,7 @@ fun EditTournamentSheet(
                         shape = RoundedCornerShape(14.dp),
                         placeholder = { Text("e.g. Venmo: @handle, or Pay cash at venue", fontSize = 14.sp) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandPurple,
+                            focusedBorderColor = AppAccent,
                             unfocusedBorderColor = Color(0xFFE5E5EA),
                             unfocusedContainerColor = Color(0xFFF2F2F7),
                             focusedContainerColor = Color(0xFFF2F2F7),
@@ -328,10 +371,10 @@ fun EditTournamentSheet(
                     // Payment warning
                     Surface(
                         shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFFFFF3CD).copy(alpha = 0.3f),
+                        color = Color(0xFFFFCC00).copy(alpha = 0.08f),
                     ) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
-                            Icon(Icons.Default.Warning, null, tint = Color(0xFFFF9500), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.GppMaybe, null, tint = Color(0xFFFF9500), modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 "TournMate does not process payments. You are responsible for collecting and refunding fees directly.",
@@ -341,22 +384,25 @@ fun EditTournamentSheet(
                     }
 
                     // Prize info
-                    SectionLabel("WINNING REWARDS")
-                    OutlinedTextField(
-                        value = editPrizeInfo,
-                        onValueChange = { editPrizeInfo = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        placeholder = { Text("e.g. 1st: \$150, 2nd: \$50", fontSize = 14.sp) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandPurple,
-                            unfocusedBorderColor = Color(0xFFE5E5EA),
-                            unfocusedContainerColor = Color(0xFFF2F2F7),
-                            focusedContainerColor = Color(0xFFF2F2F7),
-                        ),
-                        minLines = 2,
-                        maxLines = 4,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel("WINNING REWARDS")
+                        OutlinedTextField(
+                            value = editPrizeInfo,
+                            onValueChange = { editPrizeInfo = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            placeholder = { Text("e.g. 1st: \$150, 2nd: \$50, 3rd: Free entry next event", fontSize = 14.sp) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AppAccent,
+                                unfocusedBorderColor = Color(0xFFE5E5EA),
+                                unfocusedContainerColor = Color(0xFFF2F2F7),
+                                focusedContainerColor = Color(0xFFF2F2F7),
+                            ),
+                            minLines = 3,
+                            maxLines = 4,
+                        )
+                        Text("Describe what winners receive.", fontSize = 11.sp, color = Color.Gray)
+                    }
 
                     // Duration
                     SectionLabel("ESTIMATED DURATION")
@@ -369,7 +415,7 @@ fun EditTournamentSheet(
                         suffix = { Text("minutes", fontSize = 13.sp, color = Color.Gray) },
                         leadingIcon = { Icon(Icons.Default.HourglassBottom, null, tint = Color(0xFF5856D6).copy(alpha = 0.6f)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandPurple,
+                            focusedBorderColor = AppAccent,
                             unfocusedBorderColor = Color(0xFFE5E5EA),
                             unfocusedContainerColor = Color(0xFFF2F2F7),
                             focusedContainerColor = Color(0xFFF2F2F7),
@@ -380,38 +426,39 @@ fun EditTournamentSheet(
                 }
             }
 
-            // Save button (sticky at bottom)
-            Surface(color = Color.White, shadowElevation = 8.dp) {
-                Box(Modifier.padding(horizontal = 24.dp, vertical = 12.dp).navigationBarsPadding()) {
-                    Button(
-                        onClick = {
-                            focusManager.clearFocus()
-                            onSave(
-                                editTitle.trim(), editDate,
-                                editVenueName, editVenueAddress,
-                                editVenueLatitude, editVenueLongitude,
-                                editFormat, editMatchFormat, editFormatConfig,
-                                if (editFormat.isDoubles) editRandomPairing else false,
-                                editDeadline,
-                                editEntryFee.toDoubleOrNull(), editCurrency,
-                                editPaymentInfo.ifBlank { null },
-                                editPrizeInfo.ifBlank { null },
-                                editDurationMinutes.toIntOrNull(),
-                                editAgeGroup,
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        enabled = canSave,
-                        shape = RoundedCornerShape(28.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BrandPurple,
-                            disabledContainerColor = BrandPurple.copy(alpha = 0.4f),
-                        ),
-                    ) {
-                        Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("SAVE CHANGES", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                    }
+            // Save button — iOS: plain capsule, no footer background or shadow.
+            Box(Modifier.navigationBarsPadding().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp)) {
+                PrimaryCapsuleButton(
+                    onClick = {
+                        focusManager.clearFocus()
+                        onSave(
+                            editTitle.trim(), editDate,
+                            editVenueName, editVenueAddress,
+                            editVenueLatitude, editVenueLongitude,
+                            editFormat, editMatchFormat,
+                            editFormatConfig.takeIf { existingConfig != null || formatConfigEdited },
+                            if (editFormat.isDoubles) editRandomPairing else false,
+                            editDeadline,
+                            editEntryFee.toDoubleOrNull(), editCurrency,
+                            editPaymentInfo.ifBlank { null },
+                            editPrizeInfo.ifBlank { null },
+                            editDurationMinutes.toIntOrNull(),
+                            editAgeGroup,
+                            // Round robin is always a single game.
+                            // Legacy tournaments (no stored scoring) stay lenient unless the
+                            // organizer actually changed the scoring here.
+                            editScoringConfig
+                                .let { if (editMatchFormat == MatchFormat.ROUND_ROBIN) it.copy(gamesPerMatch = 1) else it }
+                                .takeIf { canEditScoring }
+                                ?.takeIf { tournament.enforcesScoringRules || editScoringConfig != tournament.scoringConfig },
+                            editSkillDivision,
+                        )
+                    },
+                    enabled = canSave,
+                ) {
+                    Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("SAVE CHANGES", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
             }
         }
@@ -427,17 +474,13 @@ fun EditTournamentSheet(
                     TextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
                             editDate = DatePickerUtils.applyPickerDate(editDate, millis)
-                            val defaultDeadline = Calendar.getInstance().apply {
-                                time = editDate
-                                add(Calendar.HOUR, -2)
-                            }.time
-                            if (editDeadline.after(editDate)) editDeadline = defaultDeadline
+                            editDeadline = Tournament.defaultDeadline(editDate)
                         }
                         showDatePicker = false
-                    }) { Text("OK", color = BrandPurple) }
+                    }) { Text("OK", color = AppAccent) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = BrandPurple) }
+                    TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = AppAccent) }
                 },
             ) {
                 DatePicker(state = datePickerState)
@@ -462,13 +505,59 @@ fun EditTournamentSheet(
                         }
                         editDate = newCal.time
                         showTimePicker = false
-                    }) { Text("OK", color = BrandPurple) }
+                    }) { Text("OK", color = AppAccent) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = BrandPurple) }
+                    TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = AppAccent) }
                 },
                 text = { TimePicker(state = timePickerState) },
                 title = { Text("Select Time") },
+            )
+        }
+
+        if (showDeadlineDatePicker) {
+            val deadlineState = rememberDatePickerState(
+                initialSelectedDateMillis = DatePickerUtils.toUtcPickerMillis(editDeadline),
+            )
+            DatePickerDialog(
+                onDismissRequest = { showDeadlineDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        deadlineState.selectedDateMillis?.let { editDeadline = DatePickerUtils.applyPickerDate(editDeadline, it) }
+                        showDeadlineDatePicker = false
+                    }) { Text("OK", color = AppAccent) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeadlineDatePicker = false }) { Text("Cancel", color = AppAccent) }
+                },
+            ) {
+                DatePicker(state = deadlineState)
+            }
+        }
+
+        if (showDeadlineTimePicker) {
+            val cal = Calendar.getInstance().apply { time = editDeadline }
+            val deadlineTimeState = rememberTimePickerState(
+                initialHour = cal.get(Calendar.HOUR_OF_DAY),
+                initialMinute = cal.get(Calendar.MINUTE),
+            )
+            AlertDialog(
+                onDismissRequest = { showDeadlineTimePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        editDeadline = Calendar.getInstance().apply {
+                            time = editDeadline
+                            set(Calendar.HOUR_OF_DAY, deadlineTimeState.hour)
+                            set(Calendar.MINUTE, deadlineTimeState.minute)
+                        }.time
+                        showDeadlineTimePicker = false
+                    }) { Text("OK", color = AppAccent) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeadlineTimePicker = false }) { Text("Cancel", color = AppAccent) }
+                },
+                text = { TimePicker(state = deadlineTimeState) },
+                title = { Text("DEADLINE TIME") },
             )
         }
 
@@ -496,8 +585,12 @@ fun EditTournamentSheet(
                 selectedItem = editMatchFormat,
                 displayName = { it.displayName },
                 onSelect = {
-                    editMatchFormat = it
-                    editFormatConfig = FormatConfig()
+                    if (it != editMatchFormat) {
+                        editMatchFormat = it
+                        // Fresh defaults, but Edit never adds the tie-break rules version (iOS parity).
+                        editFormatConfig = FormatConfig.defaults(it).copy(tieBreakRulesVersion = editFormatConfig.tieBreakRulesVersion)
+                        formatConfigEdited = true
+                    }
                     showMatchFormatPicker = false
                 },
                 onDismiss = { showMatchFormatPicker = false },
@@ -537,6 +630,45 @@ private fun PickerButton(text: String, onClick: () -> Unit) {
 }
 
 @Composable
+private fun EditAgeGroupDropdown(selected: AgeGroup, options: List<AgeGroup>, onSelect: (AgeGroup) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Surface(
+            onClick = { expanded = true },
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFF2F2F7),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Badge, null, tint = AppAccent, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(selected.displayName, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1)
+                Icon(Icons.Default.UnfoldMore, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { group ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            group.displayName,
+                            fontWeight = if (group == selected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (group == selected) AppAccent else Color.Black,
+                        )
+                    },
+                    trailingIcon = if (group == selected) {
+                        { Icon(Icons.Default.Check, null, tint = AppAccent, modifier = Modifier.size(18.dp)) }
+                    } else null,
+                    onClick = { onSelect(group); expanded = false },
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun <T> PickerDialog(
     title: String,
     items: List<T>,
@@ -555,7 +687,7 @@ private fun <T> PickerDialog(
                     Surface(
                         onClick = { onSelect(item) },
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) BrandPurple.copy(alpha = 0.12f) else Color.Transparent,
+                        color = if (isSelected) AppAccent.copy(alpha = 0.12f) else Color.Transparent,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -566,11 +698,11 @@ private fun <T> PickerDialog(
                                 displayName(item),
                                 fontSize = 15.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) BrandPurple else Color.Black,
+                                color = if (isSelected) AppAccent else Color.Black,
                             )
                             if (isSelected) {
                                 Spacer(Modifier.weight(1f))
-                                Icon(Icons.Default.Check, null, tint = BrandPurple, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Check, null, tint = AppAccent, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -579,7 +711,7 @@ private fun <T> PickerDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = BrandPurple) }
+            TextButton(onClick = onDismiss) { Text("Cancel", color = AppAccent) }
         },
     )
 }
@@ -593,14 +725,16 @@ private fun EditFormatConfigSection(
     when (matchFormat) {
         MatchFormat.SINGLE_ELIMINATION -> {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SeedingPicker(config, onConfigChange)
                 EditToggle("Bronze Match", config.bronzeMatch) { onConfigChange(config.copy(bronzeMatch = it)) }
                 EditToggle("Consolation Bracket", config.consolationBracket) { onConfigChange(config.copy(consolationBracket = it)) }
             }
         }
         MatchFormat.DOUBLE_ELIMINATION -> {
-            Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF2F2F7)) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = BrandPurple, modifier = Modifier.size(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SeedingPicker(config, onConfigChange)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Info, null, tint = AppAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Losers bracket runs alongside the main bracket.", fontSize = 12.sp, color = Color.Gray)
                 }
@@ -630,9 +764,42 @@ private fun EditFormatConfigSection(
         MatchFormat.MANUAL_DRAW -> {
             Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF2F2F7)) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Draw, null, tint = BrandPurple, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Draw, null, tint = AppAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Matchups assigned manually by organizer.", fontSize = 12.sp, color = Color.Gray)
+                }
+            }
+        }
+    }
+}
+
+private val SeedingMode.displayName: String
+    get() = when (this) {
+        SeedingMode.ELO_RANKED -> "Elo Ranked"
+        SeedingMode.RANDOM -> "Random"
+        SeedingMode.MANUAL -> "Manual"
+    }
+
+@Composable
+private fun SeedingPicker(config: FormatConfig, onConfigChange: (FormatConfig) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel("SEEDING")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SeedingMode.entries.forEach { mode ->
+                val selected = config.seedingMode == mode.rawValue
+                Surface(
+                    onClick = { onConfigChange(config.copy(seedingMode = mode.rawValue)) },
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (selected) AppAccent.copy(alpha = 0.15f) else Color(0xFFF2F2F7),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        mode.displayName,
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        color = if (selected) AppAccent else Color.Black,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 10.dp),
+                    )
                 }
             }
         }
@@ -651,7 +818,7 @@ private fun EditToggle(label: String, checked: Boolean, onCheckedChange: (Boolea
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(checkedTrackColor = BrandPurple),
+                colors = SwitchDefaults.colors(checkedTrackColor = AppAccent),
             )
         }
     }

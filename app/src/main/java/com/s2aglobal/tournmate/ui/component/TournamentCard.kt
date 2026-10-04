@@ -1,9 +1,18 @@
 package com.s2aglobal.tournmate.ui.component
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
@@ -12,20 +21,28 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Tournament
 import com.s2aglobal.tournmate.domain.model.TournamentStatus
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.ErrorRed
 import com.s2aglobal.tournmate.ui.theme.PrizeGold
+import com.s2aglobal.tournmate.ui.theme.PrizeGoldLight
 import com.s2aglobal.tournmate.ui.theme.SuccessGreen
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
+import com.s2aglobal.tournmate.ui.theme.theme
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -41,21 +58,14 @@ fun TournamentCard(
     val accentColor = statusColor
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .alpha(if (isPast) 0.8f else 1f),
         shape = RoundedCornerShape(24.dp),
         color = Color.White,
         shadowElevation = 2.dp,
     ) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 30.dp)
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(accentColor),
-            )
-
+        Box {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -68,18 +78,40 @@ fun TournamentCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.weight(1f, fill = false),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         Badge(statusText.uppercase(), statusColor)
-                        Badge(tournament.format.shortName, Color.Gray)
-                        Badge(tournament.matchFormat.displayName, BrandPurple)
+                        Badge(
+                            tournament.format.shortName, Color.Gray,
+                            fontSize = 10, weight = FontWeight.Bold, background = Color(0xFFF2F2F7),
+                        )
+                        tournament.skillDivision?.let { division ->
+                            val theme = tournament.sportType.theme
+                            Badge(division, theme.primary, fontSize = 10, weight = FontWeight.Bold, background = theme.tint)
+                        }
+                        Badge(
+                            tournament.matchFormat.displayName, AppAccent,
+                            fontSize = 10, weight = FontWeight.Bold, background = AppAccent.copy(alpha = 0.1f),
+                        )
                     }
 
-                    Text(
-                        text = formatDateShort(tournament.date),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Gray,
-                    )
+                    Row(
+                        modifier = Modifier.padding(start = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SportArtworkImage(tournament.sportType, 18.dp)
+                        Text(
+                            text = formatDateShort(tournament.date),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                 }
 
                 // Row 2: Title
@@ -97,12 +129,7 @@ fun TournamentCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.Top,
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = Color.Gray.copy(alpha = 0.5f),
-                        )
+                        MapPinCircle(Modifier.padding(top = 1.dp))
                         Column {
                             Text(
                                 text = tournament.location,
@@ -115,7 +142,6 @@ fun TournamentCard(
                                     text = tournament.locationAddress,
                                     fontSize = 11.sp,
                                     color = Color.Gray,
-                                    maxLines = 1,
                                 )
                             }
                         }
@@ -136,6 +162,7 @@ fun TournamentCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -150,6 +177,8 @@ fun TournamentCard(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
@@ -173,21 +202,59 @@ fun TournamentCard(
                     }
                 }
             }
+
+            // iOS overlays the 4pt accent bar on the leading edge (it takes no content width).
+            Box(modifier = Modifier.matchParentSize()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(vertical = 30.dp)
+                        .width(4.dp)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(accentColor),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun Badge(text: String, color: Color) {
+private fun Badge(
+    text: String,
+    color: Color,
+    fontSize: Int = 9,
+    weight: FontWeight = FontWeight.ExtraBold,
+    background: Color = color.copy(alpha = 0.15f),
+) {
     Text(
         text = text,
-        fontSize = 9.sp,
-        fontWeight = FontWeight.ExtraBold,
+        fontSize = fontSize.sp,
+        fontWeight = weight,
         color = color,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+            .background(background, RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp),
     )
+}
+
+/** iOS `mappin.circle.fill`. */
+@Composable
+internal fun MapPinCircle(modifier: Modifier = Modifier, size: Dp = 14.dp, color: Color = Color.Gray.copy(alpha = 0.5f)) {
+    Box(
+        modifier = modifier.size(size).background(color, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.LocationOn,
+            contentDescription = null,
+            modifier = Modifier.size(size * 0.65f),
+            tint = Color.White,
+        )
+    }
 }
 
 @Composable
@@ -196,36 +263,55 @@ private fun FeeBadge(text: String, isFree: Boolean) {
         text = text,
         fontSize = 13.sp,
         fontWeight = FontWeight.Bold,
-        color = if (isFree) BrandPurple else Color.Black,
+        color = if (isFree) AppAccent else Color.Black,
         modifier = Modifier
             .background(
-                if (isFree) BrandPurple.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
+                if (isFree) AppAccent.copy(alpha = 0.1f) else Color(0xFFF2F2F7),
                 RoundedCornerShape(10.dp),
             )
             .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }
 
+private val PrizeGoldDark = Color(0xFFFFDE94)
+
 @Composable
 private fun PrizeBanner(text: String) {
+    val bounce = rememberInfiniteTransition(label = "prizeBounce")
+    val trophyRotation by bounce.animateFloat(
+        initialValue = 0f,
+        targetValue = -8f,
+        animationSpec = infiniteRepeatable(tween(400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "trophyRotation",
+    )
+    val shape = RoundedCornerShape(10.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(shape)
             .background(
-                PrizeGold.copy(alpha = 0.08f),
-                RoundedCornerShape(10.dp),
+                Brush.horizontalGradient(
+                    listOf(PrizeGoldLight.copy(alpha = 0.5f), PrizeGoldDark.copy(alpha = 0.3f)),
+                ),
             )
+            .border(1.dp, WarningOrange.copy(alpha = 0.15f), shape)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(text = "🏆", fontSize = 18.sp)
+        Text(text = "🏆", fontSize = 18.sp, modifier = Modifier.rotate(trophyRotation))
         Text(
             text = text,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = PrizeGold,
             modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = Icons.Default.AutoAwesome,
+            contentDescription = null,
+            modifier = Modifier.size(10.dp),
+            tint = WarningOrange.copy(alpha = 0.5f),
         )
     }
 }
@@ -256,6 +342,6 @@ private fun cardFooterText(t: Tournament, isPast: Boolean): String {
 }
 
 private fun formatDateShort(date: Date): String {
-    val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
+    val fmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
     return fmt.format(date)
 }

@@ -31,25 +31,56 @@ data class OpenPlayListUiState(
     val filter: OpenPlayFilter = OpenPlayFilter.ALL_SESSIONS,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    /** Post-session failures — shown as the "Unable to Post" alert on the create sheet. */
+    val createError: String? = null,
+    val isCreating: Boolean = false,
     val currentPlayer: Player? = null,
     val currentPlayerId: String? = null,
     val firebaseUid: String? = null,
+    val preferredSport: SportType = SportType.BADMINTON,
 ) {
     val displaySessions: List<PlaySession>
         get() = when (filter) {
-            OpenPlayFilter.ALL_SESSIONS -> allUpcoming.filter { passesRegion(it) }
-            OpenPlayFilter.MY_SESSIONS -> allUpcoming.filter { isMine(it) }
-            OpenPlayFilter.COMPLETED -> allPast.filter { passesRegion(it) }
+            OpenPlayFilter.ALL_SESSIONS -> allUpcoming.filter {
+                passesSport(it) && passesRegion(it) && it.status == PlaySessionStatus.ACTIVE
+            }
+            OpenPlayFilter.MY_SESSIONS -> allUpcoming.filter {
+                isMine(it) && passesRegionOrMine(it) && it.status == PlaySessionStatus.ACTIVE
+            }
+            OpenPlayFilter.COMPLETED ->
+                allUpcoming.filter { it.status == PlaySessionStatus.COMPLETED && passesSport(it) && passesRegion(it) } +
+                    allPast.filter { passesSport(it) && passesRegion(it) }
         }
 
     val isEmpty: Boolean
         get() = displaySessions.isEmpty()
+
+    /** "My Sessions" yields nothing while other sessions exist (iOS `isMyFilterEmpty`). */
+    val isMyFilterEmpty: Boolean
+        get() = filter == OpenPlayFilter.MY_SESSIONS && isEmpty && (allUpcoming.isNotEmpty() || allPast.isNotEmpty())
+
+    fun isHost(session: PlaySession): Boolean =
+        firebaseUid != null && session.hostId == firebaseUid
 
     private fun isMine(session: PlaySession): Boolean {
         val uid = firebaseUid ?: return false
         val pid = currentPlayerId ?: return false
         return session.hostId == uid || session.attendeeIds.contains(pid)
     }
+
+    private fun passesRegionOrMine(session: PlaySession): Boolean {
+        if (isMine(session)) return true
+        return RegionNormalizer.sessionMatchesPlayerRegion(
+            sessionCountry = session.countryCode,
+            sessionPostal = session.postalCode,
+            playerCountry = currentPlayer?.homeCountryCode,
+            playerPostal = currentPlayer?.homePostalCode,
+        )
+    }
+
+    // Applied to All Sessions and Completed; My Sessions shows every sport.
+    private fun passesSport(session: PlaySession): Boolean =
+        session.sportType == preferredSport
 
     private fun passesRegion(session: PlaySession): Boolean {
         val player = currentPlayer ?: return true
@@ -74,38 +105,47 @@ class OpenPlayListViewModel @Inject constructor(
 
     init {
         load()
+        viewModelScope.launch {
+            currentUserStore.preferredSportFlow.collect { sport ->
+                _uiState.value = _uiState.value.copy(preferredSport = sport)
+            }
+        }
     }
 
     fun load() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            try {
-                val upcoming = sessionRepo.listUpcoming()
-                val past = sessionRepo.listPast()
-                val playerUUID = currentUserStore.currentPlayerId()
-                val playerId = playerUUID?.toString()?.uppercase()
-                val firebaseUid = currentUserStore.firebaseUid()
+        viewModelScope.launch { loadInternal() }
+    }
 
-                var player: Player? = null
-                if (playerId != null) {
-                    player = playerRepo.findPlayerById(playerId)
-                }
+    suspend fun refresh() = loadInternal()
 
-                _uiState.value = _uiState.value.copy(
-                    allUpcoming = upcoming,
-                    allPast = past,
-                    isLoading = false,
-                    errorMessage = null,
-                    currentPlayer = player,
-                    currentPlayerId = playerId,
-                    firebaseUid = firebaseUid,
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = e.message ?: "Failed to load sessions",
-                )
+    private suspend fun loadInternal() {
+        _uiState.value = _uiState.value.copy(isLoading = true)
+        try {
+            val upcoming = sessionRepo.listUpcoming()
+            val past = sessionRepo.listPast()
+            val playerUUID = currentUserStore.currentPlayerId()
+            val playerId = playerUUID?.toString()?.uppercase()
+            val firebaseUid = currentUserStore.firebaseUid()
+
+            var player: Player? = null
+            if (playerId != null) {
+                player = playerRepo.findPlayerById(playerId)
             }
+
+            _uiState.value = _uiState.value.copy(
+                allUpcoming = upcoming,
+                allPast = past,
+                isLoading = false,
+                errorMessage = null,
+                currentPlayer = player,
+                currentPlayerId = playerId,
+                firebaseUid = firebaseUid,
+            )
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = e.message ?: "Failed to load sessions",
+            )
         }
     }
 
@@ -115,6 +155,10 @@ class OpenPlayListViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
+
+    fun clearCreateError() {
+        _uiState.value = _uiState.value.copy(createError = null)
     }
 
     fun createSession(
@@ -132,68 +176,100 @@ class OpenPlayListViewModel @Inject constructor(
         notes: String?,
         ageGroup: AgeGroup,
         sportType: SportType,
+        onResult: (Boolean) -> Unit = {},
     ) {
+        if (_uiState.value.isCreating) return
+        _uiState.value = _uiState.value.copy(isCreating = true)
         viewModelScope.launch {
-            val state = _uiState.value
+            val error = validateAndCreate(
+                title, venue, venueAddress, venueLatitude, venueLongitude, date, durationMinutes,
+                skillLevel, gameType, costPerPerson, currency, notes, ageGroup, sportType,
+            )
+            _uiState.value = _uiState.value.copy(isCreating = false, createError = error)
+            onResult(error == null)
+        }
+    }
 
-            val profileCheck = EventRateLimiter.hasCompleteProfile(state.currentPlayer)
-            if (!profileCheck.isValid) { setError(profileCheck.errorMessage); return@launch }
+    /** Returns null on success, otherwise the user-facing error. */
+    private suspend fun validateAndCreate(
+        title: String,
+        venue: String,
+        venueAddress: String,
+        venueLatitude: Double?,
+        venueLongitude: Double?,
+        date: Date,
+        durationMinutes: Int?,
+        skillLevel: SkillLevel,
+        gameType: CasualGameType,
+        costPerPerson: Double?,
+        currency: String,
+        notes: String?,
+        ageGroup: AgeGroup,
+        sportType: SportType,
+    ): String? {
+        val state = _uiState.value
 
-            val cooldownCheck = EventRateLimiter.canCreate(EventType.OPEN_PLAY)
-            if (!cooldownCheck.isValid) { setError(cooldownCheck.errorMessage); return@launch }
+        val profileCheck = EventRateLimiter.hasCompleteProfile(state.currentPlayer)
+        if (!profileCheck.isValid) return profileCheck.errorMessage
 
-            val dailyCheck = EventRateLimiter.checkDailyLimit(EventType.OPEN_PLAY)
-            if (!dailyCheck.isValid) { setError(dailyCheck.errorMessage); return@launch }
+        val cooldownCheck = EventRateLimiter.canCreate(EventType.OPEN_PLAY)
+        if (!cooldownCheck.isValid) return cooldownCheck.errorMessage
 
-            val titleCheck = InputValidator.validateEventTitle(title)
-            if (!titleCheck.isValid) { setError(titleCheck.errorMessage); return@launch }
+        val dailyCheck = EventRateLimiter.checkDailyLimit(EventType.OPEN_PLAY)
+        if (!dailyCheck.isValid) return dailyCheck.errorMessage
 
-            val venueCheck = InputValidator.validateEventVenue(venue)
-            if (!venueCheck.isValid) { setError(venueCheck.errorMessage); return@launch }
+        val effectiveTitle = title.trim()
+        if (effectiveTitle.isNotEmpty()) {
+            val titleCheck = InputValidator.validateEventTitle(effectiveTitle)
+            if (!titleCheck.isValid) return titleCheck.errorMessage
+        }
 
-            if (notes != null) {
-                val notesCheck = InputValidator.validateEventNotes(notes)
-                if (!notesCheck.isValid) { setError(notesCheck.errorMessage); return@launch }
-            }
+        val venueCheck = InputValidator.validateEventVenue(venue)
+        if (!venueCheck.isValid) return venueCheck.errorMessage
 
-            if (date.before(Date())) {
-                setError("Session date must be in the future.")
-                return@launch
-            }
+        if (notes != null) {
+            val notesCheck = InputValidator.validateEventNotes(notes)
+            if (!notesCheck.isValid) return notesCheck.errorMessage
+        }
 
-            try {
-                val session = PlaySession(
-                    id = UUID.randomUUID(),
-                    title = title,
-                    venue = venue,
-                    venueAddress = venueAddress,
-                    venueLatitude = venueLatitude,
-                    venueLongitude = venueLongitude,
-                    countryCode = state.currentPlayer?.homeCountryCode,
-                    postalCode = state.currentPlayer?.homePostalCode,
-                    date = date,
-                    durationMinutes = durationMinutes,
-                    skillLevelRaw = skillLevel.rawValue,
-                    gameTypeRaw = gameType.rawValue,
-                    costPerPerson = costPerPerson,
-                    currency = currency,
-                    notes = notes,
-                    preferredAgeGroupRaw = ageGroup.rawValue,
-                    statusRaw = PlaySessionStatus.ACTIVE.rawValue,
-                    hostId = state.firebaseUid,
-                    hostName = state.currentPlayer?.name,
-                    hostAvatarId = state.currentPlayer?.avatarId,
-                    createdAt = Date(),
-                    timeZone = java.util.TimeZone.getDefault().id,
-                    sportType = sportType,
-                    attendeeIds = listOf(state.currentPlayerId ?: ""),
-                )
-                sessionRepo.create(session)
-                EventRateLimiter.recordCreation(EventType.OPEN_PLAY)
-                load()
-            } catch (e: Exception) {
-                setError(e.message)
-            }
+        val feeCheck = InputValidator.validateEntryFee(costPerPerson)
+        if (!feeCheck.isValid) return feeCheck.errorMessage
+
+        if (!date.after(Date())) return "Session date must be in the future."
+
+        return try {
+            val session = PlaySession(
+                id = UUID.randomUUID(),
+                title = effectiveTitle.ifEmpty { "Open Play" },
+                venue = venue,
+                venueAddress = venueAddress,
+                venueLatitude = venueLatitude,
+                venueLongitude = venueLongitude,
+                countryCode = state.currentPlayer?.homeCountryCode,
+                postalCode = state.currentPlayer?.homePostalCode,
+                date = date,
+                durationMinutes = durationMinutes,
+                skillLevelRaw = skillLevel.rawValue,
+                gameTypeRaw = gameType.rawValue,
+                costPerPerson = costPerPerson,
+                currency = currency,
+                notes = notes?.takeIf { it.isNotBlank() },
+                preferredAgeGroupRaw = ageGroup.rawValue,
+                statusRaw = PlaySessionStatus.ACTIVE.rawValue,
+                hostId = state.firebaseUid,
+                hostName = state.currentPlayer?.name,
+                hostAvatarId = state.currentPlayer?.avatarId,
+                createdAt = Date(),
+                timeZone = java.util.TimeZone.getDefault().id,
+                sportType = sportType,
+                attendeeIds = listOfNotNull(state.currentPlayerId),
+            )
+            sessionRepo.create(session)
+            EventRateLimiter.recordCreation(EventType.OPEN_PLAY)
+            loadInternal()
+            null
+        } catch (e: Exception) {
+            "Failed to post session: ${e.message ?: "Unknown error"}"
         }
     }
 

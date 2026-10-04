@@ -1,5 +1,8 @@
 package com.s2aglobal.tournmate.ui.screen.openplay
 
+import com.s2aglobal.tournmate.ui.component.sheetScrollLikeIos
+import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,7 +32,13 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.R
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.screen.tournament.VenuePickerScreen
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.component.SportArtworkImage
+import com.s2aglobal.tournmate.ui.component.LocalSportCatalog
+import com.s2aglobal.tournmate.ui.component.SportPickerRow
+import com.s2aglobal.tournmate.ui.theme.gearNoun
+import com.s2aglobal.tournmate.ui.theme.theme
+import androidx.compose.ui.draw.rotate
 import com.s2aglobal.tournmate.util.DatePickerUtils
 import java.text.SimpleDateFormat
 import java.util.*
@@ -38,6 +47,9 @@ import java.util.*
 @Composable
 fun CreateSessionSheet(
     preferredSport: SportType = SportType.BADMINTON,
+    isPosting: Boolean = false,
+    postError: String? = null,
+    onClearPostError: () -> Unit = {},
     onPost: (
         title: String,
         venue: String,
@@ -67,23 +79,21 @@ fun CreateSessionSheet(
     var costText by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var ageGroup by remember { mutableStateOf(AgeGroup.OPEN) }
-    var sportType by remember { mutableStateOf(preferredSport) }
+    // Only live sports can be posted; a soon/unknown preference starts on the first live one.
+    val catalog = LocalSportCatalog.current
+    var sportType by remember { mutableStateOf(catalog.defaultCreationSport(preferredSport)) }
     var showVenuePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    val calendar = remember {
-        Calendar.getInstance().apply {
-            add(Calendar.HOUR_OF_DAY, 1)
-            set(Calendar.MINUTE, 0)
-        }
-    }
-    var selectedDate by remember { mutableStateOf(calendar.time) }
+    var selectedDate by remember { mutableStateOf(Date(System.currentTimeMillis() + 3_600_000L)) }
 
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
 
-    if (showVenuePicker) {
+    // iOS: venue picker is a fullScreenCover over the sheet (the sheet stays open).
+    // Its window opens after the sheet's, so it draws on top.
+    if (showVenuePicker) FullScreenCover(onDismissRequest = { showVenuePicker = false }) {
         VenuePickerScreen(
             sportType = sportType,
             onVenueSelected = { name, address, lat, lng ->
@@ -95,7 +105,6 @@ fun CreateSessionSheet(
             },
             onCancel = { showVenuePicker = false },
         )
-        return
     }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -104,30 +113,15 @@ fun CreateSessionSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = Color(0xFFF2F2F7),
-        dragHandle = {
-            // Minimal drag indicator
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(36.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.LightGray.copy(alpha = 0.5f))
-                )
-            }
-        },
+        // iOS: NavigationStack sheet with an inline title, no drag indicator.
+        dragHandle = null,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF2F2F7))
-                .verticalScroll(rememberScrollState()),
+                .sheetScrollLikeIos().verticalScroll(rememberScrollState()),
         ) {
             // Header
             Box(
@@ -139,12 +133,12 @@ fun CreateSessionSheet(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.CenterStart),
                 ) {
-                    Text("Cancel", color = BrandPurple, fontSize = 16.sp)
+                    Text("Cancel", color = AppAccent, fontSize = 16.sp)
                 }
                 Text(
                     "Post Session",
                     fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
@@ -155,26 +149,28 @@ fun CreateSessionSheet(
             ) {
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Sport icon matching iOS figure.badminton
                 Box(
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(BrandPurple.copy(alpha = 0.08f)),
+                        .background(sportType.theme.tint),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_figure_badminton),
-                        contentDescription = null,
-                        modifier = Modifier.size(44.dp),
-                        tint = BrandPurple,
-                    )
+                    SportArtworkImage(sportType, 48.dp, Modifier.rotate(-12f))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("Post Open Play", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("Invite others to play casual badminton", fontSize = 13.sp, color = Color.Gray)
+                Text("Invite others to play casual ${sportType.inlineName}", fontSize = 13.sp, color = Color.Gray)
 
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // Sport
+                FormSection("Sport") {
+                    SportPickerRow(selection = sportType, onSelect = {
+                        sportType = it
+                        if (ageGroup !in it.ageGroups) ageGroup = AgeGroup.OPEN
+                    })
+                }
 
                 // Session Title
                 FormSection("Session Title") {
@@ -195,7 +191,7 @@ fun CreateSessionSheet(
                                 .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.LocationOn, null, tint = BrandPurple, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.LocationOn, null, tint = AppAccent, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(10.dp))
                             if (selectedVenueName.isEmpty()) {
                                 Text("Select a court or venue", color = Color.Gray, fontSize = 14.sp)
@@ -229,9 +225,9 @@ fun CreateSessionSheet(
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Box(
-                                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(BrandPurple.copy(alpha = 0.1f)),
+                                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(AppAccent.copy(alpha = 0.1f)),
                                     contentAlignment = Alignment.Center,
-                                ) { Icon(Icons.Default.CalendarToday, null, tint = BrandPurple, modifier = Modifier.size(16.dp)) }
+                                ) { Icon(Icons.Default.CalendarToday, null, tint = AppAccent, modifier = Modifier.size(16.dp)) }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text("Date", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
@@ -250,9 +246,9 @@ fun CreateSessionSheet(
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Box(
-                                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(BrandPurple.copy(alpha = 0.1f)),
+                                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(AppAccent.copy(alpha = 0.1f)),
                                     contentAlignment = Alignment.Center,
-                                ) { Icon(Icons.Default.Schedule, null, tint = BrandPurple, modifier = Modifier.size(16.dp)) }
+                                ) { Icon(Icons.Default.Schedule, null, tint = AppAccent, modifier = Modifier.size(16.dp)) }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text("Time", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
@@ -276,7 +272,7 @@ fun CreateSessionSheet(
                             Surface(
                                 onClick = { selectedDuration = mins },
                                 shape = RoundedCornerShape(50),
-                                color = if (isSelected) BrandPurple else Color(.6f, .6f, .6f, .08f),
+                                color = if (isSelected) AppAccent else Color(.6f, .6f, .6f, .08f),
                             ) {
                                 Text(
                                     label,
@@ -290,66 +286,17 @@ fun CreateSessionSheet(
                     }
                 }
 
-                // Skill Level - individual capsule chips without gray container
                 FormSection("Skill Level") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        SkillLevel.entries.forEach { level ->
-                            val isSelected = skillLevel == level
-                            Surface(
-                                onClick = { skillLevel = level },
-                                shape = RoundedCornerShape(50),
-                                color = if (isSelected) Color.White else Color.Transparent,
-                                border = if (isSelected) null else null,
-                                shadowElevation = if (isSelected) 2.dp else 0.dp,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    level.displayName,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
+                    SegmentedPicker(SkillLevel.entries, skillLevel, { it.displayName }) { skillLevel = it }
                 }
 
-                // Game Type - individual capsule chips without gray container
                 FormSection("Game Type") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        CasualGameType.entries.forEach { type ->
-                            val isSelected = gameType == type
-                            Surface(
-                                onClick = { gameType = type },
-                                shape = RoundedCornerShape(50),
-                                color = if (isSelected) Color.White else Color.Transparent,
-                                shadowElevation = if (isSelected) 2.dp else 0.dp,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    type.displayName,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
+                    SegmentedPicker(CasualGameType.entries, gameType, { it.displayName }) { gameType = it }
                 }
 
                 // Age Group dropdown
                 FormSection("Preferred Age Group") {
-                    AgeGroupDropdown(selected = ageGroup, onSelected = { ageGroup = it })
+                    AgeGroupDropdown(selected = ageGroup, options = sportType.ageGroups, onSelected = { ageGroup = it })
                 }
 
                 // Cost
@@ -363,7 +310,7 @@ fun CreateSessionSheet(
                             modifier = Modifier.fillMaxWidth().padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("$", color = BrandPurple, fontWeight = FontWeight.Bold)
+                            Text("$", color = AppAccent, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.width(8.dp))
                             androidx.compose.foundation.text.BasicTextField(
                                 value = costText,
@@ -383,12 +330,13 @@ fun CreateSessionSheet(
 
                 // Notes
                 FormSection("Notes (Optional)") {
-                    FormTextField(value = notes, onValueChange = { notes = it.take(500) }, placeholder = "e.g. Court 3, bring shuttlecocks", singleLine = false, minHeight = 80.dp)
+                    FormTextField(value = notes, onValueChange = { notes = it.take(500) }, placeholder = "e.g. Court 3, bring your own ${sportType.gearNoun}", singleLine = false, minHeight = 80.dp)
                 }
 
                 // Post Session button - tighter spacing
                 Spacer(modifier = Modifier.height(12.dp))
-                Button(
+                // iOS: .buttonStyle(.appPrimary)
+                AppPrimaryButton(
                     onClick = {
                         onPost(
                             title, selectedVenueName, selectedVenueAddress,
@@ -400,29 +348,42 @@ fun CreateSessionSheet(
                             "USD", notes.ifBlank { null },
                             ageGroup, sportType,
                         )
-                        onDismiss()
                     },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    enabled = selectedVenueName.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple, disabledContainerColor = Color.LightGray),
-                    shape = RoundedCornerShape(14.dp),
+                    enabled = selectedVenueName.isNotBlank() && !isPosting,
                 ) {
-                    Text("Post Session", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    if (isPosting) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (isPosting) "Posting..." else "Post Session")
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(30.dp))
             }
         }
     }
 
+    postError?.let { msg ->
+        AlertDialog(
+            onDismissRequest = onClearPostError,
+            title = { Text("Unable to Post") },
+            text = { Text(msg) },
+            confirmButton = { TextButton(onClick = onClearPostError) { Text("OK") } },
+        )
+    }
+
     if (showDatePicker) {
+        val todayMillis = DatePickerUtils.toUtcPickerMillis(Date())
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = DatePickerUtils.toUtcPickerMillis(selectedDate),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= todayMillis
+            },
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = { TextButton(onClick = {
                 datePickerState.selectedDateMillis?.let { millis ->
-                    selectedDate = DatePickerUtils.applyPickerDate(selectedDate, millis)
+                    selectedDate = DatePickerUtils.applyPickerDate(selectedDate, millis).coerceAtLeastNow()
                 }
                 showDatePicker = false
             }) { Text("OK") } },
@@ -439,12 +400,51 @@ fun CreateSessionSheet(
                 val newCal = Calendar.getInstance().apply { time = selectedDate }
                 newCal.set(Calendar.HOUR_OF_DAY, timePickerState.hour)
                 newCal.set(Calendar.MINUTE, timePickerState.minute)
-                selectedDate = newCal.time
+                selectedDate = newCal.time.coerceAtLeastNow()
                 showTimePicker = false
             }) { Text("OK") } },
             dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
             text = { TimePicker(state = timePickerState) },
         )
+    }
+}
+
+private fun Date.coerceAtLeastNow(): Date = if (before(Date())) Date() else this
+
+/** iOS `.pickerStyle(.segmented)` look: gray track, white selected thumb. */
+@Composable
+internal fun <T> SegmentedPicker(
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF767680).copy(alpha = 0.12f), RoundedCornerShape(9.dp))
+            .padding(2.dp),
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selected
+            Surface(
+                onClick = { onSelect(option) },
+                shape = RoundedCornerShape(7.dp),
+                color = if (isSelected) Color.White else Color.Transparent,
+                shadowElevation = if (isSelected) 2.dp else 0.dp,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    label(option),
+                    modifier = Modifier.padding(vertical = 7.dp, horizontal = 2.dp),
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 
@@ -483,7 +483,7 @@ internal fun FormTextField(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AgeGroupDropdown(selected: AgeGroup, onSelected: (AgeGroup) -> Unit) {
+internal fun AgeGroupDropdown(selected: AgeGroup, options: List<AgeGroup>, onSelected: (AgeGroup) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
         Surface(
@@ -492,13 +492,13 @@ internal fun AgeGroupDropdown(selected: AgeGroup, onSelected: (AgeGroup) -> Unit
             onClick = { expanded = true },
         ) {
             Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(selected.displayName, fontSize = 14.sp, color = BrandPurple, fontWeight = FontWeight.Medium)
+                Text(selected.displayName, fontSize = 14.sp, color = AppAccent, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.weight(1f))
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded)
             }
         }
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            AgeGroup.entries.forEach { group ->
+            options.forEach { group ->
                 DropdownMenuItem(
                     text = {
                         Row {

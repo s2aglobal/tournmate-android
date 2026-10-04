@@ -1,10 +1,14 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
+import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
+import com.s2aglobal.tournmate.ui.component.MultiSportArtworkRow
+import com.s2aglobal.tournmate.ui.component.SportBrandMark
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -28,22 +32,25 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.SportsHandball
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
 import com.s2aglobal.tournmate.ui.theme.DarkNavy
 import com.s2aglobal.tournmate.ui.theme.DarkNavyLight
 import com.s2aglobal.tournmate.ui.theme.LimeAccent
@@ -54,23 +61,35 @@ fun WelcomeScreen(
     onLogIn: () -> Unit,
     onContinueAsGuest: () -> Unit,
 ) {
+    LightSystemBarIcons()
     val infiniteTransition = rememberInfiniteTransition(label = "bounce")
-    val bounceOffset by infiniteTransition.animateFloat(
+    val bounce by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = -8f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(800),
+            animation = tween(800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "bounceY",
+        label = "bounce",
     )
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { contentVisible = true }
+    val content by animateFloatAsState(
+        targetValue = if (contentVisible) 1f else 0f,
+        animationSpec = tween(700, delayMillis = 200, easing = FastOutSlowInEasing),
+        label = "contentVisible",
+    )
+    fun Modifier.entrance(distance: Float) = graphicsLayer {
+        alpha = content
+        translationY = (1f - content) * distance.dp.toPx()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkNavy),
     ) {
-        // Court lines background
+        // Sport-neutral court lines background
         CourtLines(
             modifier = Modifier.fillMaxSize(),
         )
@@ -81,32 +100,26 @@ fun WelcomeScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 32.dp),
         ) {
-            // Top section with bouncing shuttlecock icon
+            // Top section with bouncing brand mark
             Spacer(modifier = Modifier.height(80.dp))
 
-            Surface(
+            // Saved sport on its theme colour; trophy before any sport is saved (iOS SportBrandMark).
+            SportBrandMark(
+                size = 56.dp,
+                cornerRadius = 16.dp,
+                iconSize = 24.dp,
+                shadowElevation = 12.dp,
                 modifier = Modifier
-                    .size(56.dp)
-                    .offset(y = bounceOffset.dp)
-                    .shadow(12.dp, RoundedCornerShape(16.dp), ambientColor = BrandPurple.copy(alpha = 0.4f)),
-                shape = RoundedCornerShape(16.dp),
-                color = BrandPurple,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.SportsHandball,
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp),
-                        tint = Color.White,
-                    )
-                }
-            }
+                    .offset(y = (-8f * bounce).dp)
+                    .rotate(-2f + 4f * bounce),
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 
             // Green accent bar
             Surface(
                 modifier = Modifier
+                    .entrance(20f)
                     .width(36.dp)
                     .height(5.dp),
                 shape = RoundedCornerShape(50),
@@ -122,17 +135,23 @@ fun WelcomeScreen(
                 fontWeight = FontWeight.Black,
                 color = Color.White,
                 lineHeight = 52.sp,
+                modifier = Modifier.entrance(20f),
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Elevate your badminton game\nwith elite analytics.",
+                text = "Tournaments for your sport.\nElevate your game.",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Normal,
                 color = Color.White.copy(alpha = 0.5f),
                 lineHeight = 24.sp,
+                modifier = Modifier.entrance(15f),
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            MultiSportArtworkRow(size = 36.dp, spacing = 10.dp, modifier = Modifier.entrance(15f))
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -140,6 +159,7 @@ fun WelcomeScreen(
             TextButton(
                 onClick = onStartJourney,
                 modifier = Modifier
+                    .entrance(10f)
                     .fillMaxWidth()
                     .height(56.dp)
                     .background(LimeAccent, RoundedCornerShape(28.dp)),
@@ -169,7 +189,7 @@ fun WelcomeScreen(
 
             // LOG IN + GUEST — side by side
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.entrance(10f).fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 TextButton(

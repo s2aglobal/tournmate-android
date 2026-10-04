@@ -8,6 +8,7 @@ import com.s2aglobal.tournmate.domain.model.Gender
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.PlayerAvatar
 import com.s2aglobal.tournmate.domain.model.SportType
+import com.s2aglobal.tournmate.domain.model.storedRawValue
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 import java.util.UUID
@@ -40,6 +41,8 @@ class FirestorePlayerRepository @Inject constructor(
         firebaseUid: String?,
         dateOfBirth: Date?,
         preferredSport: SportType,
+        playingHand: String?,
+        skillLevel: String?,
     ): Player {
         val player = Player(
             id = UUID.randomUUID(),
@@ -48,7 +51,7 @@ class FirestorePlayerRepository @Inject constructor(
             email = email.lowercase(),
             genderRaw = gender.rawValue,
             createdAt = Date(),
-            eloRatings = mapOf(preferredSport.rawValue to 1200.0),
+            eloRatings = mapOf(SportType.BADMINTON.rawValue to 1200.0),
             preferredSport = preferredSport,
             streak = 0,
             firebaseUid = firebaseUid,
@@ -56,6 +59,8 @@ class FirestorePlayerRepository @Inject constructor(
             homeCountryCode = homeCountryCode,
             homePostalCode = homePostalCode,
             dateOfBirth = dateOfBirth,
+            playingHand = playingHand,
+            skillLevel = skillLevel,
         )
         collection.document(player.id.toString().uppercase())
             .set(player.toFirestoreMap())
@@ -113,12 +118,15 @@ class FirestorePlayerRepository @Inject constructor(
             "phone" to player.phone,
             "genderRaw" to player.genderRaw,
             "avatarId" to player.avatarId,
+            "preferredSport" to player.preferredSport.storedRawValue(player.preferredSportRaw),
         )
         player.homeCountryCode?.let { allowedFields["homeCountryCode"] = it }
         player.homePostalCode?.let { allowedFields["homePostalCode"] = it }
         player.weightKg?.let { allowedFields["weightKg"] = it }
         player.dateOfBirth?.let { allowedFields["dateOfBirth"] = com.google.firebase.Timestamp(it) }
         player.fcmToken?.let { allowedFields["fcmToken"] = it }
+        player.playingHand?.let { allowedFields["playingHand"] = it }
+        player.skillLevel?.let { allowedFields["skillLevel"] = it }
 
         collection.document(player.id.toString().uppercase())
             .update(allowedFields as Map<String, Any>)

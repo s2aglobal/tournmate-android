@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.s2aglobal.tournmate.ui.theme.BrandPurple
+import com.s2aglobal.tournmate.ui.theme.AppAccent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +85,7 @@ fun RatePlayerSheet(
                         else -> ""
                     },
                     fontSize = 12.sp,
-                    color = BrandPurple,
+                    color = AppAccent,
                     fontWeight = FontWeight.Medium,
                 )
             }
@@ -121,7 +121,12 @@ fun RatePlayerSheet(
                     .fillMaxWidth()
                     .height(50.dp),
                 enabled = selectedStars > 0,
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppAccent,
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFD1D1D6),
+                    disabledContentColor = Color.White,
+                ),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Text(

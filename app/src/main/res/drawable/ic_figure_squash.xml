@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Squash: crouched figure with the racket cocked up behind the head. Original drawing (not traced from any symbol set). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Head -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M16.3,7.3 m-2.1,0 a2.1,2.1 0,1 0,4.2,0 a2.1,2.1 0,1 0,-4.2,0z" />
+
+    <!-- Racket head -->
+    <group android:translateX="8.6" android:translateY="3.3" android:rotation="35">
+        <path
+            android:strokeColor="#FF000000"
+            android:strokeWidth="1.45"
+            android:fillColor="#00000000"
+            android:pathData="M-1.45,0 a1.45,1.95 0,1 0,2.9,0 a1.45,1.95 0,1 0,-2.9,0z" />
+    </group>
+
+    <!-- Racket arm + handle -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M13.6,10.4 L10.8,9 L9.6,5.2" />
+
+    <!-- Torso -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M14.2,10.2 L12,14.6" />
+
+    <!-- Free arm -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M14.6,10.8 L17.2,13.4 L19.6,15.6" />
+
+    <!-- Back leg -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M12,14.6 L8.2,15.6 L5.4,17.4" />
+
+    <!-- Front leg -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M12,14.6 L14.8,17.2 L13.4,20.8" />
+</vector>
