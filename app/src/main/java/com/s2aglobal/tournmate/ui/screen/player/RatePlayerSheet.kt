@@ -121,7 +121,12 @@ fun RatePlayerSheet(
                     .fillMaxWidth()
                     .height(50.dp),
                 enabled = selectedStars > 0,
-                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppAccent,
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFD1D1D6),
+                    disabledContentColor = Color.White,
+                ),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Text(

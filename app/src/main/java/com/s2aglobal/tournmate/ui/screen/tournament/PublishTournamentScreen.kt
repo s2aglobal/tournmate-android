@@ -1,5 +1,8 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Send
+import com.s2aglobal.tournmate.ui.component.PrimaryCapsuleButton
 import androidx.activity.compose.BackHandler
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -337,7 +340,7 @@ fun PublishTournamentScreen(
                 },
             )
         } else {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
                 WizardTopBar(
                     step = wizardStep,
                     onBack = { if (wizardStep > 1) wizardStep -= 1 else onDismiss() },
@@ -522,26 +525,25 @@ private fun WizardProgressBar(step: Int, modifier: Modifier = Modifier) {
 
 @Composable
 private fun WizardBottomButton(step: Int, disabled: Boolean, isPublishing: Boolean, onNext: () -> Unit, onPublish: () -> Unit) {
-    Surface(color = Color.White, shadowElevation = 8.dp) {
-        Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp).navigationBarsPadding()) {
-            Button(
-                onClick = if (step < 4) onNext else onPublish,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = !disabled,
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = WizardAccent, disabledContainerColor = WizardAccent.copy(alpha = 0.4f)),
-            ) {
-                if (step < 4) {
-                    Text("NEXT", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.ArrowForward, null, Modifier.size(16.dp))
-                } else if (isPublishing) {
-                    CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+    // iOS: a plain floating capsule — no footer background, divider, or shadow.
+    Box(modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp)) {
+        PrimaryCapsuleButton(
+            onClick = if (step < 4) onNext else onPublish,
+            enabled = !disabled,
+            color = WizardAccent,
+        ) {
+            if (step < 4) {
+                Text("NEXT", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(16.dp))
+            } else {
+                if (isPublishing) {
+                    CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Default.Send, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("PUBLISH", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(16.dp))
                 }
+                Spacer(Modifier.width(8.dp))
+                Text("PUBLISH", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             }
         }
     }
@@ -1069,7 +1071,7 @@ private fun ErrorRow(message: String) {
 @Composable
 private fun SuccessScreen(title: String, onDone: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().navigationBarsPadding().padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Spacer(Modifier.weight(1f))

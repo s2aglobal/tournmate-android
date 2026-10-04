@@ -25,6 +25,7 @@ import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.ScoreValidationError
 import com.s2aglobal.tournmate.domain.model.ScoreValidator
 import com.s2aglobal.tournmate.domain.model.SetScore
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
 import com.s2aglobal.tournmate.ui.component.scoringUnit
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 
@@ -99,9 +100,10 @@ fun SetScoreEntryScreen(
         } else error.message(sport)
     }
 
-    FullScreenSheet(onDismiss = { if (celebration == null) onDismiss() }) {
-        val result = celebration
-        if (result != null) {
+    // iOS presents the celebration with .fullScreenCover over the score sheet; Done dismisses both.
+    val result = celebration
+    if (result != null) {
+        FullScreenCover(onDismissRequest = {}) {
             WinnerCelebrationScreen(
                 winnerName = result.first,
                 scoreLine = result.second,
@@ -109,11 +111,13 @@ fun SetScoreEntryScreen(
                 isCreator = isCreator,
                 onDone = onDismiss,
             )
-            return@FullScreenSheet
         }
+        return
+    }
 
+    FullScreenSheet(onDismiss = onDismiss) { close ->
         Column(Modifier.fillMaxSize()) {
-            ScoreTopBar("Enter Scores", onDismiss)
+            ScoreTopBar("Enter Scores", close)
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),

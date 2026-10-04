@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.Stadium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -83,7 +84,7 @@ internal fun ManageTabContent(
                             MatchFormat.ROUND_ROBIN -> "GENERATE ROUND-ROBIN" to Icons.Outlined.Stadium
                             MatchFormat.GROUP_KNOCKOUT -> "GENERATE GROUPS" to Icons.Default.ViewModule
                             MatchFormat.SWISS -> "GENERATE SWISS ROUND 1" to Icons.Default.FormatListNumbered
-                            MatchFormat.MANUAL_DRAW -> "GENERATE MATCHES" to Icons.Default.PanTool
+                            MatchFormat.MANUAL_DRAW -> "GENERATE MATCHES" to Icons.Outlined.Draw
                         }
                         AdminActionButton(title, icon, busy) {
                             when (tournament.matchFormat) {

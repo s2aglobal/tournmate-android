@@ -77,6 +77,7 @@ fun VenuePickerScreen(
             .fillMaxSize()
             .background(Color.White)
             .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
                 focusManager.clearFocus()
             },

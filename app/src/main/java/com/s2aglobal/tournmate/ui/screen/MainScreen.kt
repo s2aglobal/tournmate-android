@@ -60,6 +60,9 @@ fun MainScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Scaffold(
+        // Tabs use the iOS grouped background; match it so the status-bar strip
+        // above each tab (Scaffold padding) isn't a different shade.
+        containerColor = Color(0xFFF2F2F7),
         bottomBar = {
             NavigationBar(
                 containerColor = Color.White,

@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.*
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
+import com.s2aglobal.tournmate.ui.component.TrophySpinner
+import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
 import com.s2aglobal.tournmate.ui.theme.*
 import com.s2aglobal.tournmate.util.ShareUtil
 import java.util.Calendar
@@ -66,6 +69,7 @@ fun TournamentDetailScreen(
     var showCancelAlert by remember { mutableStateOf(false) }
     var showDeleteAlert by remember { mutableStateOf(false) }
     var showResetAlert by remember { mutableStateOf(false) }
+    var matchForReview by remember { mutableStateOf<Match?>(null) }
 
     LaunchedEffect(state.didDelete) { if (state.didDelete) onBack() }
 
@@ -102,7 +106,8 @@ fun TournamentDetailScreen(
         return
     }
 
-    if (showEditSheet) {
+    // iOS presents the edit form with `.sheet`; it is long, so it uses a full-screen cover here.
+    if (showEditSheet) FullScreenCover(onDismissRequest = { showEditSheet = false }) {
         EditTournamentSheet(
             tournament = tournament,
             onSave = { title, date, location, locationAddress, locationLatitude, locationLongitude,
@@ -123,7 +128,6 @@ fun TournamentDetailScreen(
             onCancel = { showEditSheet = false },
             canEditScoring = state.matches.isEmpty(),
         )
-        return
     }
 
     val uid = state.firebaseUid ?: ""
@@ -137,6 +141,7 @@ fun TournamentDetailScreen(
         onResolveDispute = { scoreSheet = ScoreSheet.Dispute(it) },
         onEditSetScore = { scoreSheet = ScoreSheet.EditSets(it) },
         onEditSimpleScore = { scoreSheet = ScoreSheet.EditSimple(it) },
+        onReview = { matchForReview = it },
     )
 
     fun handleRegisterTap() {
@@ -259,6 +264,26 @@ fun TournamentDetailScreen(
     }
 
     // ── Dialogs ─────────────────────────────────────
+
+    matchForReview?.let { match ->
+        AlertDialog(
+            onDismissRequest = { matchForReview = null },
+            title = { Text("Review Submitted Score") },
+            text = { Text("${registrationShortName(match.teamA)} vs ${registrationShortName(match.teamB)}\n${iosScoreLine(match)}") },
+            confirmButton = {
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(onClick = { matchForReview = null; viewModel.confirmScore(match, uid) }) {
+                        Text("Confirm Score", color = AppAccent)
+                    }
+                    TextButton(
+                        onClick = { matchForReview = null; viewModel.disputeScore(match, uid) },
+                        colors = ButtonDefaults.textButtonColors(contentColor = ErrorRed),
+                    ) { Text("Dispute Score") }
+                    TextButton(onClick = { matchForReview = null }) { Text("Cancel", fontWeight = FontWeight.SemiBold) }
+                }
+            },
+        )
+    }
 
     if (showWithdrawConfirm) {
         AlertDialog(
@@ -539,6 +564,8 @@ private fun StickyFooter(
                 // Cancelled wins over every other state, including registered (matches iOS).
                 tournament.status == TournamentStatus.CANCELLED -> FooterPill(Color.Gray) {
                     Text("CANCELLED", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = dimmed)
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.Cancel, null, Modifier.size(16.dp), tint = dimmed)
                 }
                 isRegistered -> FooterPill(AppAccent) {
                     Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp), tint = Color.White)
@@ -557,10 +584,13 @@ private fun StickyFooter(
                     enabled = !isBusy,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppAccent, disabledContainerColor = AppAccent),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppAccent, contentColor = Color.White,
+                        disabledContainerColor = AppAccent, disabledContentColor = Color.White,
+                    ),
                 ) {
                     if (isBusy) {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        TrophySpinner(size = 18.dp, style = TrophySpinnerStyle.INLINE)
                     } else {
                         Text("REGISTER", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         Spacer(Modifier.width(8.dp))

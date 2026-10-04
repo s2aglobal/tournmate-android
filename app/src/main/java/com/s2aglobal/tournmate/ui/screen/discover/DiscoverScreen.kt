@@ -35,6 +35,7 @@ import androidx.compose.ui.res.painterResource
 import com.s2aglobal.tournmate.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,6 +61,7 @@ fun DiscoverScreen(
     val activeRule = selectedRule
     if (activeRule != null) {
         RuleDetailScreen(
+            modifier = modifier,
             section = activeRule,
             source = sport.rulebook?.source ?: "Official governing body",
             onBack = { selectedRule = null },
@@ -388,19 +390,37 @@ private fun GridCard(data: GridCardData, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RuleDetailScreen(section: RuleSection, source: String, onBack: () -> Unit) {
+private fun RuleDetailScreen(
+    section: RuleSection,
+    source: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     BackHandler { onBack() }
 
+    // Hosted inside MainScreen's Scaffold, whose padding already clears the status
+    // bar and bottom nav bar — so no system-bar insets here (iOS inline nav title).
     Scaffold(
+        modifier = modifier,
+        contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(
-                title = { Text(section.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        section.title,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = AppAccent)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = GroupedBg),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = GroupedBg),
+                windowInsets = WindowInsets(0),
             )
         },
         containerColor = GroupedBg,

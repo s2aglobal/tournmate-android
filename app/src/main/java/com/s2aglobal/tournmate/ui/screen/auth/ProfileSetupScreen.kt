@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
+import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -263,7 +264,7 @@ fun ProfileSetupScreen(
                 ) {
                     Text("NEXT STEP", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.White)
                     Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.ChevronRight, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.ChevronRight, null, tint = Color.White, modifier = Modifier.size(14.dp))
                 }
             } else {
                 PrimaryPillButton(
@@ -288,7 +289,7 @@ fun ProfileSetupScreen(
                     if (uiState.isSaving) {
                         TrophySpinner(size = 18.dp, style = TrophySpinnerStyle.INLINE)
                     } else {
-                        Icon(Icons.Outlined.CheckCircle, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Outlined.CheckCircle, null, tint = Color.White, modifier = Modifier.size(14.dp))
                     }
                 }
             }
@@ -662,6 +663,7 @@ private fun SkillLevelStep(selectedLevel: ProfileSkillLevel, onLevelChange: (Pro
 
 @Composable
 private fun AllSetScreen(onContinue: () -> Unit) {
+    LightSystemBarIcons()
     Column(
         modifier = Modifier
             .fillMaxSize()

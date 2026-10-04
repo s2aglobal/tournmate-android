@@ -1,9 +1,8 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
+import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
-import com.s2aglobal.tournmate.domain.model.SportType
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
@@ -49,7 +48,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.SportsHandball
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
@@ -65,6 +63,7 @@ fun WelcomeScreen(
     onLogIn: () -> Unit,
     onContinueAsGuest: () -> Unit,
 ) {
+    LightSystemBarIcons()
     val infiniteTransition = rememberInfiniteTransition(label = "bounce")
     val bounce by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -117,7 +116,7 @@ fun WelcomeScreen(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        painter = if (CurrentSport.sport == SportType.BADMINTON) rememberVectorPainter(Icons.Default.SportsHandball) else sportIconPainter(CurrentSport.sport),
+                        painter = sportIconPainter(CurrentSport.sport),
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                         tint = Color.White,

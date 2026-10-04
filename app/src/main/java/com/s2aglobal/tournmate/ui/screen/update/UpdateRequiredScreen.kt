@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.update
 
+import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -40,6 +41,7 @@ fun UpdateRequiredScreen(
     policy: AppUpdatePolicy?,
     onUpdate: (url: String) -> Unit,
 ) {
+    LightSystemBarIcons()
     BackHandler(enabled = true) {}
 
     val minimum = policy?.minimumVersion

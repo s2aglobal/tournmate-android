@@ -51,6 +51,9 @@ import com.s2aglobal.tournmate.domain.model.PlaySession
 import com.s2aglobal.tournmate.domain.model.PlaySessionStatus
 import com.s2aglobal.tournmate.domain.model.SkillLevel
 import com.s2aglobal.tournmate.ui.theme.AppAccent
+import com.s2aglobal.tournmate.ui.theme.AccentGradient
+import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
+import androidx.compose.ui.graphics.Brush
 import com.s2aglobal.tournmate.ui.component.SportBadge
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.theme.theme
@@ -540,7 +543,13 @@ private fun EmptyState(
         else "Be the first to post a ${sport.inlineName} session!\nInvite others to play.",
     ) {
         if (!isGuest) {
-            PrimaryActionButton(text = "Post a Session", icon = Icons.Filled.AddCircle, onClick = onHostClick)
+            PrimaryActionButton(
+                text = "Post a Session",
+                icon = Icons.Filled.AddCircle,
+                onClick = onHostClick,
+                fill = CurrentSport.sport.theme.gradient,
+                glow = CurrentSport.sport.theme.primary,
+            )
         }
     }
 }
@@ -601,20 +610,23 @@ private fun EmptyStateScaffold(
                 modifier = Modifier.padding(horizontal = 32.dp),
             )
         }
-        Box(modifier = Modifier.padding(horizontal = 40.dp)) { action() }
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp)) { action() }
     }
 }
 
 @Composable
-private fun PrimaryActionButton(text: String, icon: ImageVector, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-        shape = RoundedCornerShape(50),
-    ) {
+private fun PrimaryActionButton(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    fill: Brush = AccentGradient,
+    glow: Color = AppAccent,
+) {
+    // iOS `.buttonStyle(.appPrimary)` / `.appPrimary(sport)`.
+    AppPrimaryButton(onClick = onClick, fill = fill, glow = glow) {
         Icon(icon, null, Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(text, fontWeight = FontWeight.SemiBold)
+        Text(text)
     }
 }
 
@@ -632,12 +644,11 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
         Icon(Icons.Filled.Warning, null, Modifier.size(40.dp), tint = WarningOrange)
         Text("Couldn't Load Sessions", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Text(message, fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center)
-        Button(
+        // iOS: `.appPrimary` with 60pt horizontal padding (column already pads 40).
+        AppPrimaryButton(
             onClick = onRetry,
             modifier = Modifier.padding(horizontal = 20.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-            shape = RoundedCornerShape(50),
-        ) { Text("Try Again", fontWeight = FontWeight.SemiBold) }
+        ) { Text("Try Again") }
     }
 }
 

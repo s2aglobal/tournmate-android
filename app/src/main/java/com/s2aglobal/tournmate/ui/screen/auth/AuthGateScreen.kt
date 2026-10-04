@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
+import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.component.TrophySpinner
 import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
@@ -38,6 +39,7 @@ fun AuthGateScreen() {
 
 @Composable
 private fun SplashScreen() {
+    LightSystemBarIcons()
     Box(
         modifier = Modifier
             .fillMaxSize()

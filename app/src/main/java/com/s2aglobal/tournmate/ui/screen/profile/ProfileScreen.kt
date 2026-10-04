@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -135,7 +137,10 @@ import com.s2aglobal.tournmate.domain.model.SeedTierRules
 import com.s2aglobal.tournmate.service.calorie.HealthConnectCalorieResult
 import com.s2aglobal.tournmate.service.calorie.METEstimator
 import com.s2aglobal.tournmate.service.calorie.PlayIntensity
+import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
 import com.s2aglobal.tournmate.ui.component.BottomSheetPicker
+import com.s2aglobal.tournmate.ui.component.TrophySpinner
+import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
 import com.s2aglobal.tournmate.ui.component.SportPickerRow
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.screen.player.EloExplainerCard
@@ -183,9 +188,12 @@ fun ProfilePlaceholder(
         return
     }
 
+    // MainScreen's Scaffold already pads for the status bar and bottom nav bar,
+    // so this nested Scaffold must not re-apply system-bar insets.
     Scaffold(
         modifier = modifier,
         containerColor = GroupedBg,
+        contentWindowInsets = WindowInsets(0),
     ) { padding ->
         when {
             uiState.isGuest -> GuestPromptScreen(Modifier.padding(padding), onSignOut)
@@ -518,16 +526,16 @@ private fun HomeRegionCard(player: Player, vm: ProfileViewModel) {
                             message = result
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
                     enabled = !isSaving && hasChanged,
                 ) {
                     if (isSaving) {
-                        CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                        TrophySpinner(size = 16.dp, style = TrophySpinnerStyle.STANDARD)
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("Save home area", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 4.dp))
+                    Text("Save home area", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -884,17 +892,17 @@ private fun QuickPlaySheet(playerWeight: Double, viewModel: ProfileViewModel, on
                         Button(
                             onClick = { save() },
                             enabled = !isSaving,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = WarningOrange),
                         ) {
                             if (isSaving) {
-                                CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                                TrophySpinner(size = 16.dp, style = TrophySpinnerStyle.STANDARD)
                                 Spacer(Modifier.width(6.dp))
                             }
                             Icon(Icons.Filled.LocalFireDepartment, null, Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(if (isSaving) "Saving…" else "Log Calories", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 6.dp))
+                            Text(if (isSaving) "Saving…" else "Log Calories", fontWeight = FontWeight.SemiBold)
                         }
 
                         Text(
@@ -977,9 +985,15 @@ private fun LegalRow(title: String, icon: ImageVector, onClick: () -> Unit) {
 @Composable
 private fun SignOutSection(uiState: ProfileUiState, onSignOut: () -> Unit, onDelete: () -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        TextButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth().height(52.dp).border(1.5.dp, Color.Red.copy(alpha = 0.4f), RoundedCornerShape(14.dp))) {
-            Icon(Icons.AutoMirrored.Filled.Logout, null, Modifier.size(16.dp), tint = Color.Red); Spacer(Modifier.width(8.dp))
-            Text("Sign Out", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.Red)
+        // iOS `.appDestructive`: headline (17 SemiBold) red, 14pt vertical padding, radius 14, 1.5 red@40% stroke.
+        TextButton(
+            onClick = onSignOut,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).border(1.5.dp, Color.Red.copy(alpha = 0.4f), RoundedCornerShape(14.dp)),
+            shape = RoundedCornerShape(14.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Logout, null, Modifier.size(17.dp), tint = Color.Red); Spacer(Modifier.width(8.dp))
+            Text("Sign Out", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Color.Red)
         }
         Spacer(Modifier.height(12.dp))
         TextButton(onClick = onDelete, enabled = !uiState.isDeletingAccount) {
@@ -1134,7 +1148,7 @@ private fun AvatarPickerSheet(
                 }
             }
 
-            Button(
+            AppPrimaryButton(
                 onClick = {
                     isSaving = true
                     viewModel.updateAvatar(selected) { success ->
@@ -1143,14 +1157,12 @@ private fun AvatarPickerSheet(
                     }
                 },
                 enabled = !isSaving,
-                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp).height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp),
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    TrophySpinner(size = 18.dp, style = TrophySpinnerStyle.INLINE)
                 } else {
-                    Text("Save Avatar", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Save Avatar")
                     Spacer(Modifier.width(8.dp))
                     Icon(Icons.Filled.Check, null, Modifier.size(16.dp))
                 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -102,6 +103,9 @@ fun CalorieHistoryScreen(
     Scaffold(
         modifier = modifier,
         containerColor = HistoryBg,
+        // Hosted inside MainScreen's Scaffold, whose padding already clears the
+        // status bar and bottom nav bar — don't re-apply system-bar insets here.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Calorie History", fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
@@ -109,6 +113,7 @@ fun CalorieHistoryScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = AppAccent) }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = HistoryBg),
+                windowInsets = WindowInsets(0),
             )
         },
     ) { padding ->

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.ScoreValidator
 import com.s2aglobal.tournmate.domain.model.SetScore
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
 
 @Composable
 fun SimpleScoreEntryScreen(
@@ -40,9 +41,10 @@ fun SimpleScoreEntryScreen(
     } else null
     val isValid = a != null && b != null && a >= 0 && b >= 0 && a != b && (a > 0 || b > 0) && gameError == null
 
-    FullScreenSheet(onDismiss = { if (winnerName == null) onDismiss() }) {
-        val winner = winnerName
-        if (winner != null) {
+    // iOS presents the celebration with .fullScreenCover over the score sheet; Done dismisses both.
+    val winner = winnerName
+    if (winner != null) {
+        FullScreenCover(onDismissRequest = {}) {
             WinnerCelebrationScreen(
                 winnerName = winner,
                 scoreLine = "$scoreA-$scoreB",
@@ -50,11 +52,13 @@ fun SimpleScoreEntryScreen(
                 isCreator = isCreator,
                 onDone = onDismiss,
             )
-            return@FullScreenSheet
         }
+        return
+    }
 
+    FullScreenSheet(onDismiss = onDismiss) { close ->
         Column(Modifier.fillMaxSize()) {
-            ScoreTopBar("Enter Score", onDismiss)
+            ScoreTopBar("Enter Score", close)
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),

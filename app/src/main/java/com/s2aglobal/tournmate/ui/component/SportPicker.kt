@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -270,8 +269,7 @@ fun SportSwitcherSheet(current: SportType, onSelect: (SportType) -> Unit, onDism
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .padding(top = 12.dp, bottom = 28.dp)
-                .navigationBarsPadding(),
+                .padding(top = 12.dp, bottom = 28.dp),
         ) {
             Text("What are we playing?", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.Black)
             Spacer(Modifier.height(4.dp))

@@ -21,6 +21,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Cancel
+import androidx.compose.foundation.clickable
+import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
+import com.s2aglobal.tournmate.ui.component.TrophySpinner
+import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -96,21 +101,21 @@ fun OpenPlayDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Session Details", fontWeight = FontWeight.Bold) },
+            CenterAlignedTopAppBar(
+                title = { Text("Session Details", fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = AppAccent)
                     }
                 },
                 actions = {
                     IconButton(
                         onClick = { ShareUtil.shareSession(context, session) },
                     ) {
-                        Icon(Icons.Default.Share, "Share")
+                        Icon(Icons.Filled.IosShare, "Share", tint = AppAccent)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
             )
         },
         containerColor = Color(0xFFF2F2F7),
@@ -595,9 +600,17 @@ private fun YourStatusCard(
                             )
                         }
                     }
-                    TextButton(onClick = onLeave) {
-                        Text("Leave", color = ErrorRed, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                    }
+                    Text(
+                        "Leave",
+                        color = ErrorRed,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(ErrorRed.copy(alpha = 0.08f), CircleShape)
+                            .clickable(onClick = onLeave)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
                 }
             }
             hasProfile -> {
@@ -619,27 +632,20 @@ private fun YourStatusCard(
                             )
                         }
                     }
-                    Button(
+                    AppPrimaryButton(
                         onClick = onJoin,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = session.isJoinable && !isLoading,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
+                        enabled = !isLoading,
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp,
-                            )
+                            TrophySpinner(size = 18.dp, style = TrophySpinnerStyle.INLINE)
                         } else {
                             Icon(
-                                painter = sportIconPainter(CurrentSport.sport),
+                                painter = sportIconPainter(session.sportType),
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Join This Session", fontWeight = FontWeight.SemiBold)
+                            Text("Join This Session")
                         }
                     }
                 }
@@ -897,7 +903,7 @@ private fun HostActionsCard(
     onCancel: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         DetailSectionHeader(title = "Host Actions", icon = Icons.Default.Settings)
@@ -908,20 +914,20 @@ private fun HostActionsCard(
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
         ) {
-            Icon(Icons.Default.Edit, null, Modifier.size(16.dp))
+            Icon(Icons.Default.Edit, null, Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Edit Session", fontWeight = FontWeight.Bold)
+            Text("Edit Session", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
 
         Button(
             onClick = onFinish,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF34C759), contentColor = Color.White),
         ) {
-            Icon(Icons.Default.Flag, null, Modifier.size(16.dp))
+            Icon(Icons.Filled.SportsScore, null, Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Finish Session", fontWeight = FontWeight.Bold)
+            Text("Finish Session", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
 
         OutlinedButton(
@@ -934,9 +940,9 @@ private fun HostActionsCard(
             ),
             border = androidx.compose.foundation.BorderStroke(1.dp, ErrorRed.copy(alpha = 0.3f)),
         ) {
-            Icon(Icons.Default.Cancel, null, Modifier.size(16.dp))
+            Icon(Icons.Outlined.Cancel, null, Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Cancel Session", fontWeight = FontWeight.Bold)
+            Text("Cancel Session", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1135,10 +1141,12 @@ private fun EditSessionSheet(
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var isSaving by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        dragHandle = null,
         containerColor = Color(0xFFF2F2F7),
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
     ) {
@@ -1162,9 +1170,44 @@ private fun EditSessionSheet(
                 Text(
                     "Edit Session",
                     fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.align(Alignment.Center),
                 )
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 12.dp)
+                            .size(20.dp),
+                        color = AppAccent,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    TextButton(
+                        onClick = {
+                            isSaving = true
+                            onSave(
+                                title.trim(),
+                                selectedDate,
+                                if (selectedDuration == 0) null else selectedDuration,
+                                skillLevel,
+                                gameType,
+                                ageGroup,
+                                costText.toDoubleOrNull(),
+                                notes.ifBlank { null },
+                            )
+                        },
+                        enabled = title.isNotBlank() && !isSaving,
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                    ) {
+                        Text(
+                            "Save",
+                            color = if (title.isNotBlank()) AppAccent else Color.Gray.copy(alpha = 0.5f),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
             }
 
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -1273,27 +1316,6 @@ private fun EditSessionSheet(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        onSave(
-                            title.trim(),
-                            selectedDate,
-                            if (selectedDuration == 0) null else selectedDuration,
-                            skillLevel,
-                            gameType,
-                            ageGroup,
-                            costText.toDoubleOrNull(),
-                            notes.ifBlank { null },
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    enabled = title.trim().isNotEmpty(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Text("Save", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }

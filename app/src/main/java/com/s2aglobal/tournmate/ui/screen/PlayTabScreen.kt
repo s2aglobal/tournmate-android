@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen
 
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -162,7 +163,8 @@ fun PlayTabScreen(
             }
         }
 
-        if (showPublish && !isGuestMode) {
+        // iOS presents the wizard as a fullScreenCover — it hides the tab bar.
+        if (showPublish && !isGuestMode) FullScreenCover(onDismissRequest = { showPublish = false }) {
             PublishTournamentScreen(
                 firebaseUid = uiState.firebaseUid,
                 preferredSport = uiState.preferredSport,

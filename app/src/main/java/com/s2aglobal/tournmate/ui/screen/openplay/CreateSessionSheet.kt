@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.ui.screen.openplay
 
+import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -85,7 +87,9 @@ fun CreateSessionSheet(
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
 
-    if (showVenuePicker) {
+    // iOS: venue picker is a fullScreenCover over the sheet (the sheet stays open).
+    // Its window opens after the sheet's, so it draws on top.
+    if (showVenuePicker) FullScreenCover(onDismissRequest = { showVenuePicker = false }) {
         VenuePickerScreen(
             sportType = sportType,
             onVenueSelected = { name, address, lat, lng ->
@@ -97,7 +101,6 @@ fun CreateSessionSheet(
             },
             onCancel = { showVenuePicker = false },
         )
-        return
     }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -106,23 +109,8 @@ fun CreateSessionSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = Color(0xFFF2F2F7),
-        dragHandle = {
-            // Minimal drag indicator
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(36.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.LightGray.copy(alpha = 0.5f))
-                )
-            }
-        },
+        // iOS: NavigationStack sheet with an inline title, no drag indicator.
+        dragHandle = null,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
     ) {
         Column(
@@ -146,7 +134,7 @@ fun CreateSessionSheet(
                 Text(
                     "Post Session",
                     fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
@@ -343,7 +331,8 @@ fun CreateSessionSheet(
 
                 // Post Session button - tighter spacing
                 Spacer(modifier = Modifier.height(12.dp))
-                Button(
+                // iOS: .buttonStyle(.appPrimary)
+                AppPrimaryButton(
                     onClick = {
                         onPost(
                             title, selectedVenueName, selectedVenueAddress,
@@ -356,18 +345,15 @@ fun CreateSessionSheet(
                             ageGroup, sportType,
                         )
                     },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
                     enabled = selectedVenueName.isNotBlank() && !isPosting,
-                    colors = ButtonDefaults.buttonColors(containerColor = AppAccent, disabledContainerColor = Color.LightGray),
-                    shape = RoundedCornerShape(14.dp),
                 ) {
                     if (isPosting) {
                         CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text(if (isPosting) "Posting..." else "Post Session", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(if (isPosting) "Posting..." else "Post Session")
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(30.dp))
             }
         }
     }

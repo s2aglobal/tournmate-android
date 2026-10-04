@@ -154,7 +154,8 @@ private fun EliteAccessScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .navigationBarsPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -247,7 +248,8 @@ private fun WelcomeBackScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .navigationBarsPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -318,7 +320,12 @@ private fun WelcomeBackScreen(
                 onClick = onSignIn,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = TournmatePurple),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TournmatePurple,
+                    contentColor = Color.White,
+                    disabledContainerColor = TournmatePurple,
+                    disabledContentColor = Color.White,
+                ),
                 enabled = !uiState.isLoading,
             ) {
                 Text("SIGN IN", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -362,7 +369,8 @@ private fun EmailCreateAccountScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .navigationBarsPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -456,7 +464,12 @@ private fun EmailCreateAccountScreen(
                 .padding(bottom = 34.dp)
                 .height(58.dp),
             shape = RoundedCornerShape(29.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = TournmatePurple),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = TournmatePurple,
+                contentColor = Color.White,
+                disabledContainerColor = TournmatePurple,
+                disabledContentColor = Color.White,
+            ),
             enabled = !uiState.isLoading,
         ) {
             Text("CREATE ACCOUNT", fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -581,7 +594,7 @@ private fun ResetPasswordSheet(viewModel: LoginViewModel, uiState: LoginUiState)
         containerColor = Color.White,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 24.dp)) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.Top) {
                 Box(
                     Modifier
@@ -643,7 +656,12 @@ private fun ResetPasswordSheet(viewModel: LoginViewModel, uiState: LoginUiState)
                 enabled = !uiState.isSendingReset,
                 modifier = Modifier.fillMaxWidth().padding(top = 20.dp).padding(horizontal = 24.dp).height(56.dp),
                 shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = TournmatePurple),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TournmatePurple,
+                    contentColor = Color.White,
+                    disabledContainerColor = TournmatePurple,
+                    disabledContentColor = Color.White,
+                ),
             ) {
                 if (uiState.isSendingReset) {
                     TrophySpinner(size = 18.dp, style = TrophySpinnerStyle.INLINE)

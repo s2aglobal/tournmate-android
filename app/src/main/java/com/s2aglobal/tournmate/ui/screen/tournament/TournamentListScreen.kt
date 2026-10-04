@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.Tournament
 import com.s2aglobal.tournmate.domain.model.TournamentStatus
+import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
 import com.s2aglobal.tournmate.ui.component.PlayPullToRefresh
 import com.s2aglobal.tournmate.util.ShareUtil
 import com.s2aglobal.tournmate.ui.component.TournamentCard
@@ -398,12 +399,19 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text(text = message, color = Color.Gray, textAlign = TextAlign.Center)
         Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-            shape = RoundedCornerShape(50),
+        // iOS AppEmptyState CTA: tinted capsule in the state's accent (orange), badge icon + label.
+        val retryTint = Color(0xFFFF9800)
+        Row(
+            Modifier
+                .clip(CircleShape)
+                .background(retryTint.copy(alpha = 0.12f))
+                .clickable(onClick = onRetry)
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Try Again", fontWeight = FontWeight.Bold)
+            Icon(Icons.Default.Refresh, null, Modifier.size(16.dp), tint = retryTint)
+            Text("Try Again", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = retryTint)
         }
     }
 }
@@ -417,7 +425,7 @@ private fun MyTournamentsEmptyState(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 40.dp)
+            .padding(horizontal = 20.dp)
             .padding(bottom = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -444,14 +452,11 @@ private fun MyTournamentsEmptyState(
         )
 
         Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = onBrowse,
-            colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-            shape = RoundedCornerShape(50),
-        ) {
+        // iOS .appPrimary, 40pt from the screen edges (this column already insets 20).
+        AppPrimaryButton(onClick = onBrowse, modifier = Modifier.padding(horizontal = 20.dp)) {
             Icon(Icons.Default.Search, null, Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Browse Tournaments", fontWeight = FontWeight.SemiBold)
+            Text("Browse Tournaments")
         }
 
         Spacer(Modifier.height(24.dp))
@@ -523,14 +528,11 @@ private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
 
         if (!isGuest) {
             Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = onCreateClick,
-                colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
-                shape = RoundedCornerShape(50),
-            ) {
+            // iOS .appPrimary, 40pt from the screen edges (this column already insets 40).
+            AppPrimaryButton(onClick = onCreateClick) {
                 Icon(Icons.Default.AddCircle, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Create Tournament", fontWeight = FontWeight.SemiBold)
+                Text("Create Tournament")
             }
         }
 

@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.s2aglobal.tournmate.domain.model.AgeGroup
 import com.s2aglobal.tournmate.domain.model.Player
+import com.s2aglobal.tournmate.ui.component.TrophySpinner
+import com.s2aglobal.tournmate.ui.component.TrophySpinnerStyle
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.AppAccentTint
@@ -56,7 +58,7 @@ internal fun DobPromptSheet(ageGroup: AgeGroup, onConfirm: (Date) -> Unit, onCan
     var showPicker by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onCancel, containerColor = Color.White, dragHandle = null) {
-        Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 32.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             SheetTopBar(null, onCancel)
             Column(
                 Modifier.fillMaxWidth().padding(top = 16.dp, start = 16.dp, end = 16.dp),
@@ -137,11 +139,12 @@ internal fun SelectPartnerSheet(
     var selected by remember { mutableStateOf(initialPartner) }
     ModalBottomSheet(
         onDismissRequest = onCancel,
-        containerColor = SheetGray6,
+        containerColor = Color.White,
         dragHandle = null,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).navigationBarsPadding()) {
+        // The sheet already pads (and consumes) the navigation-bar inset (material3 1.2 BottomSheetDefaults.windowInsets).
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)) {
             SheetTopBar("Select Partner", onCancel)
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()),
@@ -212,10 +215,13 @@ internal fun SelectPartnerSheet(
                     enabled = !isRegistering,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppAccent),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppAccent, contentColor = Color.White,
+                        disabledContainerColor = AppAccent, disabledContentColor = Color.White,
+                    ),
                 ) {
                     if (isRegistering) {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        TrophySpinner(size = 18.dp, style = TrophySpinnerStyle.INLINE)
                     } else {
                         Icon(sportIconPainter(CurrentSport.sport), null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))

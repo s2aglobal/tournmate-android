@@ -30,8 +30,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.s2aglobal.tournmate.domain.model.ScoringConfig
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.ui.component.ScoringDescription
@@ -39,6 +37,7 @@ import com.s2aglobal.tournmate.ui.component.SportBadge
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.AppAccentDeep
 import com.s2aglobal.tournmate.ui.theme.WarningOrange
+import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -46,24 +45,37 @@ internal val ScoreGroupedBg = Color(0xFFF2F2F7)
 internal val ScoreDivider = Color(0xFFE5E5EA)
 internal val ScoreDisabled = Color(0xFFD1D1D6)
 
-/** Full-screen container used by the iOS-style score entry sheets. */
+/**
+ * Page sheet for the score entry flows (iOS presents them with `.sheet`).
+ * [content] receives a `close` action that animates the sheet away before calling [onDismiss].
+ * Material3 1.2.x pads the sheet window by the vertical system-bar and IME insets
+ * (BottomSheetDefaults.windowInsets) and consumes them, so content must not add its own.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun FullScreenSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
-    Dialog(
+internal fun FullScreenSheet(onDismiss: () -> Unit, content: @Composable (close: () -> Unit) -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val close: () -> Unit = {
+        scope.launch { sheetState.hide() }.invokeOnCompletion { if (!sheetState.isVisible) onDismiss() }
+    }
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        sheetState = sheetState,
+        containerColor = ScoreGroupedBg,
+        dragHandle = null,
     ) {
-        Surface(Modifier.fillMaxSize(), color = ScoreGroupedBg) { content() }
+        content(close)
     }
 }
 
 @Composable
 internal fun ScoreTopBar(title: String, onClose: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(onClick = onClose, shape = CircleShape, color = Color.White, modifier = Modifier.size(32.dp)) {
+        Surface(onClick = onClose, shape = CircleShape, color = ScoreGroupedBg, modifier = Modifier.size(32.dp)) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.Close, null, Modifier.size(16.dp), tint = Color.Gray)
             }
@@ -231,7 +243,7 @@ internal fun ScoreSubmitBar(label: String, enabled: Boolean, message: String? = 
         ) {
             Text(label, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
             Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
+            Icon(Icons.Default.ChevronRight, null, Modifier.size(13.dp))
         }
     }
 }

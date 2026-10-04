@@ -51,6 +51,8 @@ internal class MatchActions(
     val onResolveDispute: (Match) -> Unit,
     val onEditSetScore: (Match) -> Unit,
     val onEditSimpleScore: (Match) -> Unit,
+    /** Opens the "Review Submitted Score" confirm / dispute dialog (iOS `matchForReview`). */
+    val onReview: (Match) -> Unit,
 ) {
     fun isMine(match: Match): Boolean = uid != null && match.isParticipant(uid)
 
@@ -60,9 +62,9 @@ internal class MatchActions(
     fun onDrawTap(match: Match) {
         when (match.status) {
             MatchStatus.SCHEDULED -> if (isCreator || isMine(match)) onEnterSetScore(match)
-            MatchStatus.SCORE_SUBMITTED -> if (isCreator) onConfirm(match)
+            MatchStatus.SCORE_SUBMITTED -> if (canConfirm(match)) onReview(match)
             MatchStatus.DISPUTED -> if (isCreator) onResolveDispute(match)
-            MatchStatus.FINISHED -> Unit
+            MatchStatus.FINISHED -> if (isCreator) onEditSetScore(match)
         }
     }
 }

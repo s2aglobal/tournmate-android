@@ -1,5 +1,7 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import com.s2aglobal.tournmate.ui.component.FullScreenCover
+import com.s2aglobal.tournmate.ui.component.PrimaryCapsuleButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -102,7 +104,8 @@ fun EditTournamentSheet(
 
     val canSave = editTitle.trim().isNotEmpty() && editVenueName.isNotEmpty()
 
-    if (showVenuePicker) {
+    // iOS presents the venue picker with .fullScreenCover over the edit sheet.
+    if (showVenuePicker) FullScreenCover(onDismissRequest = { showVenuePicker = false }) {
         VenuePickerScreen(
             sportType = tournament.sportType,
             onVenueSelected = { name, address, lat, lng ->
@@ -114,7 +117,6 @@ fun EditTournamentSheet(
             },
             onCancel = { showVenuePicker = false },
         )
-        return
     }
 
     BackHandler { onCancel() }
@@ -424,47 +426,39 @@ fun EditTournamentSheet(
                 }
             }
 
-            // Save button (sticky at bottom)
-            Surface(color = Color.White, shadowElevation = 8.dp) {
-                Box(Modifier.padding(horizontal = 24.dp, vertical = 12.dp).navigationBarsPadding()) {
-                    Button(
-                        onClick = {
-                            focusManager.clearFocus()
-                            onSave(
-                                editTitle.trim(), editDate,
-                                editVenueName, editVenueAddress,
-                                editVenueLatitude, editVenueLongitude,
-                                editFormat, editMatchFormat,
-                                editFormatConfig.takeIf { existingConfig != null || formatConfigEdited },
-                                if (editFormat.isDoubles) editRandomPairing else false,
-                                editDeadline,
-                                editEntryFee.toDoubleOrNull(), editCurrency,
-                                editPaymentInfo.ifBlank { null },
-                                editPrizeInfo.ifBlank { null },
-                                editDurationMinutes.toIntOrNull(),
-                                editAgeGroup,
-                                // Round robin is always a single game.
-                                // Legacy tournaments (no stored scoring) stay lenient unless the
-                                // organizer actually changed the scoring here.
-                                editScoringConfig
-                                    .let { if (editMatchFormat == MatchFormat.ROUND_ROBIN) it.copy(gamesPerMatch = 1) else it }
-                                    .takeIf { canEditScoring }
-                                    ?.takeIf { tournament.enforcesScoringRules || editScoringConfig != tournament.scoringConfig },
-                                editSkillDivision,
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        enabled = canSave,
-                        shape = RoundedCornerShape(28.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AppAccent,
-                            disabledContainerColor = AppAccent.copy(alpha = 0.4f),
-                        ),
-                    ) {
-                        Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("SAVE CHANGES", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                    }
+            // Save button — iOS: plain capsule, no footer background or shadow.
+            Box(Modifier.navigationBarsPadding().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp)) {
+                PrimaryCapsuleButton(
+                    onClick = {
+                        focusManager.clearFocus()
+                        onSave(
+                            editTitle.trim(), editDate,
+                            editVenueName, editVenueAddress,
+                            editVenueLatitude, editVenueLongitude,
+                            editFormat, editMatchFormat,
+                            editFormatConfig.takeIf { existingConfig != null || formatConfigEdited },
+                            if (editFormat.isDoubles) editRandomPairing else false,
+                            editDeadline,
+                            editEntryFee.toDoubleOrNull(), editCurrency,
+                            editPaymentInfo.ifBlank { null },
+                            editPrizeInfo.ifBlank { null },
+                            editDurationMinutes.toIntOrNull(),
+                            editAgeGroup,
+                            // Round robin is always a single game.
+                            // Legacy tournaments (no stored scoring) stay lenient unless the
+                            // organizer actually changed the scoring here.
+                            editScoringConfig
+                                .let { if (editMatchFormat == MatchFormat.ROUND_ROBIN) it.copy(gamesPerMatch = 1) else it }
+                                .takeIf { canEditScoring }
+                                ?.takeIf { tournament.enforcesScoringRules || editScoringConfig != tournament.scoringConfig },
+                            editSkillDivision,
+                        )
+                    },
+                    enabled = canSave,
+                ) {
+                    Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("SAVE CHANGES", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
             }
         }

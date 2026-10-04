@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
 import com.s2aglobal.tournmate.ui.component.ScoringDescription
 import com.s2aglobal.tournmate.ui.component.SportBadge
+import com.s2aglobal.tournmate.ui.component.TrophySpinner
 import com.s2aglobal.tournmate.ui.theme.*
 import kotlinx.coroutines.delay
 import java.text.DateFormat
@@ -509,12 +510,12 @@ private fun TournamentCalorieCard(
             Button(
                 onClick = onLog,
                 enabled = !state.isLoggingCalories,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = WarningOrange),
             ) {
                 if (state.isLoggingCalories) {
-                    CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    TrophySpinner(size = 16.dp)
                     Spacer(Modifier.width(8.dp))
                 }
                 Icon(Icons.Default.LocalFireDepartment, null, Modifier.size(16.dp))

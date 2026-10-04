@@ -452,8 +452,8 @@ private fun ErrorState(message: String, onDismiss: () -> Unit) {
             ) {
                 Text(
                     "OK",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = Color.White,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),

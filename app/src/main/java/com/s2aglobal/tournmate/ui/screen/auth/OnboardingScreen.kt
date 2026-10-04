@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
+import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -33,7 +37,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -83,6 +86,7 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
     onComplete: () -> Unit,
 ) {
+    LightSystemBarIcons()
     val pages = listOf(
         OnboardingPage(
             category = "TOURNAMENTS",
@@ -138,6 +142,7 @@ fun OnboardingScreen(
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
+    val isLastPage = pagerState.currentPage == pages.size - 1
 
     Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(
@@ -159,55 +164,16 @@ fun OnboardingScreen(
                 } else {
                     Icon(page.icon, null, watermarkModifier, tint = Color.White.copy(alpha = 0.06f))
                 }
+                // Page text sits between the fixed top bar and the fixed bottom CTA
+                // (iOS: TabView between the header HStack and the button, 48pt bottom padding).
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .statusBarsPadding()
+                        .navigationBarsPadding()
+                        .padding(top = OnboardingTopBarHeight, bottom = OnboardingCtaHeight + OnboardingCtaBottomPadding)
                         .padding(horizontal = 32.dp),
                 ) {
-                    // Top bar: indicators + skip
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // Page indicators
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            repeat(pages.size) { index ->
-                                Box(
-                                    modifier = Modifier
-                                        .then(
-                                            if (pagerState.currentPage == index)
-                                                Modifier.size(width = 20.dp, height = 6.dp)
-                                            else Modifier.size(6.dp)
-                                        )
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (pagerState.currentPage == index) TournmatePurple
-                                            else Color.White.copy(alpha = 0.3f)
-                                        ),
-                                )
-                            }
-                        }
-
-                        if (pageIndex < pages.size - 1) {
-                            Text(
-                                "SKIP",
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                letterSpacing = 1.sp,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color.White.copy(alpha = 0.1f))
-                                    .clickable { viewModel.markOnboardingSeen(onComplete) }
-                                    .padding(horizontal = 18.dp, vertical = 10.dp),
-                            )
-                        } else {
-                            Spacer(Modifier.height(38.dp))
-                        }
-                    }
-
                     Spacer(modifier = Modifier.weight(1f))
                     // Text content
                     Text(
@@ -232,32 +198,84 @@ fun OnboardingScreen(
                         lineHeight = 24.sp,
                     )
 
-                    Spacer(Modifier.height(40.dp))
-
-                    // Button
-                    Button(
-                        onClick = {
-                            if (pagerState.currentPage < pages.size - 1) {
-                                scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                            } else {
-                                viewModel.markOnboardingSeen(onComplete)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(28.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                    ) {
-                        Text(
-                            text = if (pagerState.currentPage == pages.size - 1) "GET STARTED  \u203A" else "CONTINUE  \u203A",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color.Black,
-                        )
-                    }
-
-                    Spacer(Modifier.height(40.dp))
+                    Spacer(Modifier.height(100.dp))
                 }
             }
         }
+
+        // Fixed top bar: page indicators + skip (iOS OnboardingView.swift:122-158)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(pages.size) { index ->
+                    val selected = pagerState.currentPage == index
+                    Box(
+                        modifier = Modifier
+                            .size(width = if (selected) 22.dp else 6.dp, height = 6.dp)
+                            .clip(CircleShape)
+                            .background(if (selected) TournmatePurple else Color.White.copy(alpha = 0.25f)),
+                    )
+                }
+            }
+
+            if (!isLastPage) {
+                Text(
+                    "SKIP",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .clickable { viewModel.markOnboardingSeen(onComplete) }
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                )
+            } else {
+                Spacer(Modifier.height(38.dp))
+            }
+        }
+
+        // Fixed bottom CTA (iOS OnboardingView.swift:169-192)
+        Button(
+            onClick = {
+                if (pagerState.currentPage < pages.size - 1) {
+                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                } else {
+                    viewModel.markOnboardingSeen(onComplete)
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = 32.dp)
+                .padding(bottom = OnboardingCtaBottomPadding)
+                .fillMaxWidth()
+                .height(OnboardingCtaHeight),
+            shape = RoundedCornerShape(29.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+        ) {
+            Text(
+                text = if (isLastPage) "GET STARTED" else "CONTINUE",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                letterSpacing = 1.2.sp,
+                color = Color.Black,
+            )
+            Spacer(Modifier.width(10.dp))
+            Icon(Icons.Default.ChevronRight, null, Modifier.size(13.dp), tint = Color.Black)
+        }
     }
 }
+
+private val OnboardingTopBarHeight = 50.dp
+private val OnboardingCtaHeight = 58.dp
+private val OnboardingCtaBottomPadding = 48.dp
