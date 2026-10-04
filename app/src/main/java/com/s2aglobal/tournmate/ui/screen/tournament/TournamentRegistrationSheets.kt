@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import com.s2aglobal.tournmate.ui.component.sheetScrollLikeIos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -147,7 +148,7 @@ internal fun SelectPartnerSheet(
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)) {
             SheetTopBar("Select Partner", onCancel)
             Column(
-                Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                Modifier.weight(1f).sheetScrollLikeIos().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 Column(

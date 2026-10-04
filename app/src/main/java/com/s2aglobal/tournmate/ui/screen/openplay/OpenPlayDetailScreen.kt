@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.openplay
 
+import com.s2aglobal.tournmate.ui.component.sheetScrollLikeIos
 import com.s2aglobal.tournmate.ui.component.sportIconPainter
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import com.s2aglobal.tournmate.ui.theme.gearNoun
@@ -1155,7 +1156,7 @@ private fun EditSessionSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF2F2F7))
-                .verticalScroll(rememberScrollState()),
+                .sheetScrollLikeIos().verticalScroll(rememberScrollState()),
         ) {
             Box(
                 modifier = Modifier

@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.openplay
 
+import com.s2aglobal.tournmate.ui.component.sheetScrollLikeIos
 import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
 import com.s2aglobal.tournmate.ui.component.FullScreenCover
 import androidx.compose.foundation.background
@@ -120,7 +121,7 @@ fun CreateSessionSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF2F2F7))
-                .verticalScroll(rememberScrollState()),
+                .sheetScrollLikeIos().verticalScroll(rememberScrollState()),
         ) {
             // Header
             Box(

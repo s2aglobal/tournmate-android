@@ -348,6 +348,7 @@ fun SportPickerSheet(current: SportType, onSelect: (SportType) -> Unit, onDismis
                 Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .sheetScrollLikeIos()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
                     .padding(top = 8.dp, bottom = 24.dp),

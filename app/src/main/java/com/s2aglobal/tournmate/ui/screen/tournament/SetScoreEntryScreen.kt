@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import com.s2aglobal.tournmate.ui.component.sheetScrollLikeIos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -119,7 +120,7 @@ fun SetScoreEntryScreen(
         Column(Modifier.fillMaxSize()) {
             ScoreTopBar("Enter Scores", close)
             Column(
-                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 24.dp),
+                Modifier.weight(1f).sheetScrollLikeIos().verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 MatchupHeader(teamAName, teamBName)

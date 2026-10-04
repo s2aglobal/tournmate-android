@@ -7,15 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Adjust
 import androidx.compose.material.icons.filled.Sports
-import androidx.compose.material.icons.filled.SportsBasketball
-import androidx.compose.material.icons.filled.SportsCricket
 import androidx.compose.material.icons.filled.SportsFootball
-import androidx.compose.material.icons.filled.SportsGolf
-import androidx.compose.material.icons.filled.SportsSoccer
-import androidx.compose.material.icons.filled.SportsTennis
-import androidx.compose.material.icons.filled.SportsVolleyball
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -144,18 +137,18 @@ fun sportIconPainter(sport: SportType, @DrawableRes badmintonIcon: Int = R.drawa
         SportType.BADMINTON -> painterResource(badmintonIcon)
         SportType.PICKLEBALL -> painterResource(R.drawable.ic_pickleball)
         SportType.TENNIS -> painterResource(R.drawable.ic_tennisball)
-        SportType.TABLE_TENNIS -> rememberVectorPainter(Icons.Filled.SportsTennis)
-        SportType.VOLLEYBALL -> rememberVectorPainter(Icons.Filled.SportsVolleyball)
-        SportType.BASKETBALL -> rememberVectorPainter(Icons.Filled.SportsBasketball)
+        SportType.TABLE_TENNIS -> painterResource(R.drawable.ic_figure_table_tennis)
+        SportType.VOLLEYBALL -> painterResource(R.drawable.ic_volleyball_fill)
+        SportType.BASKETBALL -> painterResource(R.drawable.ic_basketball_fill)
         SportType.FOOTBALL -> rememberVectorPainter(Icons.Filled.SportsFootball)
-        SportType.SOCCER -> rememberVectorPainter(Icons.Filled.SportsSoccer)
-        SportType.CRICKET -> rememberVectorPainter(Icons.Filled.SportsCricket)
-        SportType.PADEL -> rememberVectorPainter(Icons.Filled.SportsTennis)
-        SportType.SQUASH -> rememberVectorPainter(Icons.Filled.SportsTennis)
-        SportType.BEACH_VOLLEYBALL -> rememberVectorPainter(Icons.Filled.SportsVolleyball)
-        SportType.GOLF -> rememberVectorPainter(Icons.Filled.SportsGolf)
-        SportType.BOWLING -> rememberVectorPainter(Icons.Filled.Sports)
-        SportType.DARTS -> rememberVectorPainter(Icons.Filled.Adjust)
+        SportType.SOCCER -> painterResource(R.drawable.ic_soccerball)
+        SportType.CRICKET -> painterResource(R.drawable.ic_cricketball_fill)
+        SportType.PADEL -> painterResource(R.drawable.ic_figure_padel)
+        SportType.SQUASH -> painterResource(R.drawable.ic_figure_squash)
+        SportType.BEACH_VOLLEYBALL -> painterResource(R.drawable.ic_figure_volleyball)
+        SportType.GOLF -> painterResource(R.drawable.ic_figure_golf)
+        SportType.BOWLING -> painterResource(R.drawable.ic_figure_bowling)
+        SportType.DARTS -> painterResource(R.drawable.ic_target)
         SportType.GENERIC -> rememberVectorPainter(Icons.Filled.Sports)
     }
 
@@ -239,7 +232,7 @@ fun SportTileArt(sport: SportType, size: Dp, modifier: Modifier = Modifier, onCo
                 modifier.size(size).background(if (onColor) Color.White.copy(alpha = 0.22f) else tint.copy(alpha = 0.13f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(sportIconPainter(sport), null, Modifier.size(size * 0.58f), tint = tint)
+                Icon(sportIconPainter(sport), null, Modifier.size(size * 0.66f), tint = tint)
             }
         }
     }
