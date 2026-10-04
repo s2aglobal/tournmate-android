@@ -53,7 +53,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -421,9 +420,9 @@ fun SortOptionsSheet(
                     "Reset",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = SortSheetColors.Secondary,
+                    // Dark when there's something to reset, grey when already on the default (iOS).
+                    color = if (resetEnabled) SortSheetColors.Selected else SortSheetColors.Secondary,
                     modifier = Modifier
-                        .alpha(if (resetEnabled) 1f else 0.4f)
                         .clickable(enabled = resetEnabled, role = Role.Button) {
                             onSelect(ListSortOption.DEFAULT)
                         }
