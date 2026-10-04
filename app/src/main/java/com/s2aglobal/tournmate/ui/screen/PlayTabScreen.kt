@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen
 
+import androidx.compose.material3.ripple
 import com.s2aglobal.tournmate.ui.component.FullScreenCover
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
@@ -267,27 +268,35 @@ private fun PlayHeader(
 
         // iOS: 22pt bell in a 40pt plain button frame.
         Box(
+            // No clip: it would cut the badge off. A round unbounded ripple keeps the touch feedback circular.
             modifier = Modifier
                 .size(40.dp)
-                .clip(CircleShape)
-                .clickable(onClickLabel = "Notifications", onClick = onNotificationClick),
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple(bounded = false, radius = 20.dp),
+                    onClickLabel = "Notifications",
+                    onClick = onNotificationClick,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Box {
                 Icon(
                     imageVector = Icons.Outlined.Notifications,
                     contentDescription = "Notifications",
-                    modifier = Modifier.size(22.dp),
+                    // Material's bell glyph has more padding than SF `bell`; 24dp matches iOS 22pt visually.
+                    modifier = Modifier.size(24.dp),
                     tint = Color.Black,
                 )
-                // iOS: 9pt bold count, padding 4, red circle, offset (6, -4) at the bell's top-right.
+                // iOS: 9pt bold count in a red circle at the bell's top-right corner. Centred on the
+                // corner (not inside the glyph) so 2-digit counts don't cover the bell.
                 if (unreadCount > 0) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .offset(x = 6.dp, y = (-4).dp)
+                            .offset(x = 10.dp, y = (-7).dp)
                             .wrapContentSize(unbounded = true)
-                            .defaultMinSize(minWidth = 17.dp, minHeight = 17.dp)
+                            .height(17.dp)
+                            .defaultMinSize(minWidth = 17.dp)
                             .background(Color.Red, CircleShape)
                             .padding(horizontal = 4.dp),
                         contentAlignment = Alignment.Center,
