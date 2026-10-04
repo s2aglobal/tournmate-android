@@ -57,6 +57,14 @@ import com.s2aglobal.tournmate.domain.model.SkillLevel
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 import com.s2aglobal.tournmate.ui.theme.AccentGradient
 import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
+import com.s2aglobal.tournmate.ui.component.ListSortOption
+import com.s2aglobal.tournmate.ui.component.ListSortStore
+import com.s2aglobal.tournmate.ui.component.LocationSortNote
+import com.s2aglobal.tournmate.ui.component.SortFilterIcon
+import com.s2aglobal.tournmate.ui.component.SortOptionsSheet
+import com.s2aglobal.tournmate.ui.component.rememberListSortOption
+import com.s2aglobal.tournmate.ui.component.rememberSortLocationState
+import com.s2aglobal.tournmate.ui.component.sortedForList
 import androidx.compose.ui.graphics.Brush
 import com.s2aglobal.tournmate.ui.component.SportArtworkImage
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
@@ -77,7 +85,17 @@ fun OpenPlayListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var sortNewestFirst by remember { mutableStateOf(true) }
+    val (sortOption, setSortOption) = rememberListSortOption(ListSortStore.KEY_OPEN_PLAY)
+    val sortLocation = rememberSortLocationState(sortOption)
+    var showSortSheet by remember { mutableStateOf(false) }
+
+    if (showSortSheet) {
+        SortOptionsSheet(
+            selected = sortOption,
+            onSelect = { setSortOption(it); sortLocation.onOptionChosen(it) },
+            onDismiss = { showSortSheet = false },
+        )
+    }
     var sessionToCancel by remember { mutableStateOf<PlaySession?>(null) }
     var sessionToDelete by remember { mutableStateOf<PlaySession?>(null) }
 
@@ -156,15 +174,20 @@ fun OpenPlayListScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
+                        // Only when a section the sort applies to is visible.
+                        if (sortLocation.unavailable && sections.any { it.first != "Completed" }) {
+                            item(key = "sort_location_note") { LocationSortNote() }
+                        }
                         sections.forEachIndexed { index, (title, icon, list) ->
-                            val sorted = if (sortNewestFirst) list else list.sortedByDescending { it.date }
+                            val sorted = list.sortedForList(sortOption, sortLocation.userLocation, isPast = title == "Completed")
                             item(key = "header_$title") {
                                 SectionHeader(
                                     title = title,
                                     icon = icon,
                                     count = sorted.size,
-                                    sortNewestFirst = sortNewestFirst,
-                                    onSortChange = { sortNewestFirst = it },
+                                    sortOption = sortOption,
+                                    showSort = title != "Completed",
+                                    onSortClick = { showSortSheet = true },
                                     modifier = if (index > 0) Modifier.padding(top = 8.dp) else Modifier,
                                 )
                             }
@@ -231,11 +254,11 @@ private fun SectionHeader(
     title: String,
     icon: ImageVector,
     count: Int,
-    sortNewestFirst: Boolean,
-    onSortChange: (Boolean) -> Unit,
+    sortOption: ListSortOption,
+    showSort: Boolean,
+    onSortClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -265,39 +288,8 @@ private fun SectionHeader(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Box {
-            // iOS: a plain Menu label image (no 48dp button chrome).
-            Icon(
-                imageVector = Icons.Filled.FilterList,
-                contentDescription = "Sort",
-                tint = AppAccent,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { menuExpanded = true },
-            )
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Soonest First") },
-                    onClick = { onSortChange(true); menuExpanded = false },
-                    trailingIcon = {
-                        if (sortNewestFirst) Icon(Icons.Filled.Check, null)
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("Latest First") },
-                    onClick = { onSortChange(false); menuExpanded = false },
-                    trailingIcon = {
-                        if (!sortNewestFirst) Icon(Icons.Filled.Check, null)
-                    },
-                )
-            }
-        }
+        // Past sections are always newest first, so they get no sort control.
+        if (showSort) SortFilterIcon(option = sortOption, onClick = onSortClick)
     }
 }
 

@@ -108,9 +108,15 @@ fun DocumentSnapshot.toTournament(): Tournament? {
         timeZone = getString("timeZone"),
         sportType = SportType.fromRawValue(getString("sportType")),
         sportTypeRaw = unknownSportRaw(getString("sportType")),
+        registrationCount = getLong("registrationCount")?.toInt(),
     )
 }
 
+/**
+ * Never includes `registrationCount`: the server's registration triggers own it.
+ * Create uses a plain set on a brand-new doc; updates use SetOptions.merge(), so the
+ * server-maintained count is left untouched.
+ */
 fun Tournament.toFirestoreMap(): Map<String, Any?> = buildMap {
     put("title", title)
     put("date", Timestamp(date))

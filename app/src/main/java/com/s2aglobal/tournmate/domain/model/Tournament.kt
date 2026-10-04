@@ -36,6 +36,8 @@ data class Tournament(
     val sportType: SportType = SportType.BADMINTON,
     /** Original id when [sportType] is the GENERIC stand-in for a sport this build doesn't know; written back on save. */
     val sportTypeRaw: String? = null,
+    /** Server-maintained by the registration triggers. Read-only: never written from the client. Missing = 0. */
+    val registrationCount: Int? = null,
 ) {
     val status: TournamentStatus
         get() = TournamentStatus.fromRawValue(statusRaw)

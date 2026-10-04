@@ -34,6 +34,15 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.Tournament
 import com.s2aglobal.tournmate.domain.model.TournamentStatus
 import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
+import com.s2aglobal.tournmate.ui.component.ListSortOption
+import com.s2aglobal.tournmate.ui.component.ListSortStore
+import com.s2aglobal.tournmate.ui.component.LocationSortNote
+import com.s2aglobal.tournmate.ui.component.SortFilterIcon
+import com.s2aglobal.tournmate.ui.component.SortLocationState
+import com.s2aglobal.tournmate.ui.component.SortOptionsSheet
+import com.s2aglobal.tournmate.ui.component.rememberListSortOption
+import com.s2aglobal.tournmate.ui.component.rememberSortLocationState
+import com.s2aglobal.tournmate.ui.component.sortedForList
 import com.s2aglobal.tournmate.ui.component.PlayPullToRefresh
 import com.s2aglobal.tournmate.util.ShareUtil
 import com.s2aglobal.tournmate.ui.component.TournamentCard
@@ -58,7 +67,17 @@ fun TournamentListScreen(
 
     var showCancelDialog by remember { mutableStateOf<Tournament?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Tournament?>(null) }
-    var sortNewestFirst by remember { mutableStateOf(true) }
+    val (sortOption, setSortOption) = rememberListSortOption(ListSortStore.KEY_TOURNAMENTS)
+    val sortLocation = rememberSortLocationState(sortOption)
+    var showSortSheet by remember { mutableStateOf(false) }
+
+    if (showSortSheet) {
+        SortOptionsSheet(
+            selected = sortOption,
+            onSelect = { setSortOption(it); sortLocation.onOptionChosen(it) },
+            onDismiss = { showSortSheet = false },
+        )
+    }
 
     // Create / cancel / delete error alert
     state.createError?.let { msg ->
@@ -166,8 +185,9 @@ fun TournamentListScreen(
                 else -> {
                     TournamentList(
                         state = state,
-                        sortNewestFirst = sortNewestFirst,
-                        onSortChange = { sortNewestFirst = it },
+                        sortOption = sortOption,
+                        sortLocation = sortLocation,
+                        onSortClick = { showSortSheet = true },
                         onTournamentClick = onTournamentClick,
                         onShare = { ShareUtil.shareTournament(context, it) },
                         onCancel = { showCancelDialog = it },
@@ -214,8 +234,9 @@ private fun FilterChips(
 @Composable
 private fun TournamentList(
     state: TournamentListUiState,
-    sortNewestFirst: Boolean,
-    onSortChange: (Boolean) -> Unit,
+    sortOption: ListSortOption,
+    sortLocation: SortLocationState,
+    onSortClick: () -> Unit,
     onTournamentClick: (Tournament) -> Unit,
     onShare: (Tournament) -> Unit,
     onCancel: (Tournament) -> Unit,
@@ -241,15 +262,22 @@ private fun TournamentList(
         // iOS pads the list 100pt; the floating tab bar sits over the bottom of the content.
         contentPadding = PaddingValues(bottom = maxOf(100.dp, LocalTabBarClearance.current + TabBarContentGap)),
     ) {
+        // Only when a section the sort applies to is visible (not on the Completed chip).
+        if (sortLocation.unavailable && sections.any { !it.isPast }) {
+            item(key = "sort_location_note") {
+                LocationSortNote(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp))
+            }
+        }
         sections.forEachIndexed { index, section ->
-            val list = if (sortNewestFirst) section.tournaments else section.tournaments.sortedByDescending { it.date }
+            val list = section.tournaments.sortedForList(sortOption, sortLocation.userLocation, isPast = section.isPast)
             item(key = "header_${section.key}") {
                 SectionHeader(
                     title = section.title,
                     icon = section.icon,
                     count = list.size,
-                    sortNewestFirst = sortNewestFirst,
-                    onSortChange = onSortChange,
+                    sortOption = sortOption,
+                    showSort = !section.isPast,
+                    onSortClick = onSortClick,
                     // iOS: VStack(spacing: 24) between section blocks.
                     modifier = if (index > 0) Modifier.padding(top = 24.dp) else Modifier,
                 )
@@ -282,11 +310,11 @@ private fun SectionHeader(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     count: Int,
-    sortNewestFirst: Boolean,
-    onSortChange: (Boolean) -> Unit,
+    sortOption: ListSortOption,
+    showSort: Boolean,
+    onSortClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -315,32 +343,8 @@ private fun SectionHeader(
                 .padding(horizontal = 6.dp, vertical = 2.dp),
         )
         Spacer(Modifier.weight(1f))
-        Box {
-            // iOS: a plain Menu label image (no 48dp button chrome).
-            Icon(
-                Icons.Default.FilterList,
-                contentDescription = "Sort",
-                tint = AppAccent,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { menuExpanded = true },
-            )
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                DropdownMenuItem(
-                    text = { Text("Soonest First") },
-                    onClick = { onSortChange(true); menuExpanded = false },
-                    trailingIcon = { if (sortNewestFirst) Icon(Icons.Default.Check, null) },
-                )
-                DropdownMenuItem(
-                    text = { Text("Latest First") },
-                    onClick = { onSortChange(false); menuExpanded = false },
-                    trailingIcon = { if (!sortNewestFirst) Icon(Icons.Default.Check, null) },
-                )
-            }
-        }
+        // Past sections are always newest first, so they get no sort control.
+        if (showSort) SortFilterIcon(option = sortOption, onClick = onSortClick)
     }
 }
 
