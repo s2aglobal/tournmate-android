@@ -53,9 +53,9 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
         // Resolve the sport before first frame so the accent never flashes the default.
-        CurrentSport.sport = runBlocking { currentUserStore.preferredSportFlow.first() }
+        CurrentSport.adoptStored(runBlocking { currentUserStore.storedPreferredSportFlow.first() })
         lifecycleScope.launch {
-            currentUserStore.preferredSportFlow.collect { CurrentSport.sport = it }
+            currentUserStore.storedPreferredSportFlow.collect { CurrentSport.adoptStored(it) }
         }
         // QA: launch with `--ez simulateUpdateRequired true` to preview the update blocker (debug only).
         if (BuildConfig.DEBUG && intent?.getBooleanExtra(EXTRA_SIMULATE_UPDATE_REQUIRED, false) == true) {

@@ -23,16 +23,15 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import com.s2aglobal.tournmate.ui.theme.CurrentSport
-import com.s2aglobal.tournmate.ui.component.sportIconPainter
+import androidx.annotation.DrawableRes
+import androidx.compose.ui.res.painterResource
+import com.s2aglobal.tournmate.R
+import com.s2aglobal.tournmate.ui.component.MultiSportArtworkRow
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.SportsTennis
-import androidx.compose.material.icons.filled.Stadium
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -62,11 +61,17 @@ private data class OnboardingPage(
     val category: String,
     val title: String,
     val description: String,
-    val icon: ImageVector,
+    val icon: OnboardingIcon,
     val backgroundGradient: List<Color>,
-    /** Draw the current sport's icon instead of `icon` (matches iOS). */
-    val usesSportIcon: Boolean = false,
+    /** Shows pickleball, badminton and tennis artwork above the text (iOS `showsSportArtwork`). */
+    val showsSportArtwork: Boolean = false,
 )
+
+/** Watermark icon: a Material vector, or a drawable traced from the iOS SF Symbol. */
+private sealed interface OnboardingIcon {
+    data class Vector(val image: ImageVector) : OnboardingIcon
+    data class Drawable(@DrawableRes val res: Int) : OnboardingIcon
+}
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
@@ -87,56 +92,58 @@ fun OnboardingScreen(
     onComplete: () -> Unit,
 ) {
     LightSystemBarIcons()
+    // Pages, icons, copy and gradients match iOS OnboardingView.swift exactly (same order).
     val pages = listOf(
         OnboardingPage(
             category = "TOURNAMENTS",
             title = "Win Glory",
-            description = "Compete in local tournaments and climb the leaderboard rankings.",
-            icon = Icons.Default.EmojiEvents,
-            backgroundGradient = listOf(Color(0xFF0D1B3E), Color(0xFF1A237E)),
+            description = "Tournaments for your sport. Compete locally and climb the leaderboard rankings.",
+            icon = OnboardingIcon.Vector(Icons.Filled.EmojiEvents), // trophy.fill
+            backgroundGradient = listOf(Color(0xFF1A245C), Color(0xFF0F1438)),
+            showsSportArtwork = true,
         ),
         OnboardingPage(
             category = "OPEN PLAY",
-            title = "Rally Up",
-            description = "Host casual sessions, meet players, and enjoy the game together.",
-            icon = Icons.Default.SportsTennis,
-            usesSportIcon = true,
-            backgroundGradient = listOf(Color(0xFF0D3B2E), Color(0xFF1B5E20)),
+            title = "Game On",
+            description = "Host casual sessions for any sport, meet players, and enjoy the game together.",
+            icon = OnboardingIcon.Vector(Icons.Filled.Groups), // person.3.fill
+            backgroundGradient = listOf(Color(0xFF006147), Color(0xFF003324)),
         ),
         OnboardingPage(
             category = "COURTS",
             title = "Your Turf",
-            description = "Find nearby courts by zip code or GPS and get directions instantly.",
-            icon = Icons.Default.Stadium,
-            backgroundGradient = listOf(Color(0xFF0D1B3E), Color(0xFF1A237E)),
+            description = "Find nearby courts and venues by zip code or GPS and get directions instantly.",
+            icon = OnboardingIcon.Drawable(R.drawable.ic_sportscourt_fill), // sportscourt.fill
+            backgroundGradient = listOf(Color(0xFF143D6B), Color(0xFF0A1F42)),
         ),
         OnboardingPage(
             category = "DISCOVER",
             title = "Stay Sharp",
             description = "Browse news, live matches, rankings, and official rules for your sport.",
-            icon = Icons.Default.Explore,
-            backgroundGradient = listOf(Color(0xFF2E1A47), Color(0xFF4A148C)),
+            icon = OnboardingIcon.Drawable(R.drawable.ic_safari_fill), // safari.fill
+            backgroundGradient = listOf(Color(0xFF381A61), Color(0xFF1F0F3D)),
         ),
         OnboardingPage(
             category = "CALORIES",
             title = "Peak Form",
+            // iOS says "Apple Health"; the platform's health store is the only difference.
             description = "Track calories burned with Health Connect or smart MET estimation.",
-            icon = Icons.Default.LocalFireDepartment,
-            backgroundGradient = listOf(Color(0xFF4E1A0D), Color(0xFFBF360C)),
+            icon = OnboardingIcon.Vector(Icons.Filled.LocalFireDepartment), // flame.fill
+            backgroundGradient = listOf(Color(0xFF852914), Color(0xFF4D140A)),
         ),
         OnboardingPage(
             category = "NOTIFICATIONS",
             title = "Match Alerts",
-            description = "Get notified when events are posted in your area. Never miss a game.",
-            icon = Icons.Default.Notifications,
-            backgroundGradient = listOf(Color(0xFF1A1A3E), Color(0xFF311B92)),
+            description = "Get notified when events for your sport are posted in your area. Never miss a game.",
+            icon = OnboardingIcon.Vector(Icons.Filled.Notifications), // bell.fill
+            backgroundGradient = listOf(Color(0xFF291F66), Color(0xFF140F3D)),
         ),
         OnboardingPage(
             category = "PROFILE",
             title = "Your Legacy",
             description = "Track match stats, fitness records, Elo rating, and sportsmanship.",
-            icon = Icons.Default.Person,
-            backgroundGradient = listOf(Color(0xFF2E1A47), Color(0xFF4A148C)),
+            icon = OnboardingIcon.Drawable(R.drawable.ic_person_circle), // person.crop.circle.fill
+            backgroundGradient = listOf(Color(0xFF4D1A66), Color(0xFF290A38)),
         ),
     )
 
@@ -159,10 +166,10 @@ fun OnboardingScreen(
                     .align(Alignment.Center)
                     .offset(y = (-40).dp)
                     .size(200.dp)
-                if (page.usesSportIcon) {
-                    Icon(sportIconPainter(CurrentSport.sport), null, watermarkModifier, tint = Color.White.copy(alpha = 0.06f))
-                } else {
-                    Icon(page.icon, null, watermarkModifier, tint = Color.White.copy(alpha = 0.06f))
+                val watermarkTint = Color.White.copy(alpha = 0.06f)
+                when (val icon = page.icon) {
+                    is OnboardingIcon.Vector -> Icon(icon.image, null, watermarkModifier, tint = watermarkTint)
+                    is OnboardingIcon.Drawable -> Icon(painterResource(icon.res), null, watermarkModifier, tint = watermarkTint)
                 }
                 // Page text sits between the fixed top bar and the fixed bottom CTA
                 // (iOS: TabView between the header HStack and the button, 48pt bottom padding).
@@ -175,27 +182,33 @@ fun OnboardingScreen(
                         .padding(horizontal = 32.dp),
                 ) {
                     Spacer(modifier = Modifier.weight(1f))
-                    // Text content
+                    if (page.showsSportArtwork) {
+                        MultiSportArtworkRow(size = 52.dp, spacing = 12.dp)
+                        Spacer(Modifier.height(20.dp))
+                    }
+                    // Text content (iOS sizes: 12/bold/2.5 tracking, 42/black, 17 at 55%)
                     Text(
                         page.category,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.sp,
+                        letterSpacing = 2.5.sp,
                         color = TournmatePurple,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        page.title,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
+                        page.title,
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White,
+                        maxLines = 2,
+                        lineHeight = 46.sp,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Text(
                         page.description,
-                        fontSize = 16.sp,
-                        color = Color.White.copy(alpha = 0.7f),
-                        lineHeight = 24.sp,
+                        fontSize = 17.sp,
+                        color = Color.White.copy(alpha = 0.55f),
+                        lineHeight = 25.sp,
                     )
 
                     Spacer(Modifier.height(100.dp))

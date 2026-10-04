@@ -138,4 +138,17 @@ val SportType.gearNoun: String get() = theme.gearNoun
 object CurrentSport {
     var sport: SportType by mutableStateOf(SportType.BADMINTON)
     val theme: SportTheme get() = sport.theme
+
+    /**
+     * The saved sport, or null before one has been saved (first launch). Unlike [sport] it
+     * doesn't fall back to badminton; the splash/Welcome brand mark shows a neutral trophy then.
+     */
+    var storedSport: SportType? by mutableStateOf(null)
+        private set
+
+    /** Mirrors `CurrentUserStore.storedPreferredSportFlow` (MainActivity). */
+    fun adoptStored(stored: SportType?) {
+        storedSport = stored
+        sport = stored ?: SportType.fromRawValue(null)
+    }
 }

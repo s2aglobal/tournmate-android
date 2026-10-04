@@ -1,8 +1,8 @@
 package com.s2aglobal.tournmate.ui.screen.auth
 
 import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
-import com.s2aglobal.tournmate.ui.component.sportIconPainter
-import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import com.s2aglobal.tournmate.ui.component.MultiSportArtworkRow
+import com.s2aglobal.tournmate.ui.component.SportBrandMark
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
@@ -40,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -52,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import com.s2aglobal.tournmate.ui.theme.TournmatePurple
 import com.s2aglobal.tournmate.ui.theme.DarkNavy
 import com.s2aglobal.tournmate.ui.theme.DarkNavyLight
 import com.s2aglobal.tournmate.ui.theme.LimeAccent
@@ -91,7 +89,7 @@ fun WelcomeScreen(
             .fillMaxSize()
             .background(DarkNavy),
     ) {
-        // Court lines background
+        // Sport-neutral court lines background
         CourtLines(
             modifier = Modifier.fillMaxSize(),
         )
@@ -102,27 +100,19 @@ fun WelcomeScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 32.dp),
         ) {
-            // Top section with bouncing sport icon
+            // Top section with bouncing brand mark
             Spacer(modifier = Modifier.height(80.dp))
 
-            Surface(
+            // Saved sport on its theme colour; trophy before any sport is saved (iOS SportBrandMark).
+            SportBrandMark(
+                size = 56.dp,
+                cornerRadius = 16.dp,
+                iconSize = 24.dp,
+                shadowElevation = 12.dp,
                 modifier = Modifier
-                    .size(56.dp)
                     .offset(y = (-8f * bounce).dp)
-                    .rotate(-2f + 4f * bounce)
-                    .shadow(12.dp, RoundedCornerShape(16.dp), ambientColor = TournmatePurple.copy(alpha = 0.4f)),
-                shape = RoundedCornerShape(16.dp),
-                color = TournmatePurple,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painter = sportIconPainter(CurrentSport.sport),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = Color.White,
-                    )
-                }
-            }
+                    .rotate(-2f + 4f * bounce),
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -151,13 +141,17 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Elevate your game\nwith elite analytics.",
+                text = "Tournaments for your sport.\nElevate your game.",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Normal,
                 color = Color.White.copy(alpha = 0.5f),
                 lineHeight = 24.sp,
                 modifier = Modifier.entrance(15f),
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            MultiSportArtworkRow(size = 36.dp, spacing = 10.dp, modifier = Modifier.entrance(15f))
 
             Spacer(modifier = Modifier.weight(1f))
 

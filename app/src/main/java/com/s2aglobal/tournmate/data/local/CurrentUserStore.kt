@@ -46,6 +46,11 @@ class CurrentUserStore @Inject constructor(
         SportType.fromRawValue(prefs[Keys.PREFERRED_SPORT])
     }
 
+    /** The saved sport, or null before one has been saved (first launch). iOS `SportType.stored`. */
+    val storedPreferredSportFlow: Flow<SportType?> = context.dataStore.data.map { prefs ->
+        prefs[Keys.PREFERRED_SPORT]?.takeIf { it.isNotBlank() }?.let(SportType::fromRawValue)
+    }
+
     suspend fun currentPlayerId(): UUID? =
         currentPlayerIdFlow.first()
 
