@@ -6,8 +6,11 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessaging
+import com.s2aglobal.tournmate.BuildConfig
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.domain.model.Player
@@ -15,7 +18,9 @@ import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.region.RegionNormalizer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,9 +39,11 @@ class NotificationService @Inject constructor(
     private val messaging: FirebaseMessaging,
     private val playerRepo: PlayerRepository,
     private val currentUserStore: CurrentUserStore,
+    private val localNotificationStore: LocalNotificationStore,
 ) {
 
     companion object {
+        private const val TAG = "NotificationService"
         const val CHANNEL_ID_GENERAL  = "tournmate_general"
         const val CHANNEL_ID_SESSIONS = "tournmate_sessions"
         const val CHANNEL_ID_MATCHES  = "tournmate_matches"
@@ -65,7 +72,6 @@ class NotificationService @Inject constructor(
     // ── Channel setup ─────────────────────────────────────────────────────────
 
     fun createNotificationChannels() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(NotificationManager::class.java)
 
         nm.createNotificationChannel(NotificationChannel(
@@ -105,6 +111,40 @@ class NotificationService @Inject constructor(
         if (player.fcmToken == token) return@withContext
         val updated = player.copy(fcmToken = token)
         try { playerRepo.updatePlayer(updated) } catch (_: Exception) {}
+    }
+
+    /**
+     * Fetches the current FCM token (creating a fresh one after [resetForSignOut])
+     * and persists it to the signed-in player's doc. Called on every sign-in, since
+     * [TournMateFcmService.onNewToken] can fire before a player is known.
+     * Mirrors iOS `syncToken` (10s wait for the token).
+     */
+    suspend fun syncCurrentToken() {
+        val token = withTimeoutOrNull(10_000) {
+            runCatching { messaging.token.await() }.getOrNull()
+        } ?: return
+        syncToken(token)
+    }
+
+    // ── Sign-out ──────────────────────────────────────────────────────────────
+
+    /**
+     * Detaches this device from the signed-out account (iOS `resetForSignOut`):
+     * deleting the FCM token drops every topic subscription (user_{uid}, region,
+     * country) and invalidates the token stored on the player doc, so the previous
+     * account's pushes stop arriving. Also clears the device-local inbox and shown
+     * notifications so the next account can't see them. A fresh token is created
+     * and synced on the next sign-in ([syncCurrentToken]).
+     */
+    suspend fun resetForSignOut() {
+        localNotificationStore.clear()
+        NotificationManagerCompat.from(context).cancelAll()
+        try {
+            // Bounded so an offline sign-out never hangs the UI.
+            withTimeoutOrNull(5_000) { messaging.deleteToken().await() }
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) Log.w(TAG, "FCM deleteToken failed", e)
+        }
     }
 
     // ── Topic subscriptions ───────────────────────────────────────────────────

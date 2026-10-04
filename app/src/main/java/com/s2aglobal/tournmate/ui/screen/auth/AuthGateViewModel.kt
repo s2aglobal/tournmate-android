@@ -93,14 +93,23 @@ class AuthGateViewModel @Inject constructor(
         return AuthState.NEEDS_PROFILE
     }
 
-    /** Player doc is the source of truth for sport; the local copy can be stale. */
+    /**
+     * Player doc is the source of truth for sport; the local copy can be stale.
+     * Runs on every sign-in (not once per process), so after [signOut] deleted the
+     * FCM token a fresh one is synced and the topics are resubscribed.
+     */
     private suspend fun adopt(player: Player) {
         currentUserStore.setPreferredSport(player.preferredSport)
         notificationService.subscribeToHomeRegion(player)
+        viewModelScope.launch { notificationService.syncCurrentToken() }
     }
 
     fun onProfileComplete() {
         viewModelScope.launch {
+            // New player doc: sync the FCM token and subscribe its topics.
+            currentUserStore.currentPlayerId()?.let { id ->
+                runCatching { playerRepo.findPlayerById(id) }.getOrNull()?.let { adopt(it) }
+            }
             _authState.value = if (currentUserStore.hasSeenOnboarding()) AuthState.SIGNED_IN
             else AuthState.NEEDS_ONBOARDING
         }
@@ -144,8 +153,11 @@ class AuthGateViewModel @Inject constructor(
         _authState.value = AuthState.SIGNED_IN
     }
 
+    /** Also used after account deletion (ProfileViewModel.deleteAccount -> onSignOut). */
     fun signOut() {
         viewModelScope.launch {
+            // Detach pushes and clear the local inbox before dropping the session (iOS parity).
+            notificationService.resetForSignOut()
             authService.signOut()
             currentUserStore.clear()
             _isGuestMode.value = false

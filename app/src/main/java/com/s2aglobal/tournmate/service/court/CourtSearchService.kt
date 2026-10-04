@@ -3,6 +3,8 @@ package com.s2aglobal.tournmate.service.court
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
+import android.util.Log
+import com.s2aglobal.tournmate.BuildConfig
 import com.s2aglobal.tournmate.domain.model.SportType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -36,6 +38,17 @@ class CourtSearchService(private val context: Context) {
     } catch (_: Exception) { "" }
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    // Logs carry coordinates, ZIPs and request URLs: debug builds only, never the API key.
+    private fun logD(message: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message)
+    }
+
+    private fun logE(message: String, error: Throwable? = null) {
+        if (BuildConfig.DEBUG) Log.e(TAG, message, error)
+    }
+
+    private fun redactKey(url: URL): String = url.toString().replace(Regex("key=[^&]*"), "key=REDACTED")
 
     suspend fun searchCourts(query: String, sport: SportType, includePhone: Boolean = false): List<CourtResult> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
@@ -152,11 +165,11 @@ class CourtSearchService(private val context: Context) {
             addresses?.firstOrNull()?.let { addr ->
                 lat = addr.latitude
                 lng = addr.longitude
-                android.util.Log.d("CourtSearch", "Geocoder success: $lat, $lng")
+                logD("Geocoder success: $lat, $lng")
             }
-            if (lat == null) android.util.Log.d("CourtSearch", "Geocoder returned no results for '$zipCode'")
+            if (lat == null) logD("Geocoder returned no results for '$zipCode'")
         } catch (e: Exception) {
-            android.util.Log.e("CourtSearch", "Geocoder failed: ${e.message}")
+            logE("Geocoder failed: ${e.message}")
         }
 
         // Fallback: use Google Geocoding HTTP API
@@ -164,7 +177,7 @@ class CourtSearchService(private val context: Context) {
             try {
                 val encoded = URLEncoder.encode(zipCode, "UTF-8")
                 val geoUrl = "https://maps.googleapis.com/maps/api/geocode/json?address=$encoded&key=$apiKey"
-                android.util.Log.d("CourtSearch", "Trying Geocoding API: $geoUrl")
+                logD("Trying Geocoding API for '$zipCode'")
                 val url = URL(geoUrl)
                 val conn = url.openConnection() as HttpURLConnection
                 conn.connectTimeout = 10_000
@@ -173,15 +186,15 @@ class CourtSearchService(private val context: Context) {
                 val stream = if (code in 200..299) conn.inputStream else conn.errorStream
                 val responseText = stream.bufferedReader().readText()
                 conn.disconnect()
-                android.util.Log.d("CourtSearch", "Geocoding response ($code): ${responseText.take(300)}")
+                logD("Geocoding response ($code): ${responseText.take(300)}")
                 val response = json.decodeFromString<GeocodingResponse>(responseText)
                 response.results.firstOrNull()?.let { result ->
                     lat = result.geometry.location.lat
                     lng = result.geometry.location.lng
-                    android.util.Log.d("CourtSearch", "Geocoding API success: $lat, $lng")
+                    logD("Geocoding API success: $lat, $lng")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("CourtSearch", "Geocoding API failed: ${e.message}")
+                logE("Geocoding API failed: ${e.message}")
             }
         }
 
@@ -189,17 +202,17 @@ class CourtSearchService(private val context: Context) {
         val finalLng = lng ?: return textSearchFallback(zipCode, sport)
 
         // Step 2: Search nearby for sports venues (like iOS MKLocalSearch)
-        android.util.Log.d("CourtSearch", "Searching nearby at $finalLat, $finalLng with apiKey=${apiKey.take(10)}...")
+        logD("Searching nearby at $finalLat, $finalLng")
         val queries = sportQueries(sport)
         for (q in queries) {
-            android.util.Log.d("CourtSearch", "Trying nearby search: '$q'")
+            logD("Trying nearby search: '$q'")
             val results = nearbySearch(q, finalLat, finalLng, 25000)
-            android.util.Log.d("CourtSearch", "Nearby '$q' returned ${results.size} results")
+            logD("Nearby '$q' returned ${results.size} results")
             if (results.isNotEmpty()) return results
         }
 
         // Step 3: Fallback — text search
-        android.util.Log.d("CourtSearch", "No nearby results, trying text search fallback")
+        logD("No nearby results, trying text search fallback")
         return textSearchFallback(zipCode, sport)
     }
 
@@ -224,7 +237,7 @@ class CourtSearchService(private val context: Context) {
     }
 
     private fun nearbySearch(keyword: String, lat: Double, lng: Double, radiusMeters: Int): List<CourtResult> {
-        if (apiKey.isBlank()) { android.util.Log.d("CourtSearch", "No API key"); return emptyList() }
+        if (apiKey.isBlank()) { logD("No API key"); return emptyList() }
 
         val encodedKeyword = URLEncoder.encode(keyword, "UTF-8")
         val url = URL(
@@ -235,7 +248,7 @@ class CourtSearchService(private val context: Context) {
         return try {
             executePlacesRequest(url, lat, lng)
         } catch (e: Exception) {
-            android.util.Log.e("CourtSearch", "nearbySearch exception: ${e.message}", e)
+            logE("nearbySearch exception: ${e.message}", e)
             emptyList()
         }
     }
@@ -258,12 +271,12 @@ class CourtSearchService(private val context: Context) {
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val responseText = stream.bufferedReader().readText()
-            android.util.Log.d("CourtSearch", "URL: $url")
-            android.util.Log.d("CourtSearch", "Response ($code): ${responseText.take(500)}")
+            logD("URL: ${redactKey(url)}")
+            logD("Response ($code): ${responseText.take(500)}")
             val response = json.decodeFromString<PlacesResponse>(responseText)
 
             if (response.status != "OK" && response.status != "ZERO_RESULTS") {
-                android.util.Log.e("CourtSearch", "API error: status=${response.status}, msg=${response.error_message}")
+                logE("API error: status=${response.status}, msg=${response.error_message}")
                 return emptyList()
             }
 
@@ -332,6 +345,7 @@ class CourtSearchService(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "CourtSearch"
         fun formatDistance(meters: Double): String {
             val miles = meters / 1_609.344
             val km = meters / 1_000

@@ -12,7 +12,9 @@
 
     <application
         android:name=".TournMateApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -34,39 +36,45 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep links -->
-            <intent-filter android:autoVerify="true">
+            <!-- Deep links (custom scheme: not an App Link, so no autoVerify) -->
+            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="tournmate"
-                    android:host="tournament" />
-                <data
-                    android:scheme="tournmate"
-                    android:host="session" />
+                <data android:scheme="tournmate" />
+                <data android:host="tournament" />
+                <data android:host="session" />
             </intent-filter>
 
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="www.tournmate.com"
-                    android:pathPrefix="/tournament" />
-                <data
-                    android:scheme="https"
-                    android:host="www.tournmate.com"
-                    android:pathPrefix="/session" />
+                <data android:scheme="https" />
+                <data android:host="www.tournmate.com" />
+                <data android:pathPrefix="/tournament" />
+                <data android:pathPrefix="/session" />
             </intent-filter>
         </activity>
 
-        <!-- Health Connect activity for permissions -->
+        <!-- Health Connect privacy policy / permissions rationale.
+             Android 13 and below: ACTION_SHOW_PERMISSIONS_RATIONALE (below).
+             Android 14+: VIEW_PERMISSION_USAGE via the alias that follows. -->
+        <activity
+            android:name=".HealthPermissionsRationaleActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".HealthPermissionsRationaleActivity"
             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />

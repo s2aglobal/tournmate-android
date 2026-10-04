@@ -13,9 +13,13 @@ sealed class AuthResult {
     object Cancelled : AuthResult()
 }
 
-/** Email verification is enforced only in prod Release builds (iOS: `!DEBUG && !DEV_RELEASE`). */
+/**
+ * Email verification is enforced for every build that talks to the prod Firebase
+ * project (prodDebug included), so a debug build can't bypass it against prod data.
+ * iOS Debug can't reach prod at all; dev keeps verification off for testing.
+ */
 val requiresEmailVerification: Boolean
-    get() = !BuildConfig.DEBUG && BuildConfig.FLAVOR == "prod"
+    get() = BuildConfig.FLAVOR == "prod"
 
 /** Converts Firebase auth errors to user-friendly messages (mirrors iOS `friendlyAuthError`). */
 fun friendlyAuthError(error: Throwable): String {

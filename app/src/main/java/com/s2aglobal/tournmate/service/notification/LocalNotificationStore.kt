@@ -108,6 +108,11 @@ class LocalNotificationStore @Inject constructor(
         persist(loadAll().filter { it.id != id })
     }
 
+    /** Removes every stored entry (sign-out / account deletion). */
+    fun clear() {
+        prefs.edit().remove(storageKey).apply()
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     private fun persist(entries: List<LocalNotificationEntry>) {
