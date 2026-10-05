@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,7 +66,8 @@ fun RoundRobinDrawView(rounds: List<RoundGroup>, pointsPerWin: Int, pointsPerLos
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(Modifier.width(100.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(labels[rowIdx], fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, modifier = Modifier.width(18.dp))
+                        // Centred in its 18dp column like iOS; left-aligned it sat on the card border.
+                        Text(labels[rowIdx], fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, textAlign = TextAlign.Center, modifier = Modifier.width(18.dp))
                         Text(drawTeamName(rowTeam, firstNameOnly = true), fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     teams.forEachIndexed { colIdx, colTeam ->
