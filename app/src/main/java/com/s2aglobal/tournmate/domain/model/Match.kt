@@ -92,6 +92,18 @@ data class Match(
             else -> null
         }
 
+        /**
+         * The bracket's champion, or `null` until the final has been played: the
+         * last round must be the bracket's final (round == [totalRounds]) with
+         * exactly one match, finished, with a winner. Mirrors iOS `bracketChampion`.
+         */
+        fun bracketChampion(lastRound: Int?, lastRoundMatches: List<Match>, totalRounds: Int): Registration? {
+            if (totalRounds <= 0 || lastRound != totalRounds || lastRoundMatches.size != 1) return null
+            val finalMatch = lastRoundMatches.single()
+            if (finalMatch.status != MatchStatus.FINISHED) return null
+            return finalMatch.winnerRegistration
+        }
+
         fun bracketRoundName(roundNumber: Int, totalRounds: Int): String =
             // Mirrors iOS `Match.bracketRoundName`.
             when (val fromFinal = totalRounds - roundNumber) {

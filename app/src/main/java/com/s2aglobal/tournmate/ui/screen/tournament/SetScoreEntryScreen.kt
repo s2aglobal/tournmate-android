@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ import com.s2aglobal.tournmate.domain.model.SetScore
 import com.s2aglobal.tournmate.ui.component.FullScreenCover
 import com.s2aglobal.tournmate.ui.component.scoringUnit
 import com.s2aglobal.tournmate.ui.theme.AppAccent
+import kotlinx.coroutines.launch
 
 private val setLabels = listOf("One", "Two", "Three", "Four", "Five", "Six", "Seven")
 private const val MAX_GAMES = 7
@@ -38,10 +40,13 @@ fun SetScoreEntryScreen(
     match: Match,
     isCreator: Boolean,
     existingScores: List<SetScore> = emptyList(),
-    onSubmit: (List<SetScore>) -> Unit,
+    /** Saves the scores: `null` once the server accepted them, else the message to show. */
+    onSubmit: suspend (List<SetScore>) -> String?,
     onDismiss: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
+    // clearFocus() alone doesn't always close the keyboard inside a bottom sheet (iOS hides it).
+    val keyboard = LocalSoftwareKeyboardController.current
     val tournament = match.tournament
     val enforces = tournament.enforcesScoringRules
     // The tournament's scoring rules (sport defaults for older tournaments).
@@ -59,6 +64,9 @@ fun SetScoreEntryScreen(
     }
     var visibleSets by remember { mutableIntStateOf(existingScores.size.coerceIn(1, MAX_GAMES)) }
     var celebration by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var submitError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     val teamAName = registrationFullName(match.teamA)
     val teamBName = registrationFullName(match.teamB)
@@ -141,7 +149,7 @@ fun SetScoreEntryScreen(
                             teamAName = teamAName,
                             teamBName = teamBName,
                             error = gameError(index),
-                            onChange = { texts[index] = it },
+                            onChange = { texts[index] = it; submitError = null },
                             onRemove = {
                                 // Later games shift up.
                                 texts.removeAt(index)
@@ -167,12 +175,20 @@ fun SetScoreEntryScreen(
                     }
                 }
             }
-            ScoreSubmitBar("SUBMIT SCORE", isValid, message = matchError) {
+            ScoreSubmitBar("SUBMIT SCORE", isValid, message = matchError, isSubmitting = isSubmitting, submitError = submitError) {
                 focusManager.clearFocus()
+                keyboard?.hide()
                 val winner = if (aWins > bWins) teamAName else teamBName
                 val line = if (visibleSets == 1) "${parsed[0].teamAPoints}-${parsed[0].teamBPoints}" else "$aWins-$bWins"
-                onSubmit(parsed)
-                celebration = winner to line
+                val scores = parsed
+                submitError = null
+                isSubmitting = true
+                scope.launch {
+                    // Celebrate only once the server has accepted the scores.
+                    val error = onSubmit(scores)
+                    isSubmitting = false
+                    if (error != null) submitError = error else celebration = winner to line
+                }
             }
         }
     }

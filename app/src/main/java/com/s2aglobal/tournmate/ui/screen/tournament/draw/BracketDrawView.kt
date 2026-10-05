@@ -19,6 +19,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,7 +66,8 @@ fun BracketDrawView(
                 Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
             )
         }
-        Box {
+        // Full width so the Swipe hint sits at the right edge (iOS overlay), not over the round header.
+        Box(Modifier.fillMaxWidth()) {
             Row(
                 Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -95,7 +98,7 @@ fun BracketDrawView(
                         }
                     }
                 }
-                champion(rounds)?.let { ChampionEnd(it) }
+                champion(rounds, totalRounds)?.let { ChampionEnd(it) }
             }
             Box(Modifier.align(Alignment.TopEnd).padding(12.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.85f)).padding(horizontal = 10.dp, vertical = 6.dp)) {
                 SwipeHint()
@@ -104,10 +107,10 @@ fun BracketDrawView(
     }
 }
 
-private fun champion(rounds: List<RoundGroup>): Registration? {
-    val finalMatch = rounds.lastOrNull()?.matches?.firstOrNull() ?: return null
-    if (finalMatch.status != MatchStatus.FINISHED) return null
-    return finalMatch.winnerRegistration
+/** Only once the final itself is finished, never the winner of an earlier round that happens to be the last one so far. */
+private fun champion(rounds: List<RoundGroup>, totalRounds: Int): Registration? {
+    val last = rounds.lastOrNull() ?: return null
+    return Match.bracketChampion(last.round, last.matches, totalRounds)
 }
 
 private fun globalMatchNumber(rounds: List<RoundGroup>, roundIndex: Int, index: Int): Int =
@@ -155,7 +158,9 @@ private fun BracketMatchCard(match: Match, number: Int, onTap: (Match) -> Unit) 
             .border(1.5.dp, border, RoundedCornerShape(12.dp))
             .clickable { onTap(match) },
     ) {
-        Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Fixed 20dp label row (the "- 20" in the team-row height) so both team rows
+        // fit inside the 80dp card; font padding made it taller and clipped team B.
+        Row(Modifier.fillMaxWidth().height(20.dp).padding(start = 10.dp, end = 10.dp, top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Match $number", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray.copy(alpha = 0.6f), modifier = Modifier.weight(1f))
             StatusBadge(match.status)
         }
@@ -175,6 +180,8 @@ private fun StatusBadge(status: MatchStatus) {
     }
     Text(
         label, fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.White,
+        // Tight line height so the badge fits the 20dp label row like iOS.
+        style = TextStyle(lineHeight = 10.sp, platformStyle = PlatformTextStyle(includeFontPadding = false)),
         modifier = Modifier.clip(CircleShape).background(color).padding(horizontal = 5.dp, vertical = 2.dp),
     )
 }
@@ -183,7 +190,8 @@ private fun StatusBadge(status: MatchStatus) {
 private fun TeamRow(reg: Registration, seed: Int?, score: String?, isWinner: Boolean) {
     val isTbd = reg.player.name == "TBD"
     Row(
-        Modifier.fillMaxWidth().height(((CardHeight.value - 20f) / 2f).dp).padding(horizontal = 10.dp),
+        // 20dp label row + 1dp divider leave the rest for the two team rows.
+        Modifier.fillMaxWidth().height(((CardHeight.value - 21f) / 2f).dp).padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
