@@ -98,9 +98,14 @@ data class TournamentVisualState(
                         RoundNode(round, roundName, rMatches.sortedBy { it.bracketPosition ?: Int.MAX_VALUE }.map { matchNode(it) })
                     }.sortedBy { it.roundNumber }
 
+                    // Champion only once the final is played: the last round is the
+                    // bracket's final with a single finished match that has a winner.
                     val lastRound = rounds.lastOrNull()
-                    val champion = lastRound?.matches?.firstOrNull { it.isFinished }?.let { mn ->
-                        mn.winnerName?.let { ParticipantNode("", it, isWinner = true) }
+                    val finalMatch = lastRound
+                        ?.takeIf { totalRounds > 0 && it.roundNumber == totalRounds && it.matches.size == 1 }
+                        ?.matches?.single()
+                    val champion = finalMatch?.takeIf { it.isFinished }?.winnerName?.let {
+                        ParticipantNode("", it, isWinner = true)
                     }
 
                     return TournamentVisualState(format, rounds = rounds, champion = champion, totalRounds = totalRounds)

@@ -225,7 +225,14 @@ internal fun ScoreCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-internal fun ScoreSubmitBar(label: String, enabled: Boolean, message: String? = null, onSubmit: () -> Unit) {
+internal fun ScoreSubmitBar(
+    label: String,
+    enabled: Boolean,
+    message: String? = null,
+    isSubmitting: Boolean = false,
+    submitError: String? = null,
+    onSubmit: () -> Unit,
+) {
     Column(
         Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().imePadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -234,16 +241,43 @@ internal fun ScoreSubmitBar(label: String, enabled: Boolean, message: String? = 
         message?.let {
             Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = WarningOrange, modifier = Modifier.padding(top = 10.dp))
         }
+        submitError?.let {
+            ScoreSubmitErrorBanner(it, Modifier.padding(horizontal = 20.dp).padding(top = 12.dp))
+        }
         Button(
             onClick = onSubmit,
-            enabled = enabled,
+            enabled = enabled && !isSubmitting,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp).fillMaxWidth().height(54.dp),
             shape = RoundedCornerShape(27.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AppAccent, disabledContainerColor = ScoreDisabled, disabledContentColor = Color.White),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AppAccent,
+                // While saving the button keeps the accent colour (iOS keeps it too).
+                disabledContainerColor = if (isSubmitting) AppAccent else ScoreDisabled,
+                disabledContentColor = Color.White,
+            ),
         ) {
-            Text(label, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.ChevronRight, null, Modifier.size(13.dp))
+            if (isSubmitting) {
+                CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("SAVING…", fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+            } else {
+                Text(label, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Default.ChevronRight, null, Modifier.size(13.dp))
+            }
         }
+    }
+}
+
+/** Inline error shown above the submit button when a score failed to save (iOS `ScoreSubmitErrorBanner`). */
+@Composable
+internal fun ScoreSubmitErrorBanner(message: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.Red.copy(alpha = 0.08f)).padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(Icons.Default.Warning, null, Modifier.size(16.dp), tint = Color.Red)
+        Text(message, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.Red)
     }
 }

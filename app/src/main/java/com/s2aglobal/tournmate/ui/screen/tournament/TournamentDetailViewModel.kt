@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.s2aglobal.tournmate.data.local.CurrentUserStore
 import com.s2aglobal.tournmate.data.repository.CalorieRecordRepository
 import com.s2aglobal.tournmate.data.repository.GroupMatchEntry
@@ -19,6 +20,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.UUID
@@ -785,43 +788,43 @@ class TournamentDetailViewModel @Inject constructor(
     }
 
     // ── Score Flow ────────────────────────────────────
+    //
+    // Each returns `null` once the server accepted the write, or the message to
+    // show on failure, so the sheet celebrates only after a real save (iOS
+    // returns the same from `TournamentDetailViewModel`). The work runs in
+    // `viewModelScope`, so closing the sheet mid-save doesn't cancel the write.
 
-    fun recordScore(match: Match, scoreA: Int, scoreB: Int) {
-        viewModelScope.launch {
-            try { matchRepo.finalizeMatch(match, scoreA, scoreB); reload(); setStatus("Score recorded!") }
-            catch (e: Exception) { setStatus("Failed to record score: ${e.message}") }
-        }
+    suspend fun recordScore(match: Match, scoreA: Int, scoreB: Int): String? = scoreWrite("save the score") {
+        matchRepo.finalizeMatch(match, scoreA, scoreB)
+        reload()
+        setStatus("Score recorded!")
     }
 
     /** Players submit for confirmation; the organizer's submission is confirmed straight away. */
-    fun submitSetScores(match: Match, setScores: List<SetScore>, submittedBy: String, autoConfirm: Boolean) {
-        viewModelScope.launch {
-            try {
-                matchRepo.submitSetScores(match, setScores, submittedBy)
-                if (autoConfirm) {
-                    val aWins = setScores.count { it.teamAWon }
-                    val bWins = setScores.count { it.teamBWon }
-                    val winner = when {
-                        aWins > bWins -> match.teamAId
-                        bWins > aWins -> match.teamBId
-                        else -> null
-                    }
-                    matchRepo.confirmScore(match.copy(setScores = setScores, winnerRegistrationId = winner), submittedBy)
-                    reload()
-                    afterConfirmStatus()
-                } else {
-                    reload()
-                    setStatus("Score submitted! Awaiting confirmation from the other team.")
-                }
-            } catch (e: Exception) { setStatus("Failed to submit score: ${e.message}") }
+    suspend fun submitSetScores(match: Match, setScores: List<SetScore>, submittedBy: String, autoConfirm: Boolean): String? {
+        scoreWrite("save the score") { matchRepo.submitSetScores(match, setScores, submittedBy) }?.let { return it }
+        if (!autoConfirm) {
+            reload()
+            setStatus("Score submitted! Awaiting confirmation from the other team.")
+            return null
         }
+        val aWins = setScores.count { it.teamAWon }
+        val bWins = setScores.count { it.teamBWon }
+        val winner = when {
+            aWins > bWins -> match.teamAId
+            bWins > aWins -> match.teamBId
+            else -> null
+        }
+        return confirmScore(
+            match.copy(setScores = setScores, winnerRegistrationId = winner),
+            submittedBy,
+        )
     }
 
-    fun confirmScore(match: Match, confirmedBy: String) {
-        viewModelScope.launch {
-            try { matchRepo.confirmScore(match, confirmedBy); reload(); afterConfirmStatus() }
-            catch (e: Exception) { setStatus("Failed to confirm score: ${e.message}") }
-        }
+    suspend fun confirmScore(match: Match, confirmedBy: String): String? = scoreWrite("confirm the score") {
+        matchRepo.confirmScore(match, confirmedBy)
+        reload()
+        afterConfirmStatus()
     }
 
     private fun afterConfirmStatus() {
@@ -833,19 +836,33 @@ class TournamentDetailViewModel @Inject constructor(
         }
     }
 
-    fun disputeScore(match: Match, disputedBy: String) {
-        viewModelScope.launch {
-            try { matchRepo.disputeScore(match, disputedBy); reload(); setStatus("Score disputed. The organizer will resolve this.") }
-            catch (e: Exception) { setStatus("Failed to dispute score: ${e.message}") }
-        }
+    suspend fun disputeScore(match: Match, disputedBy: String): String? = scoreWrite("dispute the score") {
+        matchRepo.disputeScore(match, disputedBy)
+        reload()
+        setStatus("Score disputed. The organizer will resolve this.")
     }
 
-    fun resolveDispute(match: Match, setScores: List<SetScore>) {
-        viewModelScope.launch {
-            try { matchRepo.resolveDispute(match, setScores); reload(); setStatus("Dispute resolved! Score finalized.") }
-            catch (e: Exception) { setStatus("Failed to resolve dispute: ${e.message}") }
-        }
+    /** Organizer resolves a disputed score (also "Edit Score" on a finished match). */
+    suspend fun resolveDispute(match: Match, setScores: List<SetScore>): String? = scoreWrite("save the score") {
+        matchRepo.resolveDispute(match, setScores)
+        reload()
+        setStatus("Dispute resolved! Score finalized.")
     }
+
+    /** Runs a score write in `viewModelScope`; returns `null` on success or the user-facing failure message. */
+    private suspend fun scoreWrite(action: String, block: suspend () -> Unit): String? =
+        viewModelScope.async {
+            try {
+                block()
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val message = scoreErrorMessage(e, action)
+                setStatus(message)
+                message
+            }
+        }.await()
 
     fun cancelTournament() {
         viewModelScope.launch {
@@ -1032,3 +1049,11 @@ class TournamentDetailViewModel @Inject constructor(
         }
     }
 }
+
+/** User-facing copy for a failed score write. Same wording as iOS `scoreErrorMessage(for:action:)`. */
+internal fun scoreErrorMessage(error: Throwable, action: String = "save the score"): String =
+    if (error is FirebaseFirestoreException && error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+        "Couldn't $action. You don't have permission to update this match."
+    } else {
+        "Couldn't $action. Check your connection and try again."
+    }

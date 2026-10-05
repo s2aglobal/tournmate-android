@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,6 +71,9 @@ fun TournamentDetailScreen(
     var showDeleteAlert by remember { mutableStateOf(false) }
     var showResetAlert by remember { mutableStateOf(false) }
     var matchForReview by remember { mutableStateOf<Match?>(null) }
+    // Message for a confirm/dispute that failed to save.
+    var scoreActionError by remember { mutableStateOf<String?>(null) }
+    val scoreScope = rememberCoroutineScope()
 
     LaunchedEffect(state.didDelete) { if (state.didDelete) onBack() }
 
@@ -136,8 +140,8 @@ fun TournamentDetailScreen(
         uid = state.firebaseUid,
         onEnterSetScore = { scoreSheet = ScoreSheet.Sets(it) },
         onEnterSimpleScore = { scoreSheet = ScoreSheet.Simple(it) },
-        onConfirm = { viewModel.confirmScore(it, uid) },
-        onDispute = { viewModel.disputeScore(it, uid) },
+        onConfirm = { m -> scoreScope.launch { scoreActionError = viewModel.confirmScore(m, uid) } },
+        onDispute = { m -> scoreScope.launch { scoreActionError = viewModel.disputeScore(m, uid) } },
         onResolveDispute = { scoreSheet = ScoreSheet.Dispute(it) },
         onEditSetScore = { scoreSheet = ScoreSheet.EditSets(it) },
         onEditSimpleScore = { scoreSheet = ScoreSheet.EditSimple(it) },
@@ -272,16 +276,25 @@ fun TournamentDetailScreen(
             text = { Text("${registrationShortName(match.teamA)} vs ${registrationShortName(match.teamB)}\n${iosScoreLine(match)}") },
             confirmButton = {
                 Column(horizontalAlignment = Alignment.End) {
-                    TextButton(onClick = { matchForReview = null; viewModel.confirmScore(match, uid) }) {
+                    TextButton(onClick = { matchForReview = null; scoreScope.launch { scoreActionError = viewModel.confirmScore(match, uid) } }) {
                         Text("Confirm Score", color = AppAccent)
                     }
                     TextButton(
-                        onClick = { matchForReview = null; viewModel.disputeScore(match, uid) },
+                        onClick = { matchForReview = null; scoreScope.launch { scoreActionError = viewModel.disputeScore(match, uid) } },
                         colors = ButtonDefaults.textButtonColors(contentColor = ErrorRed),
                     ) { Text("Dispute Score") }
                     TextButton(onClick = { matchForReview = null }) { Text("Cancel", fontWeight = FontWeight.SemiBold) }
                 }
             },
+        )
+    }
+
+    scoreActionError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { scoreActionError = null },
+            title = { Text("Score Not Saved") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { scoreActionError = null }) { Text("OK") } },
         )
     }
 

@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -16,18 +17,25 @@ import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.ScoreValidator
 import com.s2aglobal.tournmate.domain.model.SetScore
 import com.s2aglobal.tournmate.ui.component.FullScreenCover
+import kotlinx.coroutines.launch
 
 @Composable
 fun SimpleScoreEntryScreen(
     match: Match,
     isCreator: Boolean,
-    onSubmit: (scoreA: Int, scoreB: Int) -> Unit,
+    /** Saves the score: `null` once the server accepted it, else the message to show. */
+    onSubmit: suspend (scoreA: Int, scoreB: Int) -> String?,
     onDismiss: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
+    // clearFocus() alone doesn't always close the keyboard inside a bottom sheet (iOS hides it).
+    val keyboard = LocalSoftwareKeyboardController.current
     var scoreA by remember { mutableStateOf("") }
     var scoreB by remember { mutableStateOf("") }
     var winnerName by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var submitError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     val teamAName = registrationFullName(match.teamA)
     val teamBName = registrationFullName(match.teamB)
@@ -74,15 +82,26 @@ fun SimpleScoreEntryScreen(
                             ScoringHint(sport, gameConfig, badgeSize = 14.dp, fontSize = 11, modifier = Modifier.weight(1f, fill = false))
                         }
                     }
-                    ScoreFieldPair(scoreA, scoreB, onA = { scoreA = it }, onB = { scoreB = it }, isError = gameError != null)
+                    ScoreFieldPair(scoreA, scoreB, onA = { scoreA = it; submitError = null }, onB = { scoreB = it; submitError = null }, isError = gameError != null)
                     gameError?.let { GameErrorRow(it) }
                 }
             }
-            ScoreSubmitBar(if (isCreator) "FINALIZE SCORE" else "SUBMIT SCORE", isValid) {
+            ScoreSubmitBar(
+                if (isCreator) "FINALIZE SCORE" else "SUBMIT SCORE", isValid,
+                isSubmitting = isSubmitting, submitError = submitError,
+            ) {
                 focusManager.clearFocus()
+                keyboard?.hide()
                 if (a == null || b == null) return@ScoreSubmitBar
-                onSubmit(a, b)
-                winnerName = if (a > b) teamAName else teamBName
+                submitError = null
+                isSubmitting = true
+                scope.launch {
+                    // Celebrate only once the server has accepted the score.
+                    val error = onSubmit(a, b)
+                    isSubmitting = false
+                    if (error != null) submitError = error
+                    else winnerName = if (a > b) teamAName else teamBName
+                }
             }
         }
     }
