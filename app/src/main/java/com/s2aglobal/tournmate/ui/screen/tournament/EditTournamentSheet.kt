@@ -175,7 +175,9 @@ fun EditTournamentSheet(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f)) {
                         SectionLabel("EVENT TYPE")
-                        PickerButton(editFormat.displayName) { showEventTypePicker = true }
+                        // Team sports keep their team entries; the cricket event type is set at creation.
+                        if (tournament.isTeamEvent) PickerButton(tournament.eventDisplayName) {}
+                        else PickerButton(editFormat.displayName) { showEventTypePicker = true }
                     }
                     Column(Modifier.weight(1f)) {
                         SectionLabel("MATCH FORMAT")
@@ -196,7 +198,7 @@ fun EditTournamentSheet(
                     }
                 }
 
-                if (canEditScoring) {
+                if (canEditScoring && !tournament.isTeamEvent) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SectionLabel("SCORING")
                         ScoringConfigEditor(
@@ -449,7 +451,7 @@ fun EditTournamentSheet(
                             // organizer actually changed the scoring here.
                             editScoringConfig
                                 .let { if (editMatchFormat == MatchFormat.ROUND_ROBIN) it.copy(gamesPerMatch = 1) else it }
-                                .takeIf { canEditScoring }
+                                .takeIf { canEditScoring && !tournament.isTeamEvent }
                                 ?.takeIf { tournament.enforcesScoringRules || editScoringConfig != tournament.scoringConfig },
                             editSkillDivision,
                         )
@@ -565,7 +567,7 @@ fun EditTournamentSheet(
         if (showEventTypePicker) {
             PickerDialog(
                 title = "EVENT TYPE",
-                items = TournamentFormat.entries,
+                items = TournamentFormat.entries.filter { it != TournamentFormat.TEAM },
                 selectedItem = editFormat,
                 displayName = { it.displayName },
                 onSelect = {

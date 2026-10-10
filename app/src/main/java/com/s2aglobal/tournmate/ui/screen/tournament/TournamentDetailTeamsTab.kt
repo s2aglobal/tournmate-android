@@ -54,14 +54,19 @@ internal fun TeamsTabContent(
                 Icon(Icons.Default.PersonOff, null, Modifier.size(36.dp), tint = Color.Gray.copy(alpha = 0.3f))
                 Text("No complete teams yet", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 Text(
-                    if (tournament.format.isDoubles) "Players need to pair up to form teams." else "Waiting for registrations to start.",
+                    when {
+                        tournament.isTeamEvent -> "Captains register a team with its players."
+                        tournament.format.isDoubles -> "Players need to pair up to form teams."
+                        else -> "Waiting for registrations to start."
+                    },
                     fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center,
                 )
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 formed.forEachIndexed { index, reg ->
-                    TeamCard(reg, index, tournament.format, onPlayerClick)
+                    if (reg.isTeamEntry) TeamEntryCard(reg, index, tournament.cricketRules.playersPerSide, onPlayerClick)
+                    else TeamCard(reg, index, tournament.format, onPlayerClick)
                 }
             }
         }
@@ -144,6 +149,29 @@ private fun TeamCard(reg: Registration, index: Int, format: TournamentFormat, on
         ) {
             Icon(Icons.Default.GppGood, null, Modifier.size(11.dp), tint = AppAccent)
             Text("PAID", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AppAccent)
+        }
+    }
+}
+
+/** Team-sport entry: team name, captain, and how many players are named (iOS team card). */
+@Composable
+private fun TeamEntryCard(reg: Registration, index: Int, playersPerSide: Int, onPlayerClick: (String) -> Unit) {
+    Row(Modifier.teamCardStyle(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        SeedCircle(index + 1, AppAccent)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(reg.displayName(), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Captain", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.Gray)
+                Text(
+                    reg.player.name, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.Black,
+                    modifier = Modifier.clickable { onPlayerClick(reg.playerId) },
+                )
+            }
+            Text(
+                if (reg.hasFullSide) "${reg.rosterCount} players" else "${reg.rosterCount} of $playersPerSide players named",
+                fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                color = if (reg.hasFullSide) Color.Gray else WarningOrange,
+            )
         }
     }
 }

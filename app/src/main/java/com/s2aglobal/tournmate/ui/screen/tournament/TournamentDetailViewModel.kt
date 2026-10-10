@@ -939,6 +939,8 @@ class TournamentDetailViewModel @Inject constructor(
         }
     }
 
+    fun showStatus(message: String) = setStatus(message)
+
     fun clearError() { _uiState.value = _uiState.value.copy(errorMessage = null) }
     fun clearStatus() { _uiState.value = _uiState.value.copy(statusMessage = null) }
 

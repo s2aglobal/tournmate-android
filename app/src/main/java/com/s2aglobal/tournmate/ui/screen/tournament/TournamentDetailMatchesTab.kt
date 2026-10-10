@@ -327,6 +327,7 @@ private fun matchStatusText(match: Match): String = when (match.status) {
 
 /** iOS `Match.displayScoreLine`. */
 internal fun iosScoreLine(match: Match): String {
+    match.cricketScoreLine?.let { return it }
     if (match.setScores.isNotEmpty()) {
         val sets = match.setScores.joinToString(", ") { "${it.teamAPoints}-${it.teamBPoints}" }
         return "$sets (${match.setsWonByA}-${match.setsWonByB})"
@@ -388,6 +389,9 @@ private fun BracketMatchCard(match: Match, actions: MatchActions) {
         }
         if (match.status == MatchStatus.FINISHED) {
             Text(iosScoreLine(match), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            match.summary?.takeIf { match.hasTeamResult }?.let {
+                Text(it, fontSize = 11.sp, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
         }
         BracketMatchActions(match, actions)
     }
@@ -463,7 +467,14 @@ private fun RoundRobinMatchCard(match: Match, actions: MatchActions) {
                 ActionLink("RESOLVE DISPUTE", WarningOrange, Icons.Outlined.WarningAmber) { actions.onResolveDispute(match) }
             }
             MatchStatus.FINISHED -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                match.winnerRegistration?.let { winner ->
+                val teamSummary = match.summary?.takeIf { match.hasTeamResult }
+                if (teamSummary != null) {
+                    // Cricket: "Dallas Royals won by 6 wickets", "Match tied", "No result".
+                    Row(Modifier.weight(1f, fill = false), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.CheckCircle, null, Modifier.size(12.dp), tint = AppAccent)
+                        Text(teamSummary, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
+                    }
+                } else match.winnerRegistration?.let { winner ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Icon(Icons.Default.CheckCircle, null, Modifier.size(12.dp), tint = AppAccent)
                         Text("Winner: ${registrationShortName(winner)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
@@ -495,7 +506,7 @@ private fun StandingsContent(state: TournamentDetailUiState, viewModel: Tourname
                     groups.keys.sorted().forEach { group ->
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("GROUP $group", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, color = AppAccent)
-                            GroupStandingsTable(groups[group].orEmpty(), advancing, tournament.sportType.ranksStandingsBySets)
+                            GroupStandingsTable(groups[group].orEmpty(), advancing, tournament.sportType.ranksStandingsBySets, tournament.isTeamEvent)
                             TieBreakCaption(StandingsEntry.tieBreakCaption(viewModel.groupStandingsTieBreaker(state), tournament.sportType))
                         }
                     }
@@ -506,7 +517,7 @@ private fun StandingsContent(state: TournamentDetailUiState, viewModel: Tourname
         else -> {
             val entries = viewModel.computeRRStandings(state)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                RoundRobinStandingsTable(entries, tournament.sportType.ranksStandingsBySets)
+                RoundRobinStandingsTable(entries, tournament.sportType.ranksStandingsBySets, tournament.isTeamEvent)
                 if (entries.isNotEmpty()) {
                     TieBreakCaption(StandingsEntry.tieBreakCaption(viewModel.standingsTieBreaker(state), tournament.sportType))
                 }
@@ -535,6 +546,16 @@ private fun DiffCell(value: Int, size: Int) {
     )
 }
 
+/** Cricket NRR cell: "+0.820" green, "−1.125" red. */
+@Composable
+private fun NrrCell(e: StandingsEntry, size: Int) {
+    val v = e.netRunRate
+    Text(
+        CricketRunRate.format(v), fontSize = size.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.width(52.dp),
+        color = when { v > 0 -> AppAccent; v < 0 -> Color.Red; else -> Color.Gray },
+    )
+}
+
 @Composable
 private fun EmptyStandings(text: String) {
     Text(text, fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(32.dp))
@@ -558,7 +579,7 @@ private fun HeaderCell(text: String, width: Dp?, modifier: Modifier = Modifier, 
 }
 
 @Composable
-private fun RoundRobinStandingsTable(entries: List<StandingsEntry>, bySets: Boolean) {
+private fun RoundRobinStandingsTable(entries: List<StandingsEntry>, bySets: Boolean, cricket: Boolean = false) {
     TableShell(16.dp) {
         if (entries.isEmpty()) {
             EmptyStandings("Standings will appear once matches are completed.")
@@ -567,9 +588,15 @@ private fun RoundRobinStandingsTable(entries: List<StandingsEntry>, bySets: Bool
         Row(Modifier.fillMaxWidth().background(Gray6).padding(horizontal = 12.dp, vertical = 8.dp)) {
             HeaderCell("#", 28.dp)
             HeaderCell("TEAM", null, Modifier.weight(1f), TextAlign.Start)
-            (if (bySets) listOf("P", "W", "L") else listOf("P", "W", "L", "D")).forEach { HeaderCell(it, 28.dp) }
-            HeaderCell("PTS", 36.dp)
-            diffTitles(bySets).forEach { HeaderCell(it, 36.dp) }
+            if (cricket) {
+                listOf("P", "W", "L").forEach { HeaderCell(it, 24.dp) }
+                HeaderCell("T", 22.dp); HeaderCell("NR", 24.dp)
+                HeaderCell("PTS", 30.dp); HeaderCell("NRR", 52.dp)
+            } else {
+                (if (bySets) listOf("P", "W", "L") else listOf("P", "W", "L", "D")).forEach { HeaderCell(it, 28.dp) }
+                HeaderCell("PTS", 36.dp)
+                diffTitles(bySets).forEach { HeaderCell(it, 36.dp) }
+            }
         }
         entries.forEachIndexed { idx, e ->
             Row(
@@ -578,11 +605,19 @@ private fun RoundRobinStandingsTable(entries: List<StandingsEntry>, bySets: Bool
             ) {
                 Text("${idx + 1}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (idx < 3) AppAccent else Color.Black, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
                 Text(e.teamName, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                (if (bySets) listOf(e.played, e.wins, e.losses) else listOf(e.played, e.wins, e.losses, e.draws)).forEach {
-                    Text("$it", fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
+                if (cricket) {
+                    listOf(e.played to 24, e.wins to 24, e.losses to 24, e.draws to 22, e.noResults to 24).forEach { (v, w) ->
+                        Text("$v", fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.width(w.dp))
+                    }
+                    Text("${e.points}", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(30.dp))
+                    NrrCell(e, 11)
+                } else {
+                    (if (bySets) listOf(e.played, e.wins, e.losses) else listOf(e.played, e.wins, e.losses, e.draws)).forEach {
+                        Text("$it", fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
+                    }
+                    Text("${e.points}", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
+                    diffValues(e, bySets).forEach { DiffCell(it, 11) }
                 }
-                Text("${e.points}", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
-                diffValues(e, bySets).forEach { DiffCell(it, 11) }
             }
             if (idx < entries.size - 1) HorizontalDivider(Modifier.padding(start = 40.dp), color = Color(0xFFE5E5EA))
         }
@@ -590,14 +625,19 @@ private fun RoundRobinStandingsTable(entries: List<StandingsEntry>, bySets: Bool
 }
 
 @Composable
-private fun GroupStandingsTable(entries: List<StandingsEntry>, advancingCount: Int, bySets: Boolean) {
+private fun GroupStandingsTable(entries: List<StandingsEntry>, advancingCount: Int, bySets: Boolean, cricket: Boolean = false) {
     TableShell(12.dp) {
         Row(Modifier.fillMaxWidth().background(Gray6).padding(horizontal = 12.dp, vertical = 8.dp)) {
             HeaderCell("#", 28.dp, size = 10)
             HeaderCell("TEAM", null, Modifier.weight(1f), TextAlign.Start, size = 10)
-            listOf("P", "W", "L").forEach { HeaderCell(it, 28.dp, size = 10) }
-            HeaderCell("PTS", 36.dp, size = 10)
-            diffTitles(bySets).forEach { HeaderCell(it, 36.dp, size = 10) }
+            if (cricket) {
+                listOf("P" to 24, "W" to 24, "L" to 24, "T" to 22, "NR" to 24).forEach { (t, w) -> HeaderCell(t, w.dp, size = 10) }
+                HeaderCell("PTS", 30.dp, size = 10); HeaderCell("NRR", 52.dp, size = 10)
+            } else {
+                listOf("P", "W", "L").forEach { HeaderCell(it, 28.dp, size = 10) }
+                HeaderCell("PTS", 36.dp, size = 10)
+                diffTitles(bySets).forEach { HeaderCell(it, 36.dp, size = 10) }
+            }
         }
         entries.forEachIndexed { index, e ->
             val advances = index < advancingCount
@@ -608,11 +648,19 @@ private fun GroupStandingsTable(entries: List<StandingsEntry>, advancingCount: I
             ) {
                 Text("${index + 1}", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
                 Text(e.teamName, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                listOf(e.played, e.wins, e.losses).forEach {
-                    Text("$it", fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
+                if (cricket) {
+                    listOf(e.played to 24, e.wins to 24, e.losses to 24, e.draws to 22, e.noResults to 24).forEach { (v, w) ->
+                        Text("$v", fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.width(w.dp))
+                    }
+                    Text("${e.points}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color, textAlign = TextAlign.Center, modifier = Modifier.width(30.dp))
+                    NrrCell(e, 12)
+                } else {
+                    listOf(e.played, e.wins, e.losses).forEach {
+                        Text("$it", fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))
+                    }
+                    Text("${e.points}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
+                    diffValues(e, bySets).forEach { DiffCell(it, 12) }
                 }
-                Text("${e.points}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
-                diffValues(e, bySets).forEach { DiffCell(it, 12) }
             }
             HorizontalDivider(color = Color(0xFFE5E5EA))
         }

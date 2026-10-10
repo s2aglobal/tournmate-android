@@ -65,7 +65,7 @@ internal fun InfoTabContent(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             InfoGridCard(Icons.Default.EmojiEvents, "FORMAT", tournament.matchFormat.displayName, Modifier.weight(1f))
-            InfoGridCard(Icons.Default.Stadium, "EVENT TYPE", tournament.format.displayName, Modifier.weight(1f))
+            InfoGridCard(Icons.Default.Stadium, "EVENT TYPE", tournament.eventDisplayName, Modifier.weight(1f))
         }
         if (tournament.enforcesScoringRules) ScoringRulesCard(tournament)
 
@@ -295,7 +295,9 @@ private fun RegistrationStatusCard(state: TournamentDetailUiState) {
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text("You're registered!", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppAccent)
             val partner = reg.partner
-            if (partner != null) {
+            if (reg.isTeamEntry) {
+                Text("Team: ${reg.displayName()}", fontSize = 12.sp, color = Color.Gray)
+            } else if (partner != null) {
                 Text("Partner: ${partner.name}", fontSize = 12.sp, color = Color.Gray)
             } else if (tournament.format.isDoubles) {
                 Text(
