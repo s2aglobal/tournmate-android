@@ -228,7 +228,7 @@ object TournamentPdfExporter {
 
         fun teamName(id: String?, fallback: Registration? = null): String {
             val reg = regMap[id?.uppercase()] ?: fallback?.takeIf { it.player.name.isNotEmpty() } ?: return "TBD"
-            return listOfNotNull(reg.player.name, reg.partner?.name).joinToString(" & ")
+            return reg.displayName()
         }
 
         fun nameA(m: Match) = teamName(m.teamAId, m.teamA)

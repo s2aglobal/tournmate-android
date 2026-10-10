@@ -38,8 +38,7 @@ class PlayerMatchHistory @Inject constructor(
 fun Match.didPlayerWin(playerId: UUID): Boolean =
     status == MatchStatus.FINISHED && winnerRegistration?.containsPlayerID(playerId) == true
 
-private fun Registration.teamDisplayName(): String =
-    listOfNotNull(player.name, partner?.name).joinToString(" & ")
+private fun Registration.teamDisplayName(): String = displayName()
 
 /** "John & Mike vs Sam & Alex" (iOS `Match.displayTitle`). */
 val Match.historyTitle: String
@@ -48,6 +47,7 @@ val Match.historyTitle: String
 /** "21-18, 15-21, 21-19 (2-1)" or "21 - 18" (iOS `Match.displayScoreLine`). */
 val Match.historyScoreLine: String
     get() {
+        cricketScoreLine?.let { return it }
         if (setScores.isNotEmpty()) {
             return setScores.joinToString(", ") { "${it.teamAPoints}-${it.teamBPoints}" } + " ($setsWonByA-$setsWonByB)"
         }

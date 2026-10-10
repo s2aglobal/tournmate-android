@@ -4,9 +4,11 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.s2aglobal.tournmate.data.mapper.stringList
 import com.s2aglobal.tournmate.data.mapper.toPlayer
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.Registration
+import com.s2aglobal.tournmate.domain.model.Team
 import com.s2aglobal.tournmate.domain.model.Tournament
 import kotlinx.coroutines.tasks.await
 import java.util.Date
@@ -33,6 +35,7 @@ class FirestoreRegistrationRepository @Inject constructor(
         for (doc in snapshot.documents) {
             doc.getString("playerId")?.let { playerIds.add(it) }
             doc.getString("partnerId")?.let { playerIds.add(it) }
+            playerIds.addAll(doc.stringList("rosterIds"))
         }
 
         val playerMap = fetchPlayerMap(playerIds)
@@ -44,6 +47,7 @@ class FirestoreRegistrationRepository @Inject constructor(
             val partnerId = doc.getString("partnerId")
             val partner = partnerId?.let { playerMap[it] }
             val createdAt = doc.getTimestamp("createdAt")?.toDate() ?: Date()
+            val rosterIds = doc.stringList("rosterIds")
 
             Registration(
                 id = id,
@@ -54,6 +58,11 @@ class FirestoreRegistrationRepository @Inject constructor(
                 tournament = tournament,
                 player = player,
                 partner = partner,
+                teamId = doc.getString("teamId"),
+                teamName = doc.getString("teamName"),
+                rosterIds = rosterIds,
+                guestNames = doc.stringList("guestNames"),
+                roster = rosterIds.mapNotNull { playerMap[it] },
             )
         }.sortedBy { it.createdAt }
     }
@@ -115,6 +124,34 @@ class FirestoreRegistrationRepository @Inject constructor(
             .await()
     }
 
+    override suspend fun createTeamRegistration(
+        team: Team,
+        captain: Player,
+        rosterIds: List<String>,
+        guestNames: List<String>,
+        tournament: Tournament,
+    ) {
+        val regId = UUID.randomUUID()
+        val data = buildMap<String, Any> {
+            put("tournamentId", tournament.id.toString().uppercase())
+            put("playerId", captain.id.toString().uppercase())
+            put("createdAt", Timestamp(Date()))
+            put("teamId", team.id)
+            put("teamName", team.name)
+            if (rosterIds.isNotEmpty()) put("rosterIds", rosterIds)
+            if (guestNames.isNotEmpty()) put("guestNames", guestNames)
+        }
+        collection.document(regId.toString().uppercase())
+            .set(data)
+            .await()
+    }
+
+    override suspend fun updateRoster(registration: Registration, rosterIds: List<String>, guestNames: List<String>) {
+        collection.document(registration.id.toString().uppercase())
+            .update(mapOf("rosterIds" to rosterIds, "guestNames" to guestNames))
+            .await()
+    }
+
     override suspend fun deleteRegistration(registration: Registration) {
         collection.document(registration.id.toString().uppercase())
             .delete()
@@ -134,8 +171,14 @@ class FirestoreRegistrationRepository @Inject constructor(
             .get()
             .await()
 
+        // Team entries that name the player on the roster.
+        val asRoster = collection
+            .whereArrayContains("rosterIds", pid)
+            .get()
+            .await()
+
         val ids = mutableSetOf<UUID>()
-        for (doc in asPlayer.documents + asPartner.documents) {
+        for (doc in asPlayer.documents + asPartner.documents + asRoster.documents) {
             val tid = doc.getString("tournamentId") ?: continue
             try { ids.add(UUID.fromString(tid)) } catch (_: Exception) { /* skip */ }
         }

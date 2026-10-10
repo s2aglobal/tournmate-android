@@ -21,6 +21,11 @@ interface MatchRepository {
     suspend fun finalizeMatch(match: Match, scoreA: Int, scoreB: Int)
     suspend fun submitSetScores(match: Match, setScores: List<SetScore>, submittedBy: String)
     suspend fun confirmScore(match: Match, confirmedBy: String)
+    /** Writes a cricket scorecard (team sports). [final] finishes the match (organizer); otherwise it awaits confirmation. */
+    suspend fun submitCricketResult(
+        match: Match, result: CricketResult, outcome: CricketOutcome,
+        summary: String, submittedBy: String, final: Boolean,
+    )
     suspend fun disputeScore(match: Match, disputedBy: String)
     suspend fun resolveDispute(match: Match, setScores: List<SetScore>)
     suspend fun deleteMatches(tournament: Tournament)

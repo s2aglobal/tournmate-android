@@ -41,7 +41,14 @@ data class StandingsEntry(
     /** Sets (tennis/padel) or games (badminton, pickleball…) won and lost. */
     var setsWon: Int = 0,
     var setsLost: Int = 0,
+    /** Cricket: abandoned matches (no result) and run-rate totals. */
+    var noResults: Int = 0,
+    val runRate: CricketRunRate = CricketRunRate(),
+    var ballsPerOver: Int = 6,
 ) {
+    /** Cricket net run rate. */
+    val netRunRate: Double get() = runRate.netRunRate(ballsPerOver)
+
     /** Score difference: rally points, or games for tennis/padel (a set is scored in games). */
     val pointDiff: Int get() = pointsFor - pointsAgainst
     val setDiff: Int get() = setsWon - setsLost
@@ -58,7 +65,12 @@ data class StandingsEntry(
          * Adds finished results to a table. Only teams already in [entries] are
          * counted, so a group table ignores matches against other groups.
          */
-        fun tally(results: List<StandingsResult>, entries: Map<String, StandingsEntry>, points: StandingsPoints) {
+        fun tally(
+            results: List<StandingsResult>,
+            entries: Map<String, StandingsEntry>,
+            points: StandingsPoints,
+            cricketRules: CricketRules? = null,
+        ) {
             for (r in results) {
                 fun add(id: String, scored: Int, conceded: Int, setsFor: Int, setsAgainst: Int) {
                     val e = entries[id] ?: return
@@ -67,8 +79,12 @@ data class StandingsEntry(
                     e.pointsAgainst += conceded
                     e.setsWon += setsFor
                     e.setsLost += setsAgainst
+                    if (cricketRules != null && r.cricket != null) {
+                        e.runRate.add(r.cricket, id, cricketRules)
+                        e.ballsPerOver = cricketRules.ballsPerOver
+                    }
                     when (r.winnerId) {
-                        null -> { e.draws++; e.points += points.draw }
+                        null -> if (r.noResult) { e.noResults++; e.points += points.draw } else { e.draws++; e.points += points.draw }
                         id -> { e.wins++; e.points += points.win }
                         else -> { e.losses++; e.points += points.loss }
                     }
@@ -110,6 +126,8 @@ data class StandingsEntry(
             }
             val comparator = Comparator<StandingsEntry> { a, b ->
                 if (a.points != b.points) return@Comparator b.points.compareTo(a.points)
+                // Cricket: net run rate before any other tie-breaker.
+                if (sport == SportType.CRICKET && a.netRunRate != b.netRunRate) return@Comparator b.netRunRate.compareTo(a.netRunRate)
                 when (tieBreaker) {
                     TieBreaker.HEAD_TO_HEAD -> {
                         val ha = h2h[a.registrationId]; val hb = h2h[b.registrationId]
@@ -141,6 +159,7 @@ data class StandingsEntry(
          * Same wording as iOS `StandingsEntry.tieBreakCaption` and the PDF.
          */
         fun tieBreakCaption(tieBreaker: TieBreaker, sport: SportType): String {
+            if (sport == SportType.CRICKET) return "Ties: net run rate, then head-to-head"
             val sportDefault = if (sport.ranksStandingsBySets) listOf("set difference", "game difference") else listOf("point difference")
             val steps = when (tieBreaker) {
                 TieBreaker.HEAD_TO_HEAD -> listOf("head-to-head") + sportDefault
@@ -164,6 +183,10 @@ data class StandingsResult(
     val scoreB: Int,
     val setsA: Int,
     val setsB: Int,
+    /** Cricket scorecard, for run rates. */
+    val cricket: CricketResult? = null,
+    /** Abandoned without a result (cricket). */
+    val noResult: Boolean = false,
 )
 
 /** Standings points awarded per result (FormatConfig points system). */
@@ -212,11 +235,15 @@ data class TournamentDetailUiState(
     val isDoubles: Boolean
         get() = tournament?.format?.isDoubles == true
 
+    /** Team sports (cricket): teams register with rosters; results are scorecards. */
+    val isTeamEvent: Boolean
+        get() = tournament?.isTeamEvent == true
+
     val formedTeams: List<Registration>
         get() = if (tournament?.format?.isSingles == true) registrations else registrations.filter { it.isTeamFormed }
 
     val soloRegistrations: List<Registration>
-        get() = if (tournament?.format?.isSingles == true) emptyList() else registrations.filter { !it.isTeamFormed }
+        get() = if (tournament?.format?.isSingles == true || isTeamEvent) emptyList() else registrations.filter { !it.isTeamFormed }
 
     val matchesGenerated: Boolean
         get() = matches.isNotEmpty()
@@ -334,16 +361,12 @@ data class TournamentDetailUiState(
     }
 }
 
-internal fun registrationFullName(reg: Registration): String =
-    listOfNotNull(reg.player.name, reg.partner?.name).joinToString(" & ")
+/** "John Smith & Mike Lee", or the team name for team sports (iOS `Registration.displayName()`). */
+internal fun registrationFullName(reg: Registration): String = reg.displayName()
 
-/** First names only, e.g. "John & Mike" (iOS detail `teamDisplayName`). */
-internal fun registrationShortName(reg: Registration): String {
-    val partner = reg.partner ?: return reg.player.name
-    val first = reg.player.name.split(" ").firstOrNull()?.ifEmpty { null } ?: reg.player.name
-    val partnerFirst = partner.name.split(" ").firstOrNull()?.ifEmpty { null } ?: partner.name
-    return "$first & $partnerFirst"
-}
+/** First names only, e.g. "John & Mike", or the team name (iOS detail `teamDisplayName`). */
+internal fun registrationShortName(reg: Registration): String =
+    if (reg.partner == null && !reg.isTeamEntry) reg.player.name else reg.displayName(firstNamesOnly = true)
 
 @HiltViewModel
 class TournamentDetailViewModel @Inject constructor(
@@ -483,6 +506,14 @@ class TournamentDetailViewModel @Inject constructor(
         }
     }
 
+    /** Called by the team registration sheet after a team is entered. */
+    fun onTeamRegistered() {
+        viewModelScope.launch {
+            reload()
+            setStatus("Team registered! ✅")
+        }
+    }
+
     /** Saves the DOB from the age-restricted prompt, then continues registration. */
     fun saveDateOfBirthAndRegister(dob: Date, partner: Player?, continueToPartnerPick: Boolean) {
         viewModelScope.launch {
@@ -508,6 +539,11 @@ class TournamentDetailViewModel @Inject constructor(
             _uiState.value = state.copy(isLoading = true)
             try {
                 if (reg.player.id == me.id) registrationRepo.deleteRegistration(reg)
+                else if (reg.isTeamEntry) {
+                    // A roster player leaves the team sheet; the team stays entered.
+                    val remaining = reg.rosterIds.filterNot { it.equals(me.id.toString(), ignoreCase = true) }
+                    registrationRepo.updateRoster(reg, remaining, reg.guestNames)
+                }
                 else if (reg.partner?.id == me.id) registrationRepo.clearPartner(reg)
                 reload()
                 setStatus("You have withdrawn from this tournament.")
@@ -820,6 +856,28 @@ class TournamentDetailViewModel @Inject constructor(
         )
     }
 
+    /**
+     * Team sports (cricket): validates and saves a scorecard. The organizer's
+     * entry finishes the match ([final]); a captain's entry waits for the other
+     * side to confirm, like set scores. Returns `null` on success, or the message
+     * to show. Mirrors iOS `submitCricketResult`.
+     */
+    suspend fun submitCricketResult(match: Match, result: CricketResult, submittedBy: String, final: Boolean): String? {
+        val tournament = _uiState.value.tournament ?: match.tournament
+        val rules = cricketRulesFor(tournament, match)
+        val teamA = match.teamAId
+        val teamB = match.teamBId
+        CricketScoring.validate(result, rules, teamA, teamB).firstOrNull()?.let { return it.message }
+        knockoutIssue(tournament, match, result, rules)?.let { return it }
+        val outcome = CricketScoring.outcome(result, rules)
+        val summary = outcome.summary { id -> if (id == teamA) match.teamA.displayName() else match.teamB.displayName() }
+        return scoreWrite("save the result") {
+            matchRepo.submitCricketResult(match, result, outcome, summary, submittedBy, final)
+            reload()
+            setStatus(if (final) summary else "Result submitted! Awaiting confirmation from the other team.")
+        }
+    }
+
     suspend fun confirmScore(match: Match, confirmedBy: String): String? = scoreWrite("confirm the score") {
         matchRepo.confirmScore(match, confirmedBy)
         reload()
@@ -905,8 +963,16 @@ class TournamentDetailViewModel @Inject constructor(
     private fun standingsResult(match: Match): StandingsResult {
         val (a, b) = scorePair(match)
         val (sa, sb) = setPair(match)
-        return StandingsResult(match.teamAId, match.teamBId, match.winnerRegistrationId, a, b, sa, sb)
+        return StandingsResult(
+            match.teamAId, match.teamBId, match.winnerRegistrationId, a, b, sa, sb,
+            cricket = match.cricketResult,
+            noResult = match.resultType == CricketResultType.NO_RESULT.rawValue,
+        )
     }
+
+    /** Cricket rules for run rates; null for every other sport. */
+    private fun standingsCricketRules(state: TournamentDetailUiState): CricketRules? =
+        state.tournament?.takeIf { it.isTeamEvent }?.cricketRules
 
     private fun standingsPoints(state: TournamentDetailUiState): StandingsPoints {
         val config = state.tournament?.formatConfig ?: FormatConfig()
@@ -940,7 +1006,7 @@ class TournamentDetailViewModel @Inject constructor(
         val tieBreaker = groupStandingsTieBreaker(state)
         return entriesByGroup.mapValues { (group, entries) ->
             val results = groupMatches.filter { it.groupLabel == group }.map(::standingsResult)
-            StandingsEntry.tally(results, entries, points)
+            StandingsEntry.tally(results, entries, points, standingsCricketRules(state))
             StandingsEntry.ranked(entries.values, results, sport, tieBreaker, points)
         }
     }
@@ -957,7 +1023,7 @@ class TournamentDetailViewModel @Inject constructor(
 
         val points = standingsPoints(state)
         val results = finished.map(::standingsResult)
-        StandingsEntry.tally(results, entries, points)
+        StandingsEntry.tally(results, entries, points, standingsCricketRules(state))
         return StandingsEntry.ranked(entries.values, results, state.tournament?.sportType ?: SportType.BADMINTON, standingsTieBreaker(state), points)
     }
 
@@ -1006,6 +1072,7 @@ class TournamentDetailViewModel @Inject constructor(
         prizeInfo: String?, durationMinutes: Int?, ageGroup: AgeGroup,
         scoringConfig: ScoringConfig? = null,
         skillDivision: String? = null,
+        cricketRules: CricketRules? = null,
     ) {
         viewModelScope.launch {
             val tournament = _uiState.value.tournament ?: return@launch
@@ -1024,6 +1091,7 @@ class TournamentDetailViewModel @Inject constructor(
                     prizeInfo = prizeInfo, durationMinutes = durationMinutes, ageGroup = ageGroup,
                     scoringConfig = scoringConfig,
                     skillDivision = skillDivision,
+                    cricketRules = cricketRules,
                 )
                 reload()
                 setStatus("Tournament updated successfully!")
@@ -1056,3 +1124,29 @@ internal fun scoreErrorMessage(error: Throwable, action: String = "save the scor
     } else {
         "Couldn't $action. Check your connection and try again."
     }
+
+/**
+ * Knockout matches must produce a winner to advance: true for elimination
+ * brackets and the knockout stage of Group + Knockout. Mirrors iOS.
+ */
+internal fun cricketRequiresWinner(tournament: Tournament, match: Match): Boolean = when (tournament.matchFormat) {
+    MatchFormat.SINGLE_ELIMINATION, MatchFormat.DOUBLE_ELIMINATION -> true
+    MatchFormat.GROUP_KNOCKOUT -> match.groupLabel == null
+    else -> false
+}
+
+/** The tournament's cricket rules for [match]; knockout matches can always be decided by a super over. */
+internal fun cricketRulesFor(tournament: Tournament, match: Match): CricketRules {
+    val rules = tournament.cricketRules
+    return if (cricketRequiresWinner(tournament, match)) rules.copy(superOver = true) else rules
+}
+
+/** A knockout match's tie or no result needs a winner; null when the result is fine. Same wording as iOS. */
+internal fun knockoutIssue(tournament: Tournament, match: Match, result: CricketResult, rules: CricketRules): String? {
+    if (!cricketRequiresWinner(tournament, match)) return null
+    return when (CricketScoring.outcome(result, rules).resultType) {
+        CricketResultType.TIE -> "This is a knockout match, so a tie needs a winner. Enter who won the super over."
+        CricketResultType.NO_RESULT -> "A knockout match needs a winner. Replay it, or decide it with a super over and enter that result."
+        CricketResultType.WIN -> null
+    }
+}

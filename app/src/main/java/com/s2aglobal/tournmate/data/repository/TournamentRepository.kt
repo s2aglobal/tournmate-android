@@ -32,6 +32,7 @@ interface TournamentRepository {
         sportType: SportType,
         scoringConfig: ScoringConfig? = null,
         skillDivision: String? = null,
+        cricketRules: CricketRules? = null,
     )
     suspend fun updateTournament(
         tournament: Tournament,
@@ -56,6 +57,7 @@ interface TournamentRepository {
         ageGroup: AgeGroup,
         scoringConfig: ScoringConfig? = null,
         skillDivision: String? = null,
+        cricketRules: CricketRules? = null,
     )
     suspend fun cancelTournament(tournament: Tournament)
     suspend fun deleteTournament(tournament: Tournament)

@@ -52,12 +52,22 @@ internal data class RawSportCatalog(
     val schemaVersion: Int?,
     val live: List<String>,
     val categories: List<RawCategory>,
+    /**
+     * Sports that need a newer app (cricket needs teams), by sport id then
+     * platform: `{"cricket": {"ios": "1.8", "android": "1.1"}}`. Unknown ids are kept.
+     */
+    val liveMinAppVersion: Map<String, Map<String, String>> = emptyMap(),
 ) {
     data class RawCategory(val id: String, val title: String?, val sports: List<String>)
 
     fun toJson(): String = JSONObject().apply {
         schemaVersion?.let { put("schemaVersion", it) }
         put("live", JSONArray(live))
+        if (liveMinAppVersion.isNotEmpty()) {
+            put("liveMinAppVersion", JSONObject().apply {
+                liveMinAppVersion.forEach { (id, platforms) -> put(id, JSONObject(platforms)) }
+            })
+        }
         put("categories", JSONArray(categories.map { c ->
             JSONObject().put("id", c.id).apply { c.title?.let { put("title", it) } }.put("sports", JSONArray(c.sports))
         }))
@@ -104,7 +114,17 @@ internal object SportCatalogParser {
             val sports = (map["sports"] as? List<*>)?.filterIsInstance<String>() ?: return@mapNotNull null
             RawSportCatalog.RawCategory(id, (map["title"] as? String)?.takeIf { it.isNotBlank() }, sports)
         } ?: return null
-        return RawSportCatalog((version as? Number)?.toInt(), live, categories)
+        // Optional and lenient: a malformed entry is skipped, never the whole doc.
+        val gated = (data["liveMinAppVersion"] as? Map<*, *>)?.mapNotNull { (k, v) ->
+            val id = k as? String ?: return@mapNotNull null
+            val platforms = (v as? Map<*, *>)?.mapNotNull { (pk, pv) ->
+                val key = pk as? String ?: return@mapNotNull null
+                val value = pv as? String ?: return@mapNotNull null
+                key to value
+            }?.toMap() ?: return@mapNotNull null
+            id to platforms
+        }?.toMap() ?: emptyMap()
+        return RawSportCatalog((version as? Number)?.toInt(), live, categories, gated)
     }
 
     fun rawFromJson(json: String?): RawSportCatalog? = runCatching {
@@ -123,12 +143,17 @@ internal object SportCatalogParser {
     private fun catalogSport(id: String): SportType? =
         SportType.fromKnownRawValue(id)?.takeIf { it != SportType.GENERIC && it != SportType.FOOTBALL }
 
+    /** Platform key read from `liveMinAppVersion` entries. */
+    const val PLATFORM = "android"
+
     /**
      * Applies the app rules (iOS `SportCatalogConfig.parse`): unknown/legacy ids and duplicates
      * skipped, empty categories dropped, missing titles filled from the known ids.
+     * Sports in `liveMinAppVersion` are live when [appVersion] is at least their "android"
+     * value (numeric dotted compare), listed after the `live` ones in catalog order.
      * Null when no category is left (treated as malformed).
      */
-    fun parse(raw: RawSportCatalog): SportCatalogState? {
+    fun parse(raw: RawSportCatalog, appVersion: AppVersion? = AppVersion.current): SportCatalogState? {
         val seen = mutableSetOf<SportType>()
         val categories = raw.categories.mapNotNull { c ->
             val sports = c.sports.mapNotNull(::catalogSport).filter(seen::add)
@@ -136,7 +161,15 @@ internal object SportCatalogParser {
             SportCategory(c.id, c.title ?: KNOWN_CATEGORY_TITLES[c.id] ?: c.id, sports)
         }
         if (categories.isEmpty()) return null
-        val live = raw.live.mapNotNull(::catalogSport).distinct()
+        val gated = raw.liveMinAppVersion.mapNotNull { (id, platforms) ->
+            val sport = catalogSport(id) ?: return@mapNotNull null
+            val minimum = AppVersion.parse(platforms[PLATFORM]) ?: return@mapNotNull null
+            val version = appVersion ?: return@mapNotNull null
+            sport.takeIf { version >= minimum }
+        }.toSet()
+        val catalogOrder = categories.flatMap { it.sports }
+        val gatedInOrder = catalogOrder.filter { it in gated } + gated.filter { it !in catalogOrder }
+        val live = (raw.live.mapNotNull(::catalogSport) + gatedInOrder).distinct()
         return SportCatalogState(categories, live)
     }
 }
@@ -193,7 +226,7 @@ class SportCatalog @Inject constructor(
         if (cacheLoaded) return
         cacheLoaded = true
         val json = withContext(Dispatchers.IO) { prefs.getString(KEY_CONFIG, null) }
-        val cached = SportCatalogParser.rawFromJson(json)?.let(SportCatalogParser::parse) ?: return
+        val cached = SportCatalogParser.rawFromJson(json)?.let { SportCatalogParser.parse(it) } ?: return
         _state.value = cached
     }
 

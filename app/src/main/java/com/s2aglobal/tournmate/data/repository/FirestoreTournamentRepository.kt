@@ -87,6 +87,7 @@ class FirestoreTournamentRepository @Inject constructor(
         sportType: SportType,
         scoringConfig: ScoringConfig?,
         skillDivision: String?,
+        cricketRules: CricketRules?,
     ) {
         val configJson = formatConfig?.encode()
         val deadline = registrationDeadline ?: Tournament.defaultDeadline(date)
@@ -113,7 +114,10 @@ class FirestoreTournamentRepository @Inject constructor(
             ageGroupRaw = ageGroup.rawValue,
             durationMinutes = durationMinutes,
             formatConfigData = configJson,
-            scoringConfigData = (scoringConfig ?: sportType.scoringRules.defaultConfig).encode(),
+            // Team sport: the scorecard rules replace set scoring.
+            scoringConfigData = if (cricketRules != null) null else (scoringConfig ?: sportType.scoringRules.defaultConfig).encode(),
+            eventTypeId = cricketRules?.eventType?.rawValue,
+            rulesData = cricketRules?.encoded(),
             countryCode = countryCode,
             postalCode = postalCode,
             timeZone = java.util.TimeZone.getDefault().id,
@@ -149,6 +153,7 @@ class FirestoreTournamentRepository @Inject constructor(
         ageGroup: AgeGroup,
         scoringConfig: ScoringConfig?,
         skillDivision: String?,
+        cricketRules: CricketRules?,
     ) {
         val configJson = formatConfig?.encode() ?: tournament.formatConfigData
 
@@ -174,7 +179,7 @@ class FirestoreTournamentRepository @Inject constructor(
             formatConfigData = configJson,
             scoringConfigData = scoringConfig?.encode() ?: tournament.scoringConfigData,
             skillDivision = skillDivision,
-        )
+        ).let { if (cricketRules != null) it.withCricketRules(cricketRules) else it }
         // Merge writes skip absent keys, so clear a removed division explicitly.
         val data = updated.toFirestoreMap() + ("skillDivision" to (skillDivision ?: FieldValue.delete()))
 
