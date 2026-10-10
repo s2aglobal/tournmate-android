@@ -34,6 +34,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.s2aglobal.tournmate.domain.model.Tournament
 import com.s2aglobal.tournmate.domain.model.TournamentStatus
 import com.s2aglobal.tournmate.ui.component.AppPrimaryButton
+import com.s2aglobal.tournmate.ui.component.StickyEmptyState
 import com.s2aglobal.tournmate.ui.component.ListSortOption
 import com.s2aglobal.tournmate.ui.component.ListSortStore
 import com.s2aglobal.tournmate.ui.component.LocationSortNote
@@ -441,128 +442,94 @@ private fun MyTournamentsEmptyState(
     onBrowse: () -> Unit,
     onCreate: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(bottom = LocalTabBarClearance.current + TabBarContentGap),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(Modifier.height(30.dp))
-
-        val sport = CurrentSport.sport
-        Box(contentAlignment = Alignment.Center) {
-            Surface(
-                modifier = Modifier.size(120.dp),
-                shape = CircleShape,
-                color = sport.theme.tint,
-            ) {}
-            SportArtworkImage(sport, 64.dp, Modifier.rotate(-12f))
-        }
-
-        Spacer(Modifier.height(24.dp))
-        Text("No Tournaments Yet", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Start your first ${sport.inlineName} tournament or\njoin one happening nearby.",
-            color = Color.Gray,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp,
-        )
-
-        Spacer(Modifier.height(24.dp))
-        // iOS .appPrimary, 40pt from the screen edges (this column already insets 20).
-        AppPrimaryButton(onClick = onBrowse, modifier = Modifier.padding(horizontal = 20.dp)) {
-            Icon(Icons.Default.Search, null, Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Browse Tournaments")
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        ActionCard(
-            icon = Icons.Default.EmojiEvents,
-            iconColor = Color(0xFFFF9800).copy(alpha = 0.8f),
-            title = "Create Tournament",
-            subtitle = "Host and manage your own event",
-            onClick = onCreate,
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        ActionCard(
-            icon = Icons.Default.People,
-            iconColor = AppAccent,
-            title = "Join Tournament",
-            subtitle = "Register and compete with others",
-            onClick = onBrowse,
-        )
-    }
+    val sport = CurrentSport.sport
+    StickyEmptyState(
+        title = "No Tournaments Yet",
+        subtitle = "Start your first ${sport.inlineName} tournament or join one happening nearby.",
+        hero = {
+            Box(contentAlignment = Alignment.Center) {
+                Surface(
+                    modifier = Modifier.size(120.dp),
+                    shape = CircleShape,
+                    color = sport.theme.tint,
+                ) {}
+                SportArtworkImage(sport, 64.dp, Modifier.rotate(-12f))
+            }
+        },
+        extras = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ActionCard(
+                    icon = Icons.Default.EmojiEvents,
+                    iconColor = Color(0xFFFF9800).copy(alpha = 0.8f),
+                    title = "Create Tournament",
+                    subtitle = "Host and manage your own event",
+                    onClick = onCreate,
+                )
+                ActionCard(
+                    icon = Icons.Default.People,
+                    iconColor = AppAccent,
+                    title = "Join Tournament",
+                    subtitle = "Register and compete with others",
+                    onClick = onBrowse,
+                )
+            }
+        },
+        footer = {
+            AppPrimaryButton(onClick = onBrowse) {
+                Icon(Icons.Default.Search, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Browse Tournaments")
+            }
+        },
+    )
 }
 
 @Composable
 private fun GlobalEmptyState(isGuest: Boolean, onCreateClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 40.dp)
-            .padding(bottom = LocalTabBarClearance.current + TabBarContentGap),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(Modifier.height(40.dp))
-
-        val sport = CurrentSport.sport
-        Box(contentAlignment = Alignment.Center) {
-            Surface(
-                modifier = Modifier.size(120.dp),
-                shape = CircleShape,
-                color = sport.theme.tint,
-            ) {}
-            Icon(
-                imageVector = Icons.Default.EmojiEvents,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = sport.theme.primary.copy(alpha = 0.75f),
-            )
-            SportArtworkImage(
-                sport, 40.dp,
-                Modifier
-                    .offset(x = 38.dp, y = 34.dp)
-                    .rotate(-15f)
-                    .shadow(4.dp, SportArtworkShape),
-            )
-        }
-
-        Spacer(Modifier.height(24.dp))
-        Text("No Tournaments Yet", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = if (isGuest) "Sign in to create or browse upcoming\n${sport.inlineName} tournaments near you."
-            else "Be the first to organize a tournament!\nTap HOST to ${sport.theme.gearPhrase}.",
-            color = Color.Gray,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp,
-        )
-
-        if (!isGuest) {
-            Spacer(Modifier.height(24.dp))
-            // iOS .appPrimary, 40pt from the screen edges (this column already insets 40).
-            AppPrimaryButton(onClick = onCreateClick) {
-                Icon(Icons.Default.AddCircle, null, Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Create Tournament")
+    val sport = CurrentSport.sport
+    StickyEmptyState(
+        title = "No Tournaments Yet",
+        subtitle = if (isGuest) "No ${sport.inlineName} tournaments are scheduled near you yet. Sign in to host one."
+        else "Be the first to organize a tournament! Tap HOST to ${sport.theme.gearPhrase}.",
+        hero = {
+            Box(contentAlignment = Alignment.Center) {
+                Surface(
+                    modifier = Modifier.size(120.dp),
+                    shape = CircleShape,
+                    color = sport.theme.tint,
+                ) {}
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = sport.theme.primary.copy(alpha = 0.75f),
+                )
+                SportArtworkImage(
+                    sport, 40.dp,
+                    Modifier
+                        .offset(x = 38.dp, y = 34.dp)
+                        .rotate(-15f)
+                        .shadow(4.dp, SportArtworkShape),
+                )
             }
-        }
-
-        Spacer(Modifier.height(32.dp))
-        TipRow(icon = Icons.Default.CalendarMonth, color = Color(0xFFFF9800), text = "Organizers publish tournaments with date, venue, and format.")
-        Spacer(Modifier.height(12.dp))
-        TipRow(icon = Icons.Default.People, color = Color(0xFF2196F3), text = "Players register and get paired for singles or doubles.")
-        Spacer(Modifier.height(12.dp))
-        TipRow(icon = Icons.Default.BarChart, color = AppAccent, text = "Play matches, track scores, and climb the Elo rankings.")
-    }
+        },
+        extras = {
+            Column(Modifier.padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TipRow(icon = Icons.Default.CalendarMonth, color = Color(0xFFFF9800), text = "Organizers publish tournaments with date, venue, and format.")
+                TipRow(icon = Icons.Default.People, color = Color(0xFF2196F3), text = "Players register and get paired for singles or doubles.")
+                TipRow(icon = Icons.Default.BarChart, color = AppAccent, text = "Play matches, track scores, and climb the Elo rankings.")
+            }
+        },
+        footer = if (isGuest) null else {
+            {
+                AppPrimaryButton(onClick = onCreateClick) {
+                    Icon(Icons.Default.AddCircle, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Create Tournament")
+                }
+            }
+        },
+    )
 }
 
 @Composable
@@ -674,6 +641,7 @@ private fun TipRow(
             fontSize = 12.sp,
             color = Color.Gray,
             lineHeight = 18.sp,
+            modifier = Modifier.weight(1f),
         )
     }
 }

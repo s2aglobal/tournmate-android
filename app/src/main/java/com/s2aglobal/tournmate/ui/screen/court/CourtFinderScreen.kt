@@ -36,6 +36,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import com.s2aglobal.tournmate.ui.component.StickyEmptyState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Cancel
@@ -176,11 +177,7 @@ fun CourtFinderScreen(
                     viewModel.searchByZipCode()
                 }
             }
-            uiState.courts.isEmpty() -> Column(
-                Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
-            ) {
+            uiState.courts.isEmpty() -> Box(Modifier.weight(1f)) {
                 WelcomeHero(
                     state = uiState,
                     onUseCurrentLocation = { onUseCurrentLocation() },
@@ -283,90 +280,51 @@ private fun WelcomeHero(
     state: CourtFinderUiState,
     onUseCurrentLocation: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(Modifier.height(16.dp))
-        CourtsHero()
-        Spacer(Modifier.height(12.dp))
-        Text("Discover Courts\nNear You", fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 32.sp)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            state.welcomeSubtitle,
-            fontSize = 15.sp,
-            color = Color.Gray,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        FeatureRow(painterResource(R.drawable.ic_sportscourt_fill), AppAccent, "Courts & Clubs", "${CurrentSport.sport.displayName} courts, clubs, and sports facilities")
-        Spacer(Modifier.height(10.dp))
-        FeatureRow(rememberVectorPainter(Icons.Filled.NearMe), Color(0xFF2196F3), "Distance Info", "See how far each court is from your area")
-        Spacer(Modifier.height(10.dp))
-        FeatureRow(rememberVectorPainter(Icons.Filled.Phone), Color(0xFFFF9800), "Quick Actions", "Get directions, call, or visit their website")
-        Spacer(Modifier.height(10.dp))
-        if (state.usesHomeRegion) {
-            FeatureRow(rememberVectorPainter(Icons.Filled.Home), AppAccent, "Region Aligned", "Matches your Profile home country for open play and tournaments")
-        } else {
-            FeatureRow(rememberVectorPainter(Icons.Filled.Public), AppAccent, "Set Your Region", "Add home country and postal in Profile for regional discovery")
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        Surface(
-            onClick = onUseCurrentLocation,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            color = AppAccent,
-        ) {
-            Row(
-                modifier = Modifier.padding(vertical = 14.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Filled.NearMe, null, Modifier.size(16.dp), tint = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Text("Use Current Location", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+    StickyEmptyState(
+        title = "${CurrentSport.sport.displayName} courts near you",
+        subtitle = state.welcomeSubtitle,
+        hero = { CourtsHero() },
+        extras = {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FeatureChip(painterResource(R.drawable.ic_sportscourt_fill), AppAccent, "Courts & clubs", Modifier.weight(1f))
+                FeatureChip(rememberVectorPainter(Icons.Filled.NearMe), Color(0xFF2196F3), "Distance", Modifier.weight(1f))
+                FeatureChip(rememberVectorPainter(Icons.Filled.Phone), Color(0xFFFF9800), "Call & directions", Modifier.weight(1f))
             }
-        }
-
-        Spacer(Modifier.height(12.dp))
-        Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.7f)) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        },
+        footer = {
+            Surface(
+                onClick = onUseCurrentLocation,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = AppAccent,
             ) {
-                Icon(Icons.Filled.Lightbulb, null, Modifier.size(12.dp), tint = Color(0xFFFF9800))
-                Text(
-                    "Or enter a postal code (e.g. ${state.zipExamples.take(2).joinToString(", ")})",
-                    fontSize = 11.sp,
-                    color = Color.Gray,
-                )
+                Row(
+                    modifier = Modifier.padding(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.NearMe, null, Modifier.size(16.dp), tint = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Use Current Location", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
-        }
-        Spacer(Modifier.height(LocalTabBarClearance.current + TabBarContentGap))
-    }
+        },
+    )
 }
 
+/** Compact feature tile: icon over a wrapping label (iOS `featureChip`). */
 @Composable
-private fun FeatureRow(icon: Painter, color: Color, title: String, subtitle: String) {
+private fun FeatureChip(icon: Painter, color: Color, title: String, modifier: Modifier = Modifier) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(14.dp),
         color = Color.White,
         shadowElevation = 1.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        Column(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
                 modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.1f)),
@@ -374,10 +332,7 @@ private fun FeatureRow(icon: Painter, color: Color, title: String, subtitle: Str
             ) {
                 Icon(icon, null, Modifier.size(18.dp), tint = color)
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, fontSize = 13.sp, color = Color.Gray, maxLines = 2, lineHeight = 18.sp)
-            }
+            Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, lineHeight = 16.sp)
         }
     }
 }
@@ -742,10 +697,10 @@ private fun CourtsHero() {
     var appeared by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { appeared = true }
     val p by animateFloatAsState(if (appeared) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 200f), label = "hero")
-    Box(Modifier.size(200.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(180.dp), contentAlignment = Alignment.Center) {
         Box(
             Modifier
-                .size(180.dp)
+                .size(170.dp)
                 .graphicsLayer { scaleX = 0.5f + 0.5f * p; scaleY = scaleX; alpha = p }
                 .background(Brush.radialGradient(0.44f to AppAccent.copy(alpha = 0.12f), 1f to Color.Transparent), CircleShape),
         )
