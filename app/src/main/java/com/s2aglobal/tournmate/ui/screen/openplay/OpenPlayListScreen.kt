@@ -10,6 +10,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.s2aglobal.tournmate.ui.component.StickyEmptyState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -556,82 +557,51 @@ private fun EmptyState(
     onHostClick: () -> Unit,
 ) {
     val sport = CurrentSport.sport
-    EmptyStateScaffold(
-        heroSize = 120.dp,
-        badgeSize = 64.dp,
+    StickyEmptyState(
         title = "No Open Play Sessions",
         subtitle = if (isGuest) "Sign in to post a session or join others."
-        else "Be the first to post a ${sport.inlineName} session!\nInvite others to play.",
-    ) {
-        if (!isGuest) {
-            PrimaryActionButton(
-                text = "Post a Session",
-                icon = Icons.Filled.AddCircle,
-                onClick = onHostClick,
-                fill = CurrentSport.sport.theme.gradient,
-                glow = CurrentSport.sport.theme.primary,
-            )
-        }
-    }
+        else "Be the first to post a ${sport.inlineName} session! Invite others to play.",
+        hero = { SessionsHero(heroSize = 120.dp, badgeSize = 64.dp) },
+        footer = if (isGuest) null else {
+            {
+                PrimaryActionButton(
+                    text = "Post a Session",
+                    icon = Icons.Filled.AddCircle,
+                    onClick = onHostClick,
+                    fill = sport.theme.gradient,
+                    glow = sport.theme.primary,
+                )
+            }
+        },
+    )
 }
 
 @Composable
 private fun MySessionsEmptyState(onBrowseClick: () -> Unit) {
-    EmptyStateScaffold(
-        heroSize = 100.dp,
-        badgeSize = 52.dp,
+    StickyEmptyState(
         title = "No Sessions Yet",
-        subtitle = "Post your own session or join one\nfrom the All Sessions tab.",
-    ) {
-        PrimaryActionButton(text = "Browse Sessions", icon = Icons.Filled.Search, onClick = onBrowseClick)
-    }
+        subtitle = "Post your own session or join one from the All Sessions tab.",
+        hero = { SessionsHero(heroSize = 100.dp, badgeSize = 52.dp) },
+        footer = {
+            PrimaryActionButton(text = "Browse Sessions", icon = Icons.Filled.Search, onClick = onBrowseClick)
+        },
+    )
 }
 
 @Composable
-private fun EmptyStateScaffold(
+private fun SessionsHero(
     heroSize: androidx.compose.ui.unit.Dp,
     badgeSize: androidx.compose.ui.unit.Dp,
-    title: String,
-    subtitle: String,
-    action: @Composable () -> Unit,
 ) {
     val sport = CurrentSport.sport
-    Column(
+    Box(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = maxOf(100.dp, LocalTabBarClearance.current + TabBarContentGap)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+            .size(heroSize)
+            .clip(CircleShape)
+            .background(sport.theme.tint),
+        contentAlignment = Alignment.Center,
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Box(
-            modifier = Modifier
-                .size(heroSize)
-                .clip(CircleShape)
-                .background(sport.theme.tint),
-            contentAlignment = Alignment.Center,
-        ) {
-            SportArtworkImage(sport, badgeSize, Modifier.rotate(-12f))
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = title,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = subtitle,
-                fontSize = 14.sp,
-                color = Color.Gray,
-                lineHeight = 20.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 32.dp),
-            )
-        }
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp)) { action() }
+        SportArtworkImage(sport, badgeSize, Modifier.rotate(-12f))
     }
 }
 
