@@ -102,7 +102,9 @@ data class StandingsEntry(
          *    difference), games won, or point difference (no extra step);
          * 3. the sport's score difference — tennis/padel: set difference then game
          *    difference; every other sport: point difference;
-         * 4. name, so the table (and its PDF) don't reshuffle on every render.
+         * 4. name, then registration id, so the table (and its PDF, and the
+         *    group qualifiers) never reshuffle — not even for two teams with
+         *    the same name.
          *
          * The H2H mini-table is built once per points level (3+ way ties included)
          * and isn't re-applied to a subset it leaves level; such teams, and teams
@@ -142,7 +144,9 @@ data class StandingsEntry(
                     }
                     TieBreaker.POINT_DIFF -> Unit // the sport's score difference below is this tie-breaker
                 }
-                scoreDifferenceOrder(a, b, sport) ?: String.CASE_INSENSITIVE_ORDER.compare(a.teamName, b.teamName)
+                scoreDifferenceOrder(a, b, sport)
+                    ?: String.CASE_INSENSITIVE_ORDER.compare(a.teamName, b.teamName).takeIf { it != 0 }
+                    ?: a.registrationId.compareTo(b.registrationId)
             }
             return entries.sortedWith(comparator)
         }
