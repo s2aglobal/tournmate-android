@@ -38,7 +38,34 @@ data class Tournament(
     val sportTypeRaw: String? = null,
     /** Server-maintained by the registration triggers. Read-only: never written from the client. Missing = 0. */
     val registrationCount: Int? = null,
+    /** Cricket event type id (t20, odi, t10, box8, box6, custom). See [CricketRules]. */
+    val eventTypeId: String? = null,
+    /** JSON-encoded [CricketRules] (players per side, overs, …). Decoded via [cricketRules]. */
+    val rulesData: String? = null,
 ) {
+    /**
+     * `true` for team-sport tournaments (cricket): teams register with rosters
+     * and results are scorecards instead of set scores.
+     */
+    val isTeamEvent: Boolean
+        get() = sportType == SportType.CRICKET || format.isTeam
+
+    /** Cricket rules from [rulesData]; T20 defaults when missing. */
+    val cricketRules: CricketRules
+        get() = CricketRules.decode(rulesData) ?: CricketRules.DEFAULT
+
+    /** Event label for badges: "T20" for cricket, otherwise "MD", "XD", …. */
+    val eventShortName: String
+        get() = if (isTeamEvent) cricketRules.eventType.shortName else format.shortName
+
+    /** Event name for headers: "T20" / "Box cricket (6-a-side)", otherwise "Men's Doubles", …. */
+    val eventDisplayName: String
+        get() = if (isTeamEvent) cricketRules.eventType.displayName else format.displayName
+
+    /** Copy with new cricket rules (sets [rulesData] and [eventTypeId]). */
+    fun withCricketRules(rules: CricketRules): Tournament =
+        copy(rulesData = rules.encoded(), eventTypeId = rules.eventType.rawValue)
+
     val status: TournamentStatus
         get() = TournamentStatus.fromRawValue(statusRaw)
 

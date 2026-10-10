@@ -665,9 +665,8 @@ class TournamentDetailViewModel @Inject constructor(
             _uiState.value = state.copy(isLoading = true)
             val nextRound = currentRound + 1
             try {
-                val half = winners.size / 2
-                for (i in 0 until half) {
-                    matchRepo.createMatch(tournament, winners[i], winners[winners.size - 1 - i], round = nextRound, bracketPosition = i)
+                PairingService.nextRoundPairs(winners).forEachIndexed { i, (a, b) ->
+                    matchRepo.createMatch(tournament, a, b, round = nextRound, bracketPosition = i)
                 }
                 reload()
                 val roundName = Match.bracketRoundName(nextRound, state.totalBracketRounds)

@@ -29,43 +29,47 @@ object PairingService {
         return pairs
     }
 
+    /**
+     * Classic round robin: every team plays every other team exactly once.
+     *
+     * Circle method (Berger tables): fix the first slot and rotate the rest one
+     * step per round. N teams play N − 1 rounds of N/2 matches; with an odd N a
+     * "bye" slot is added, so there are N rounds and each team sits out once.
+     * Home/away follows Berger: the fixed slot alternates by round, the other
+     * pairs by position, so no team is listed first in every match. Mirrors iOS.
+     */
     fun generateRoundRobinSchedule(
         teams: List<Registration>,
     ): List<Triple<Registration, Registration, Int>> {
         if (teams.size < 2) return emptyList()
 
-        val n = teams.size
-        val allPairings = mutableListOf<Pair<Int, Int>>()
-        for (i in 0 until n) {
-            for (j in (i + 1) until n) {
-                allPairings.add(i to j)
-            }
-        }
-
-        val matchesPerRound = maxOf(1, n / 2)
-        var round = 1
+        val slots: MutableList<Registration?> = teams.toMutableList()
+        if (slots.size % 2 == 1) slots.add(null)
+        val m = slots.size
         val schedule = mutableListOf<Triple<Registration, Registration, Int>>()
-        var remaining = allPairings.toMutableList()
 
-        while (remaining.isNotEmpty()) {
-            val used = mutableSetOf<Int>()
-            val nextRemaining = mutableListOf<Pair<Int, Int>>()
-
-            for (pair in remaining) {
-                if (pair.first !in used && pair.second !in used && used.size / 2 < matchesPerRound) {
-                    schedule.add(Triple(teams[pair.first], teams[pair.second], round))
-                    used.add(pair.first)
-                    used.add(pair.second)
-                } else {
-                    nextRemaining.add(pair)
-                }
+        for (round in 0 until m - 1) {
+            for (i in 0 until m / 2) {
+                val a = slots[i] ?: continue          // bye
+                val b = slots[m - 1 - i] ?: continue  // bye
+                val flip = if (i == 0) round % 2 == 1 else i % 2 == 1
+                schedule.add(if (flip) Triple(b, a, round + 1) else Triple(a, b, round + 1))
             }
-
-            remaining = nextRemaining
-            round++
+            // Rotate every slot but the first.
+            val last = slots.removeAt(slots.size - 1)
+            slots.add(1, last)
         }
-
         return schedule
+    }
+
+    /**
+     * Pairs the teams advancing to the next knockout round: first vs last,
+     * second vs second-last… In round 1 the bye teams come first, then the
+     * round-1 winners (see TournamentDetailViewModel.advanceToNextRound).
+     */
+    fun nextRoundPairs(advancing: List<Registration>): List<Pair<Registration, Registration>> {
+        val half = advancing.size / 2
+        return (0 until half).map { advancing[it] to advancing[advancing.size - 1 - it] }
     }
 
     fun generateBracketFirstRound(teams: List<Registration>): BracketResult {
@@ -94,8 +98,11 @@ object PairingService {
     fun optimalGroupCount(totalTeams: Int, advancingPerGroup: Int): Int {
         if (totalTeams < 4 || advancingPerGroup < 1) return 2
         val minGroupSize = advancingPerGroup + 1
+        val maxGroups = totalTeams / minGroupSize
+        // Too few teams for two groups: one group, its top teams go to the knockout.
+        if (maxGroups < 2) return 1
 
-        for (candidateGroups in 2..(totalTeams / minGroupSize)) {
+        for (candidateGroups in 2..maxGroups) {
             val groupSize = totalTeams / candidateGroups
             if (groupSize < minGroupSize) break
             val advancingTotal = candidateGroups * advancingPerGroup
@@ -103,7 +110,7 @@ object PairingService {
             if (isPowerOf2) return candidateGroups
         }
 
-        return maxOf(2, totalTeams / minGroupSize)
+        return maxGroups
     }
 
     fun generateGroupStageSchedule(
@@ -190,8 +197,16 @@ object PairingService {
         return pairs
     }
 
-    private fun avgElo(registration: Registration): Double {
+    /**
+     * Average Elo of the players on an entry, in the tournament's sport. Team
+     * sports average the resolved roster (guests have no rating), falling back
+     * to the captain.
+     */
+    internal fun avgElo(registration: Registration): Double {
         val sport = registration.tournament.sportType
+        if (registration.isTeamEntry && registration.roster.isNotEmpty()) {
+            return registration.roster.sumOf { it.elo(sport) } / registration.roster.size
+        }
         val elo1 = registration.player.elo(sport)
         val partner = registration.partner
         return if (partner != null) (elo1 + partner.elo(sport)) / 2.0 else elo1

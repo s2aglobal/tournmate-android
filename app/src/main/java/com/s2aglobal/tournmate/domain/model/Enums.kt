@@ -18,13 +18,23 @@ enum class TournamentFormat(val rawValue: String) {
     WOMENS_DOUBLES("womensDoubles"),
     MIXED_DOUBLES("mixedDoubles"),
     OPEN_DOUBLES("openDoubles"),
-    FIXED_DOUBLES("fixedDoubles");
+    FIXED_DOUBLES("fixedDoubles"),
+
+    // Team sports (cricket): entrants are teams with a roster. Older app
+    // versions decode this as OPEN_DOUBLES, but they never see team sports
+    // (gated by `config/sports.liveMinAppVersion`).
+    TEAM("team");
 
     val isSingles: Boolean
         get() = this in listOf(MENS_SINGLES, WOMENS_SINGLES, OPEN_SINGLES)
 
+    /** `true` for 2-v-2 events (partner required). */
     val isDoubles: Boolean
-        get() = !isSingles
+        get() = this in listOf(MENS_DOUBLES, WOMENS_DOUBLES, MIXED_DOUBLES, OPEN_DOUBLES, FIXED_DOUBLES)
+
+    /** `true` for team-sport events (cricket): a team registers with a roster. */
+    val isTeam: Boolean
+        get() = this == TEAM
 
     val displayName: String
         get() = when (this) {
@@ -36,6 +46,7 @@ enum class TournamentFormat(val rawValue: String) {
             MIXED_DOUBLES -> "Mixed Doubles"
             OPEN_DOUBLES -> "Open Doubles"
             FIXED_DOUBLES -> "Open Doubles"
+            TEAM -> "Teams"
         }
 
     val shortName: String
@@ -48,6 +59,7 @@ enum class TournamentFormat(val rawValue: String) {
             MIXED_DOUBLES -> "XD"
             OPEN_DOUBLES -> "OD"
             FIXED_DOUBLES -> "OD"
+            TEAM -> "TM"
         }
 
     companion object {
