@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.s2aglobal.tournmate.ui.component.CricketEventTypePicker
+import com.s2aglobal.tournmate.ui.component.CricketRulesEditor
 import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
 import com.s2aglobal.tournmate.ui.component.ScoringDescription
 import com.s2aglobal.tournmate.ui.component.SkillDivisionPicker
@@ -103,6 +105,7 @@ fun PublishTournamentScreen(
         entryFee: Double?, currency: String, paymentInfo: String?, prizeInfo: String?,
         durationMinutes: Int?, ageGroup: AgeGroup, sportType: SportType,
         scoringConfig: ScoringConfig, skillDivision: String?,
+        cricketRules: CricketRules?,
         onResult: (Boolean) -> Unit,
     ) -> Unit,
     onDismiss: () -> Unit,
@@ -133,6 +136,10 @@ fun PublishTournamentScreen(
     var newFormatConfig by remember { mutableStateOf(FormatConfig.defaults(MatchFormat.SINGLE_ELIMINATION)) }
     var newScoringConfig by remember { mutableStateOf(initialSport.scoringRules.defaultConfig) }
     var newSkillDivision by remember { mutableStateOf<String?>(null) }
+    var newCricketRules by remember { mutableStateOf(CricketRules.DEFAULT) }
+    // Cricket: teams register, results are scorecards (CricketRules).
+    val isCricketWizard = newSportType == SportType.CRICKET
+    LaunchedEffect(Unit) { if (initialSport == SportType.CRICKET) newFormat = TournamentFormat.TEAM }
     // Scoring as it will be saved (round robin is always a single game).
     val reviewScoringConfig = if (newMatchFormat == MatchFormat.ROUND_ROBIN) newScoringConfig.copy(gamesPerMatch = 1) else newScoringConfig
 
@@ -297,7 +304,7 @@ fun PublishTournamentScreen(
     if (showEventTypeSheet) {
         ListBottomSheet(
             title = "EVENT TYPE",
-            items = TournamentFormat.entries.filter { it != TournamentFormat.FIXED_DOUBLES },
+            items = TournamentFormat.entries.filter { it != TournamentFormat.FIXED_DOUBLES && it != TournamentFormat.TEAM },
             selectedItem = newFormat,
             itemLabel = { it.displayName },
             onItemSelected = { newFormat = it; if (it.isSingles) newRandomPairing = false; showEventTypeSheet = false },
@@ -370,9 +377,18 @@ fun PublishTournamentScreen(
                                 newScoringConfig = it.scoringRules.defaultConfig
                                 newSkillDivision = null
                                 if (newAgeGroup !in it.ageGroups) newAgeGroup = AgeGroup.OPEN
+                                if (it == SportType.CRICKET) {
+                                    newFormat = TournamentFormat.TEAM
+                                    newRandomPairing = false
+                                    newCricketRules = CricketRules.DEFAULT
+                                } else if (newFormat == TournamentFormat.TEAM) {
+                                    newFormat = TournamentFormat.MENS_DOUBLES
+                                }
                             },
                             title = newTitle, onTitleChange = { newTitle = it }, titleError = titleError,
                             format = newFormat, onEventTypeClick = { showEventTypeSheet = true },
+                            cricketRules = if (isCricketWizard) newCricketRules else null,
+                            onCricketRulesChange = { newCricketRules = it },
                             randomPairing = newRandomPairing, onRandomPairingChange = { newRandomPairing = it },
                             venueName = venueName, venueAddress = venueAddress, onVenueClick = { showVenueSheet = true },
                             date = newDate, dateFmt = dateFmt, timeFmt = timeFmt,
@@ -388,6 +404,8 @@ fun PublishTournamentScreen(
                             sportType = newSportType,
                             scoringConfig = newScoringConfig, onScoringConfigChange = { newScoringConfig = it },
                             formatConfig = newFormatConfig, onFormatConfigChange = { newFormatConfig = it },
+                            cricketRules = if (isCricketWizard) newCricketRules else null,
+                            onCricketRulesChange = { newCricketRules = it },
                         )
                         3 -> Step3RulesLogistics(
                             entryFee = newEntryFee, onEntryFeeChange = { newEntryFee = it },
@@ -407,6 +425,7 @@ fun PublishTournamentScreen(
                             ageGroup = newAgeGroup, skillDivision = newSkillDivision, entryFee = newEntryFee,
                             currency = newCurrency, prizeInfo = newPrizeInfo,
                             randomPairing = newRandomPairing, dateFmt = dateFmt, timeFmt = timeFmt,
+                            cricketRules = if (isCricketWizard) newCricketRules else null,
                         )
                     }
                 }
@@ -420,13 +439,17 @@ fun PublishTournamentScreen(
                         onPublish(
                             newTitle, newDate, venueName, venueAddress, venueLatitude, venueLongitude,
                             // New tournaments apply the chosen tie-breakers (FormatConfig.tieBreakRulesVersion).
-                            newFormat, newMatchFormat, newFormatConfig.copy(tieBreakRulesVersion = FormatConfig.CURRENT_TIE_BREAK_RULES_VERSION),
-                            if (newFormat.isDoubles) newRandomPairing else false,
+                            // Team sports always register teams, whatever event type was last shown.
+                            if (isCricketWizard) TournamentFormat.TEAM else newFormat,
+                            newMatchFormat, newFormatConfig.copy(tieBreakRulesVersion = FormatConfig.CURRENT_TIE_BREAK_RULES_VERSION),
+                            if (newFormat.isDoubles && !isCricketWizard) newRandomPairing else false,
                             newDeadline, firebaseUid,
                             newEntryFee.toDoubleOrNull(), newCurrency,
                             newPaymentInfo.ifBlank { null }, newPrizeInfo.ifBlank { null },
                             newDurationMinutes.toIntOrNull(), newAgeGroup, newSportType,
                             reviewScoringConfig, newSkillDivision,
+                            // Cricket: team entries and scorecard rules instead of set scoring.
+                            if (isCricketWizard) newCricketRules else null,
                         ) { ok ->
                             isPublishing = false
                             if (ok) showSuccess = true
@@ -563,6 +586,7 @@ private fun Step1BasicInfo(
     sportType: SportType, onSportChange: (SportType) -> Unit,
     title: String, onTitleChange: (String) -> Unit, titleError: String?,
     format: TournamentFormat, onEventTypeClick: () -> Unit,
+    cricketRules: CricketRules?, onCricketRulesChange: (CricketRules) -> Unit,
     randomPairing: Boolean, onRandomPairingChange: (Boolean) -> Unit,
     venueName: String, venueAddress: String, onVenueClick: () -> Unit,
     date: Date, dateFmt: SimpleDateFormat, timeFmt: SimpleDateFormat,
@@ -584,9 +608,14 @@ private fun Step1BasicInfo(
     }
 
     SectionLabel("EVENT TYPE")
-    PickerRow(text = format.displayName, onClick = onEventTypeClick)
+    if (cricketRules != null) {
+        CricketEventTypePicker(cricketRules, onCricketRulesChange, WizardAccent)
+    } else {
+        PickerRow(text = format.displayName, onClick = onEventTypeClick)
+    }
 
-    if (format.isDoubles) {
+    // Random pairing only for doubles; never for team sports.
+    if (format.isDoubles && cricketRules == null) {
         ToggleRow(Icons.Default.Shuffle, "Random Pairing", "System assigns partners after deadline", randomPairing, onRandomPairingChange)
     }
 
@@ -655,6 +684,7 @@ private fun Step2FormatRules(
     sportType: SportType,
     scoringConfig: ScoringConfig, onScoringConfigChange: (ScoringConfig) -> Unit,
     formatConfig: FormatConfig, onFormatConfigChange: (FormatConfig) -> Unit,
+    cricketRules: CricketRules?, onCricketRulesChange: (CricketRules) -> Unit,
 ) {
     SectionLabel("MATCH FORMAT")
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -692,22 +722,28 @@ private fun Step2FormatRules(
         SkillDivisionPicker(sport = sportType, selection = skillDivision, onSelectionChange = onSkillDivisionChange, accent = WizardAccent)
     }
 
-    SectionLabel("SCORING")
-    ScoringConfigEditor(
-        sport = sportType,
-        config = scoringConfig,
-        onConfigChange = onScoringConfigChange,
-        accent = WizardAccent,
-        singleGameOnly = matchFormat == MatchFormat.ROUND_ROBIN,
-    )
+    if (cricketRules != null) {
+        SectionLabel("MATCH RULES")
+        CricketRulesEditor(cricketRules, onCricketRulesChange, WizardAccent)
+    } else {
+        SectionLabel("SCORING")
+        ScoringConfigEditor(
+            sport = sportType,
+            config = scoringConfig,
+            onConfigChange = onScoringConfigChange,
+            accent = WizardAccent,
+            singleGameOnly = matchFormat == MatchFormat.ROUND_ROBIN,
+        )
+    }
 
     // Format-specific config
-    FormatConfigSection(matchFormat, formatConfig, onFormatConfigChange)
+    FormatConfigSection(matchFormat, formatConfig, onFormatConfigChange, isCricket = cricketRules != null)
 }
 
 @Composable
 private fun FormatConfigSection(
     matchFormat: MatchFormat, config: FormatConfig, onChange: (FormatConfig) -> Unit,
+    isCricket: Boolean = false,
 ) {
     when (matchFormat) {
         MatchFormat.SINGLE_ELIMINATION -> {
@@ -742,7 +778,7 @@ private fun FormatConfigSection(
                 StepperField("Loss", config.pointsPerLoss, 0..5, Modifier.weight(1f)) { onChange(config.copy(pointsPerLoss = it)) }
             }
             SectionLabel("TIE-BREAKER")
-            TieBreakerPicker(config.tieBreaker) { onChange(config.copy(tieBreaker = it)) }
+            if (isCricket) CricketTieBreakNote() else TieBreakerPicker(config.tieBreaker) { onChange(config.copy(tieBreaker = it)) }
         }
         MatchFormat.GROUP_KNOCKOUT -> {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -751,7 +787,7 @@ private fun FormatConfigSection(
             }
             StepperField("Advance Per Group", config.advancingPerGroup, 1..4, Modifier.fillMaxWidth()) { onChange(config.copy(advancingPerGroup = it)) }
             SectionLabel("GROUP TIE-BREAKER")
-            TieBreakerPicker(config.groupTieBreaker) { onChange(config.copy(groupTieBreaker = it)) }
+            if (isCricket) CricketTieBreakNote() else TieBreakerPicker(config.groupTieBreaker) { onChange(config.copy(groupTieBreaker = it)) }
             InfoBanner(Icons.Default.Info, WizardAccent, "Top finishers from each group advance to a single-elimination knockout stage.")
         }
         MatchFormat.SWISS -> {
@@ -794,6 +830,18 @@ private fun SeedingModePicker(config: FormatConfig, onChange: (FormatConfig) -> 
                     color = if (sel) WizardAccent else Color.Black, modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth())
             }
         }
+    }
+}
+
+/** Cricket always ranks level teams by net run rate, then head-to-head (iOS wizard). */
+@Composable
+private fun CricketTieBreakNote() {
+    Row(
+        Modifier.fillMaxWidth().background(WizardFieldColor, RoundedCornerShape(10.dp)).padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = WizardAccent)
+        Text("Net run rate, then head-to-head", fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -931,6 +979,7 @@ private fun Step4Review(
     formatConfig: FormatConfig, scoringConfig: ScoringConfig, venueName: String, date: Date, deadline: Date,
     ageGroup: AgeGroup, skillDivision: String?, entryFee: String, currency: String, prizeInfo: String,
     randomPairing: Boolean, dateFmt: SimpleDateFormat, timeFmt: SimpleDateFormat,
+    cricketRules: CricketRules? = null,
 ) {
     val symbol = commonCurrencies.firstOrNull { it.first == currency }?.second ?: currency
     Surface(
@@ -953,10 +1002,11 @@ private fun Step4Review(
     }
     Spacer(Modifier.height(8.dp))
     ReviewRow("SPORT", sportType.displayName); ReviewRow("TOURNAMENT", title)
-    ReviewRow("EVENT TYPE", format.displayName); ReviewRow("FORMAT", matchFormat.displayName)
-    ReviewRow("SCORING", ScoringDescription.summary(scoringConfig, sportType))
+    ReviewRow("EVENT TYPE", cricketRules?.eventType?.displayName ?: format.displayName); ReviewRow("FORMAT", matchFormat.displayName)
+    if (cricketRules != null) ReviewRow("MATCH RULES", cricketRules.summary)
+    else ReviewRow("SCORING", ScoringDescription.summary(scoringConfig, sportType))
     ReviewRow("SEEDING", seedingLabel(SeedingMode.fromRawValue(formatConfig.seedingMode)))
-    FormatRulesReviewRows(matchFormat, formatConfig)
+    FormatRulesReviewRows(matchFormat, formatConfig, isCricket = cricketRules != null)
     ReviewRow("VENUE", venueName)
     ReviewRow("DATE", "${dateFmt.format(date)}, ${timeFmt.format(date)}")
     ReviewRow("DEADLINE", "${dateFmt.format(deadline)}, ${timeFmt.format(deadline)}")
@@ -965,14 +1015,14 @@ private fun Step4Review(
     val fee = entryFee.toDoubleOrNull()
     if (fee != null && fee > 0) ReviewRow("ENTRY FEE", "$symbol${String.format("%.2f", fee)}", WizardAccent) else ReviewRow("ENTRY FEE", "Free", WizardAccent)
     if (prizeInfo.isNotEmpty()) ReviewRow("PRIZES", prizeInfo, Color(0xFFFF9800))
-    if (format.isDoubles && randomPairing) ReviewRow("PAIRING", "Random Assignment")
+    if (format.isDoubles && randomPairing && cricketRules == null) ReviewRow("PAIRING", "Random Assignment")
     formatConfig.maxParticipants?.let { ReviewRow("MAX PLAYERS", "$it") }
     Spacer(Modifier.height(8.dp))
     InfoBanner(Icons.Default.Info, Color(0xFFFF9800).copy(alpha = 0.7f), "Once published, players will be able to see and register for this tournament immediately.")
 }
 
 @Composable
-private fun FormatRulesReviewRows(matchFormat: MatchFormat, config: FormatConfig) {
+private fun FormatRulesReviewRows(matchFormat: MatchFormat, config: FormatConfig, isCricket: Boolean = false) {
     when (matchFormat) {
         MatchFormat.SINGLE_ELIMINATION -> {
             if (config.bronzeMatch) ReviewRow("BRONZE MATCH", "Yes")
@@ -981,7 +1031,7 @@ private fun FormatRulesReviewRows(matchFormat: MatchFormat, config: FormatConfig
         MatchFormat.DOUBLE_ELIMINATION -> ReviewRow("BRACKET", "Winners + Losers")
         MatchFormat.ROUND_ROBIN -> {
             ReviewRow("POINTS", "W:${config.pointsPerWin} D:${config.pointsPerDraw} L:${config.pointsPerLoss}")
-            ReviewRow("TIE-BREAKER", tieBreakerLabel(TieBreaker.fromRawValue(config.tieBreaker)))
+            ReviewRow("TIE-BREAKER", if (isCricket) "Net run rate, then head-to-head" else tieBreakerLabel(TieBreaker.fromRawValue(config.tieBreaker)))
             if (config.doubleRoundRobin) ReviewRow("DOUBLE RR", "Yes")
         }
         MatchFormat.GROUP_KNOCKOUT -> {
