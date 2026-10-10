@@ -256,7 +256,7 @@ class DrawEdgeCaseTest {
             val cap = Player(id = uuid(5000 + i * 20), name = "C$i", eloRatings = mapOf("cricket" to captain))
             var players = roster.mapIndexed { j, e -> Player(id = uuid(5001 + i * 20 + j), eloRatings = mapOf("cricket" to e)) }
             if (duplicate) players = players + players.first()
-            return Registration(id = uuid(900 + i), tournament = t, player = cap, teamName = "E$i", roster = players,
+            return Registration(id = uuid(900 + i), tournament = t, player = cap, playerId = cap.id.toString().uppercase(), teamName = "E$i", roster = players,
                 rosterIds = players.map { it.id.toString().uppercase() }, guestNames = (0 until guests).map { "G$it" })
         }
         val guestsOnly = entry(0, emptyList(), 1500.0, guests = 5)
@@ -273,5 +273,18 @@ class DrawEdgeCaseTest {
         assertTrue(!lone.isTeamFormed)
         assertTrue(abs(PairingService.avgElo(eleven) - 1210.0) < 1e-9)
         assertEquals(cricket, t.sportType)
+
+        // A player can't play for two teams in one tournament.
+        val entered = Registration.enteredPlayers(listOf(captainOff, dup))
+        assertEquals("E1", entered[captainOff.player.id.toString().uppercase()])
+        assertEquals("E1", entered[captainOff.rosterIds[1].uppercase()])
+        assertEquals(6, entered.size)
+        val mixed = Registration.enteredPlayers(listOf(Registration(tournament = t, playerId = uuid(7003).toString(), teamName = "Lower",
+            rosterIds = listOf("abcdefab-0000-0000-0000-00000000000a"))))
+        assertEquals("Lower", mixed["ABCDEFAB-0000-0000-0000-00000000000A"])
+        assertEquals(null, mixed["abcdefab-0000-0000-0000-00000000000a"])
+        val doubles = Registration(tournament = t, player = Player(name = "X"), partner = Player(name = "Y"),
+            playerId = uuid(7001).toString(), partnerId = uuid(7002).toString())
+        assertEquals("X & Y", Registration.enteredPlayers(listOf(doubles))[uuid(7002).toString().uppercase()])
     }
 }

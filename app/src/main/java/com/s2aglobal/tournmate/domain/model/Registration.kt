@@ -55,6 +55,25 @@ data class Registration(
 
     fun containsPlayerID(id: UUID): Boolean = contains(id.toString())
 
+    companion object {
+        /**
+         * Players already entered in a tournament: upper-cased player id → the
+         * name of the entry they play for (player, partner and roster ids of
+         * every registration). A player can't play for two teams in one event.
+         * Same rule as iOS `Registration.enteredPlayers`.
+         */
+        fun enteredPlayers(registrations: List<Registration>): Map<String, String> {
+            val map = mutableMapOf<String, String>()
+            for (reg in registrations) {
+                val name = reg.displayName()
+                for (id in listOf(reg.playerId) + listOfNotNull(reg.partnerId) + reg.rosterIds) {
+                    map.putIfAbsent(id.uppercase(), name)
+                }
+            }
+            return map
+        }
+    }
+
     /** `true` if a player with this Firebase UID is part of the entry. */
     fun containsFirebaseUid(uid: String): Boolean =
         player.firebaseUid == uid || partner?.firebaseUid == uid || roster.any { it.firebaseUid == uid }

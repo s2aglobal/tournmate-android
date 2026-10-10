@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.selected
@@ -84,13 +85,19 @@ class TeamRegistrationViewModel @Inject constructor(
 
     private var tournament: Tournament = Tournament()
     private var captain: Player = Player()
+    /** Players already entered in this tournament (upper-cased id → team name). */
+    private var enteredPlayers: Map<String, String> = emptyMap()
+
+    /** The team this player already plays for in this tournament, if any. */
+    fun takenBy(player: Player): String? = enteredPlayers[player.id.toString().uppercase()]
 
     /** Roster limit: a full side plus four substitutes. */
     val rosterLimit: Int get() = tournament.cricketRules.playersPerSide + 4
 
-    fun start(tournament: Tournament, captain: Player) {
+    fun start(tournament: Tournament, captain: Player, enteredPlayers: Map<String, String> = emptyMap()) {
         this.tournament = tournament
         this.captain = captain
+        this.enteredPlayers = enteredPlayers
         _state.value = TeamRegistrationUiState()
         viewModelScope.launch {
             try {
@@ -106,11 +113,13 @@ class TeamRegistrationViewModel @Inject constructor(
     }
 
     fun select(team: Team) {
-        // Default roster: everyone, up to a full side plus substitutes.
+        // Default roster: everyone not already playing for another team in
+        // this tournament, up to a full side plus substitutes.
         _state.update {
             it.copy(
                 selectedTeamId = team.id,
-                rosterIds = team.players.take(rosterLimit).map { p -> p.id.toString().uppercase() }.toSet(),
+                rosterIds = team.players.filter { p -> takenBy(p) == null }.take(rosterLimit)
+                    .map { p -> p.id.toString().uppercase() }.toSet(),
                 guestNames = emptyList(),
                 lookupMessage = null,
             )
@@ -124,6 +133,7 @@ class TeamRegistrationViewModel @Inject constructor(
         _state.update {
             when {
                 id in it.rosterIds -> it.copy(rosterIds = it.rosterIds - id)
+                takenBy(player) != null -> it
                 it.rosterCount < rosterLimit -> it.copy(rosterIds = it.rosterIds + id)
                 else -> it
             }
@@ -178,13 +188,19 @@ class TeamRegistrationViewModel @Inject constructor(
                     else -> {
                         teamRepo.joinTeam(team, found)
                         val id = found.id.toString().uppercase()
+                        // Already playing for another team here: on the team, but not in this event's roster.
+                        val otherTeam = takenBy(found)
                         _state.update { s ->
                             s.copy(
                                 teams = s.teams.map { t ->
                                     if (t.id == team.id) t.copy(playerIds = t.playerIds + id, players = t.players + found) else t
                                 },
-                                rosterIds = if (s.rosterCount < rosterLimit) s.rosterIds + id else s.rosterIds,
-                                lookupMessage = "${found.name} added.",
+                                rosterIds = if (otherTeam == null && s.rosterCount < rosterLimit) s.rosterIds + id else s.rosterIds,
+                                lookupMessage = if (otherTeam != null) {
+                                    "${found.name} is already playing for $otherTeam in this tournament."
+                                } else {
+                                    "${found.name} added."
+                                },
                             )
                         }
                         onAdded()
@@ -206,7 +222,7 @@ class TeamRegistrationViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // Keep the roster in team order for a stable team sheet.
-                val ordered = team.players.map { it.id.toString().uppercase() }.filter { it in s.rosterIds }
+                val ordered = team.players.filter { takenBy(it) == null }.map { it.id.toString().uppercase() }.filter { it in s.rosterIds }
                 registrationRepo.createTeamRegistration(team, captain, ordered, s.guestNames, tournament)
                 _state.update { it.copy(isSaving = false, registered = true) }
             } catch (e: CancellationException) {
@@ -227,6 +243,8 @@ internal fun TeamRegistrationSheet(
     captain: Player,
     onRegistered: () -> Unit,
     onCancel: () -> Unit,
+    /** Players already entered in this tournament (`Registration.enteredPlayers`). */
+    enteredPlayers: Map<String, String> = emptyMap(),
     viewModel: TeamRegistrationViewModel = hiltViewModel(key = "teamRegistration-${tournament.id}"),
 ) {
     val state by viewModel.state.collectAsState()
@@ -237,7 +255,7 @@ internal fun TeamRegistrationSheet(
     var guestDraft by remember { mutableStateOf("") }
     var lookup by remember { mutableStateOf("") }
 
-    LaunchedEffect(tournament.id, captain.id) { viewModel.start(tournament, captain) }
+    LaunchedEffect(tournament.id, captain.id) { viewModel.start(tournament, captain, enteredPlayers) }
     LaunchedEffect(state.registered) { if (state.registered) onRegistered() }
 
     ModalBottomSheet(
@@ -329,8 +347,11 @@ internal fun TeamRegistrationSheet(
                             }
                             team.players.forEach { player ->
                                 val on = player.id.toString().uppercase() in state.rosterIds
+                                val otherTeam = viewModel.takenBy(player)
                                 Row(
-                                    Modifier.fillMaxWidth().clickable { viewModel.toggleRoster(player) }.padding(vertical = 8.dp)
+                                    Modifier.fillMaxWidth().clickable(enabled = otherTeam == null) { viewModel.toggleRoster(player) }
+                                        .alpha(if (otherTeam != null) 0.5f else 1f)
+                                        .padding(vertical = 8.dp)
                                         .semantics { selected = on },
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -339,7 +360,12 @@ internal fun TeamRegistrationSheet(
                                         if (on) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank, null,
                                         tint = if (on) accent else Color.Gray,
                                     )
-                                    Text(player.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Column {
+                                        Text(player.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (otherTeam != null) {
+                                            Text("Already playing for $otherTeam", fontSize = 11.sp, color = Color.Gray)
+                                        }
+                                    }
                                     if (team.isCaptain(player)) {
                                         Text(
                                             "CAPTAIN", fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, color = accent,

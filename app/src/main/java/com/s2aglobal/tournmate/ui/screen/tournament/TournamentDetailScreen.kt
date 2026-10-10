@@ -247,6 +247,7 @@ fun TournamentDetailScreen(
             TeamRegistrationSheet(
                 tournament = tournament,
                 captain = captain,
+                enteredPlayers = Registration.enteredPlayers(state.registrations),
                 onRegistered = { showTeamRegisterSheet = false; viewModel.onTeamRegistered() },
                 onCancel = { showTeamRegisterSheet = false },
             )
