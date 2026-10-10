@@ -291,7 +291,18 @@ data class TournamentDetailUiState(
     val byeTeamNames: List<String>
         get() {
             if (tournament?.matchFormat != MatchFormat.SINGLE_ELIMINATION || formedTeams.isEmpty()) return emptyList()
-            return PairingService.generateBracketFirstRound(formedTeams).byeTeams.map { registrationFullName(it) }
+            // Once the bracket exists, the byes are the teams missing from round 1
+            // (ratings move after every result, so re-seeding could name others).
+            val roundOne = matches.filter { it.groupLabel == null && it.round == 1 }
+            val byeTeams = if (roundOne.isEmpty()) {
+                PairingService.generateBracketFirstRound(formedTeams).byeTeams
+            } else {
+                PairingService.knockoutByeTeams(
+                    PairingService.seededByRating(formedTeams),
+                    roundOne.flatMap { listOf(it.teamAId, it.teamBId) }.toSet(),
+                )
+            }
+            return byeTeams.map { registrationFullName(it) }
         }
 
     /** Knockout / non-group matches grouped by round (used by the admin round logic). */
@@ -652,7 +663,7 @@ class TournamentDetailViewModel @Inject constructor(
             if (state.matches.isNotEmpty()) { setStatus("Matches already generated."); return@launch }
 
             _uiState.value = state.copy(isLoading = true)
-            val schedule = PairingService.generateRoundRobinSchedule(teams)
+            val schedule = PairingService.generateRoundRobinSchedule(teams, tournament.formatConfig.doubleRoundRobin)
             try {
                 matchRepo.createMatches(tournament, schedule)
                 reload()
@@ -671,7 +682,9 @@ class TournamentDetailViewModel @Inject constructor(
 
             _uiState.value = state.copy(isLoading = true)
             val config = tournament.formatConfig
-            val schedule = PairingService.generateGroupStageSchedule(teams, config.groupCount, config.advancingPerGroup)
+            val schedule = PairingService.generateGroupStageSchedule(
+                teams, maxOf(2, config.groupCount), maxOf(1, config.advancingPerGroup),
+            )
             val entries = schedule.map { GroupMatchEntry(it.teamA, it.teamB, it.round, it.group) }
             try {
                 matchRepo.createGroupMatches(tournament, entries)
@@ -696,8 +709,16 @@ class TournamentDetailViewModel @Inject constructor(
             var winners = lastGroup.matches.mapNotNull { it.winnerRegistration }
 
             if (currentRound == 1) {
-                val seededTeams = if (tournament.matchFormat == MatchFormat.GROUP_KNOCKOUT) advancingTeams(state) else state.formedTeams
-                winners = PairingService.generateBracketFirstRound(seededTeams).byeTeams + winners
+                // Byes: the seeded teams that didn't play round 1. Re-running the
+                // draw here would re-seed on ratings that changed with the
+                // round-1 results and could name a round-1 team as a bye.
+                val seededTeams = if (tournament.matchFormat == MatchFormat.GROUP_KNOCKOUT) {
+                    advancingTeams(state)
+                } else {
+                    PairingService.seededByRating(state.formedTeams)
+                }
+                val roundOneIds = lastGroup.matches.flatMap { listOf(it.teamAId, it.teamBId) }.toSet()
+                winners = PairingService.knockoutByeTeams(seededTeams, roundOneIds) + winners
             }
 
             if (winners.size < 2) { setStatus("Tournament complete! 🏆"); return@launch }
@@ -727,7 +748,9 @@ class TournamentDetailViewModel @Inject constructor(
             if (qualified.size < 2) { setStatus("Not enough teams for knockout."); return@launch }
 
             _uiState.value = state.copy(isLoading = true)
-            val result = PairingService.generateBracketFirstRound(qualified)
+            // Seeded by group finish (not re-sorted by rating), so group partners
+            // don't meet again in the first knockout round.
+            val result = PairingService.generateBracketFirstRoundSeeded(qualified)
             try {
                 for ((teamA, teamB, pos) in result.matches) {
                     matchRepo.createMatch(tournament, teamA, teamB, round = 1, bracketPosition = pos)
@@ -738,13 +761,18 @@ class TournamentDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Top teams from each group in knockout seeding order: group winners, then
+     * runners-up… ([PairingService.knockoutSeedingFromGroups]). Mirrors iOS.
+     */
     private fun advancingTeams(state: TournamentDetailUiState): List<Registration> {
-        val perGroup = state.tournament?.formatConfig?.advancingPerGroup ?: 2
+        val perGroup = maxOf(1, state.tournament?.formatConfig?.advancingPerGroup ?: 2)
         val standings = computeGroupStandings(state)
         val regMap = state.registrations.associateBy { it.id.toString().uppercase() }
-        return standings.keys.sorted().flatMap { group ->
-            standings[group].orEmpty().take(perGroup).mapNotNull { regMap[it.registrationId] }
+        val tables = standings.keys.sorted().map { group ->
+            standings[group].orEmpty().mapNotNull { regMap[it.registrationId] }
         }
+        return PairingService.knockoutSeedingFromGroups(tables, perGroup)
     }
 
     fun generateNextSwissRound() {
@@ -776,6 +804,7 @@ class TournamentDetailViewModel @Inject constructor(
     fun createManualMatch(teamA: Registration, teamB: Registration, round: Int) {
         viewModelScope.launch {
             val tournament = _uiState.value.tournament ?: return@launch
+            if (teamA.id == teamB.id) { setStatus("Pick two different teams."); return@launch }
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 matchRepo.createMatch(tournament, teamA, teamB, round = round)
