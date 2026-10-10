@@ -102,7 +102,8 @@ fun CricketScoreEntryScreen(
         return CricketInnings(side, runs, input.wickets, balls)
     }
 
-    fun isTie(r: CricketResult) = r.revisedTarget == null && r.innings.size == 2 && r.innings[0].runs == r.innings[1].runs
+    // Scores level (including one short of a revised target): a super over can decide it.
+    fun isTie(r: CricketResult) = r.scoresLevel
 
     // The scorecard as entered, or null while required fields are empty or unreadable.
     val result: CricketResult? = run {

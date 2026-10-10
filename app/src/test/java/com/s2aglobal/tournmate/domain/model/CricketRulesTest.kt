@@ -263,4 +263,73 @@ class CricketRulesTest {
         assertEquals("Royals won by 6 wickets (10 balls left)", o.summary { if (it == b) "Royals" else "Kings" })
         assertEquals("Match tied", CricketOutcome(CricketResultType.TIE, null, "Match tied").summary { it })
     }
+
+    // ── Rain-revised tie (server checkCricket cases) ──
+
+    private val revisedTie = CricketResult(listOf(inn(a, 160, 6, "20"), inn(b, 123, 5, "15")), CricketRevisedTarget(124, 15))
+
+    @Test fun revisedTargetTied() = expectValid(revisedTie, t20, "Match tied", null)
+
+    @Test fun revisedTargetTieDecidedBySuperOver() =
+        expectValid(revisedTie.copy(superOverWinnerRegistrationId = b), t20, "won the super over", b)
+
+    @Test fun revisedTargetSuperOverNeedsLevelScores() = expectInvalid(
+        CricketResult(listOf(inn(a, 160, 6, "20"), inn(b, 120, 5, "15")), CricketRevisedTarget(124, 15), b), t20,
+        "A super over is only played when the scores are level.",
+    )
+
+    @Test fun scoresLevel() {
+        assertTrue(revisedTie.scoresLevel)
+        assertTrue(CricketResult(listOf(inn(a, 150, 6, "20"), inn(b, 150, 10, "20"))).scoresLevel)
+        assertTrue(!CricketResult(listOf(inn(a, 150, 6, "20"), inn(b, 149, 10, "20"))).scoresLevel)
+        assertTrue(!CricketResult(emptyList(), noResult = true).scoresLevel)
+    }
+
+    // ── NRR formatting: exact halves round toward +infinity (JavaScript Math.round) ──
+
+    @Test fun nrrFormatHalves() {
+        assertEquals("−3.937", CricketRunRate.format(-3.9375))
+        assertEquals("+2.063", CricketRunRate.format(2.0625))
+        assertEquals("+0.000", CricketRunRate.format(-0.0004))
+    }
+
+    // ── Edge cases (same as iOS Tools/DrawTests) ──
+
+    @Test fun revisedOversAboveMatchOvers() = expectInvalid(
+        CricketResult(listOf(inn(a, 150, 4, "20"), CricketInnings(b, 100, 2, 130)), CricketRevisedTarget(160, 25)), t20,
+        "Revised overs must be between 1 and 20.",
+    )
+
+    @Test fun eightAndFourBallOvers() {
+        val eight = CricketRules(CricketEventType.CUSTOM, 8, 5, ballsPerOver = 8)
+        assertEquals(39, CricketOvers.parse("4.7", 8)); assertNull(CricketOvers.parse("4.8", 8))
+        assertEquals("4.7", CricketOvers.format(39, 8))
+        expectValid(CricketResult(listOf(CricketInnings(a, 60, 7, 40), CricketInnings(b, 61, 4, 35))), eight,
+            "won by 3 wickets (5 balls left)", b)
+        expectInvalid(CricketResult(listOf(CricketInnings(a, 60, 3, 41), CricketInnings(b, 50, 7, 40))), eight,
+            "An innings is at most 5 overs.")
+        val four = CricketRules(CricketEventType.CUSTOM, 6, 10, ballsPerOver = 4)
+        assertNull(CricketOvers.parse("9.4", 4))
+        expectValid(CricketResult(listOf(CricketInnings(a, 70, 5, 40), CricketInnings(b, 71, 1, 38))), four,
+            "won by 4 wickets (2 balls left)", b)
+        val rr = CricketRunRate().apply { add(CricketResult(listOf(CricketInnings(a, 70, 5, 40), CricketInnings(b, 50, 5, 20))), a, four) }
+        assertEquals("+2.000", CricketRunRate.format(rr.netRunRate(4)))
+    }
+
+    @Test fun lastManStandsAndLastBallFinishes() {
+        assertTrue(CricketScoring.validate(CricketResult(listOf(CricketInnings(a, 50, 6, 20), CricketInnings(b, 51, 2, 30))), box6, a, b).isEmpty())
+        expectInvalid(CricketResult(listOf(CricketInnings(a, 50, 7, 20), CricketInnings(b, 51, 2, 30))), box6, "Wickets must be between 0 and 6.")
+        expectValid(CricketResult(listOf(CricketInnings(a, 150, 6, 120), CricketInnings(b, 151, 8, 120))), t20, "won by 2 wickets", b)
+        expectValid(CricketResult(listOf(CricketInnings(a, 150, 6, 120), CricketInnings(b, 140, 10, 120))), t20, "won by 10 runs", a)
+        expectValid(CricketResult(listOf(CricketInnings(a, 150, 6, 120), CricketInnings(b, 150, 10, 120))), t20, "Match tied", null)
+    }
+
+    @Test fun nrrQuotas() {
+        val rr = CricketRunRate().apply { add(CricketResult(listOf(CricketInnings(a, 100, 10, 90), CricketInnings(b, 101, 3, 60))), a, t20) }
+        assertEquals("−5.100", CricketRunRate.format(rr.netRunRate()))
+        val rev = CricketRunRate().apply {
+            add(CricketResult(listOf(CricketInnings(a, 160, 6, 120), CricketInnings(b, 100, 10, 60)), CricketRevisedTarget(124, 15)), b, t20)
+        }
+        assertEquals("−1.333", CricketRunRate.format(rev.netRunRate()))
+    }
 }

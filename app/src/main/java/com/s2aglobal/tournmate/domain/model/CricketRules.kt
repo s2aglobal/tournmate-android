@@ -196,6 +196,17 @@ data class CricketResult(
     fun innings(forRegistrationId: String): CricketInnings? =
         innings.firstOrNull { it.battingRegistrationId == forRegistrationId }
 
+    /**
+     * Both innings entered and the scores level: the first innings' total, or
+     * one short of a revised target. Only then can a super over be played. Mirrors iOS.
+     */
+    val scoresLevel: Boolean
+        get() {
+            if (isNoResult || innings.size != 2) return false
+            val target = revisedTarget?.runs ?: (innings[0].runs + 1)
+            return innings[1].runs == target - 1
+        }
+
     /** `resultData` JSON with sorted keys, like iOS. */
     fun encoded(): String = buildJsonObject {
         put("innings", buildJsonArray {
@@ -339,7 +350,8 @@ object CricketScoring {
         }
 
         result.superOverWinnerRegistrationId?.let { so ->
-            val tied = result.revisedTarget == null && second.runs == first.runs
+            // Level scores: the first innings' total, or one short of a revised target.
+            val tied = second.runs == target - 1
             when {
                 !tied -> add("superOver", "A super over is only played when the scores are level.")
                 !r.superOver -> add("superOver", "This tournament doesn't use super overs.")
