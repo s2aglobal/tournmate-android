@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -59,19 +60,30 @@ fun SportBrandMark(
     }
 }
 
-/** Live sports shown together on the intro screens to say "multi-sport" (iOS `introShowcaseSports`). */
-val IntroShowcaseSports: List<SportType> = listOf(SportType.PICKLEBALL, SportType.BADMINTON, SportType.TENNIS)
+/** Shown on the intro screens before the sport catalog has any live sport. */
+private val IntroFallbackSports: List<SportType> = listOf(SportType.PICKLEBALL, SportType.BADMINTON, SportType.TENNIS)
 
-/** Pickleball, badminton and tennis artwork side by side (iOS `MultiSportArtworkRow`). */
+/**
+ * Sports shown on the intro screens (iOS `introShowcaseSports`): every sport users can pick right
+ * now (from `config/sports`, so cricket appears once it's live for this app version), or the
+ * original three when the catalog has none.
+ */
+@Composable
+fun introShowcaseSports(): List<SportType> =
+    LocalSportCatalog.current.liveSports.ifEmpty { IntroFallbackSports }
+
+/** Row of live-sport artwork for the intro screens (iOS `MultiSportArtworkRow`). */
 @Composable
 fun MultiSportArtworkRow(size: Dp = 44.dp, spacing: Dp = 12.dp, modifier: Modifier = Modifier) {
+    val sports = introShowcaseSports()
+    val label = remember(sports) { joinedNames(sports.map { it.displayName }) }
     Row(
         modifier = modifier.semantics(mergeDescendants = true) {
-            contentDescription = "Pickleball, badminton, tennis and more"
+            contentDescription = label
         },
         horizontalArrangement = Arrangement.spacedBy(spacing),
     ) {
-        IntroShowcaseSports.forEach { sport ->
+        sports.forEach { sport ->
             SportArtworkImage(
                 sport = sport,
                 size = size,
@@ -79,4 +91,12 @@ fun MultiSportArtworkRow(size: Dp = 44.dp, spacing: Dp = 12.dp, modifier: Modifi
             )
         }
     }
+}
+
+/** "Pickleball, Badminton and Tennis" (iOS `ListFormatter`). */
+private fun joinedNames(names: List<String>): String = when (names.size) {
+    0 -> ""
+    1 -> names[0]
+    2 -> "${names[0]} and ${names[1]}"
+    else -> names.dropLast(1).joinToString(", ") + ", and " + names.last()
 }

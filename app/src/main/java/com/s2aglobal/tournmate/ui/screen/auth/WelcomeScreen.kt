@@ -3,6 +3,18 @@ package com.s2aglobal.tournmate.ui.screen.auth
 import com.s2aglobal.tournmate.ui.component.LightSystemBarIcons
 import com.s2aglobal.tournmate.ui.component.MultiSportArtworkRow
 import com.s2aglobal.tournmate.ui.component.SportBrandMark
+import com.s2aglobal.tournmate.ui.component.introShowcaseSports
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.delay
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
@@ -74,6 +86,19 @@ fun WelcomeScreen(
     )
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentVisible = true }
+    // Sport on the bouncing tile: cycles through every live sport, starting from the saved one,
+    // so a signed-out user sees what TournMate covers (iOS `cycleShowcase`).
+    var showcaseSport by remember { mutableStateOf(CurrentSport.storedSport) }
+    val showcaseSports by rememberUpdatedState(introShowcaseSports())
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(2_200)
+            val sports = showcaseSports
+            if (sports.size <= 1) continue
+            val index = showcaseSport?.let { sports.indexOf(it) } ?: -1
+            showcaseSport = sports[if (index < 0) 0 else (index + 1) % sports.size]
+        }
+    }
     val content by animateFloatAsState(
         targetValue = if (contentVisible) 1f else 0f,
         animationSpec = tween(700, delayMillis = 200, easing = FastOutSlowInEasing),
@@ -103,16 +128,27 @@ fun WelcomeScreen(
             // Top section with bouncing brand mark
             Spacer(modifier = Modifier.height(80.dp))
 
-            // Saved sport on its theme colour; trophy before any sport is saved (iOS SportBrandMark).
-            SportBrandMark(
-                size = 56.dp,
-                cornerRadius = 16.dp,
-                iconSize = 24.dp,
-                shadowElevation = 12.dp,
+            // Live sports in turn on their theme colour; trophy before any sport is saved (iOS SportBrandMark).
+            AnimatedContent(
+                targetState = showcaseSport,
                 modifier = Modifier
                     .offset(y = (-8f * bounce).dp)
                     .rotate(-2f + 4f * bounce),
-            )
+                transitionSpec = {
+                    val spec = spring<Float>(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
+                    (scaleIn(spec, initialScale = 0.6f) + fadeIn(spec)) togetherWith
+                        (scaleOut(spec, targetScale = 0.6f) + fadeOut(spec))
+                },
+                label = "showcaseSport",
+            ) { sport ->
+                SportBrandMark(
+                    size = 56.dp,
+                    cornerRadius = 16.dp,
+                    iconSize = 24.dp,
+                    shadowElevation = 12.dp,
+                    sport = sport,
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 

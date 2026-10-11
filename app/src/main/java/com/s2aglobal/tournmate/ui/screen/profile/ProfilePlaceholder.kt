@@ -11,10 +11,13 @@ import com.s2aglobal.tournmate.data.repository.RatingRepository
 import com.s2aglobal.tournmate.domain.model.CalorieActivityType
 import com.s2aglobal.tournmate.domain.model.CalorieRecord
 import com.s2aglobal.tournmate.domain.model.CalorieSource
+import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.Player
+import com.s2aglobal.tournmate.domain.model.PlayerSportStats
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.AnalyticsService
 import com.s2aglobal.tournmate.service.auth.AuthService
+import com.s2aglobal.tournmate.service.auth.CurrentPlayerLookup
 import com.s2aglobal.tournmate.service.calorie.HealthConnectCalorieResult
 import com.s2aglobal.tournmate.service.calorie.HealthConnectService
 import com.s2aglobal.tournmate.service.calorie.METEstimator
@@ -24,11 +27,11 @@ import com.s2aglobal.tournmate.service.notification.NotificationService
 import com.s2aglobal.tournmate.service.region.RegionNormalizer
 import com.s2aglobal.tournmate.service.sport.PreferredSportUpdater
 import com.s2aglobal.tournmate.ui.screen.player.PlayerMatchHistory
-import com.s2aglobal.tournmate.ui.screen.player.didPlayerWin
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.UUID
@@ -42,6 +45,10 @@ data class ProfileUiState(
     val matchesPlayed: Int = 0,
     val wins: Int = 0,
     val winRate: Double = 0.0,
+    /** Consecutive wins (positive) or losses (negative) in [sport]; ties and no results skipped. */
+    val streak: Int = 0,
+    /** Sport the match stats are for (the app-wide preferred sport). */
+    val sport: SportType = SportType.BADMINTON,
     val sportsmanshipAvg: Double = 0.0,
     val sportsmanshipCount: Int = 0,
     val totalCalories: Double = 0.0,
@@ -63,11 +70,15 @@ class ProfileViewModel @Inject constructor(
     private val notificationService: NotificationService,
     private val analytics: AnalyticsService,
     private val sportUpdater: PreferredSportUpdater,
+    private val currentPlayerLookup: CurrentPlayerLookup,
     val healthConnectService: HealthConnectService,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    /** Finished matches in every sport (filtered per sport for the stats). */
+    private var allFinished: List<Match> = emptyList()
 
     fun logScreenView() = analytics.screenView(AnalyticsService.ScreenName.PROFILE_TAB)
 
@@ -87,15 +98,19 @@ class ProfileViewModel @Inject constructor(
     private suspend fun loadProfile() {
         val firebaseUser = authService.currentUser
         if (firebaseUser == null) {
-            _uiState.value = ProfileUiState(isLoading = false, isGuest = true)
+            allFinished = emptyList()
+            _uiState.value = ProfileUiState(isLoading = false, isGuest = true, sport = CurrentSport.sport)
             return
         }
+        // Full-screen spinner only for the first load; refreshes keep the content visible.
+        if (_uiState.value.player == null) _uiState.value = _uiState.value.copy(isLoading = true, isGuest = false)
 
-        val player = try {
-            val playerId = currentUserStore.currentPlayerId()
-            if (playerId != null) playerRepo.findPlayerById(playerId) else playerRepo.findPlayerByFirebaseUid(firebaseUser.uid)
-        } catch (_: Exception) {
-            null
+        // Just after sign-in the first read can fail; try a few times before showing "Profile Not Found".
+        var player = currentPlayerLookup.currentPlayer()
+        for (delayMs in longArrayOf(500, 1_500)) {
+            if (player != null || authService.currentUser == null) break
+            delay(delayMs)
+            player = currentPlayerLookup.currentPlayer()
         }
 
         if (player == null) {
@@ -104,32 +119,51 @@ class ProfileViewModel @Inject constructor(
         }
 
         val matches = try { matchHistory.finishedMatches(player.id) } catch (_: Exception) { emptyList() }
-        val wins = matches.count { it.didPlayerWin(player.id) }
         val ratings = try { ratingRepo.ratingsForPlayer(player.id.toString().uppercase()) } catch (_: Exception) { emptyList() }
         val records = try { calorieRepo.listRecords(player.id) } catch (_: Exception) { emptyList() }
         val total = records.sumOf { it.calories }
         val count = records.size
 
-        _uiState.value = _uiState.value.copy(
+        // A different account than the loaded stats (signed out and in) → start over.
+        val current = _uiState.value
+        val base = if (current.player?.id == player.id) current else ProfileUiState(isRefreshing = current.isRefreshing)
+        allFinished = matches
+        _uiState.value = base.copy(
             isLoading = false,
             isGuest = false,
             player = player,
-            matchesPlayed = matches.size,
-            wins = wins,
-            winRate = if (matches.isEmpty()) 0.0 else wins.toDouble() / matches.size,
             sportsmanshipCount = ratings.size,
             sportsmanshipAvg = if (ratings.isEmpty()) 0.0 else ratings.map { it.stars }.average(),
             totalCalories = total,
             sessionsTracked = count,
             avgCaloriesPerSession = if (count > 0) total / count else 0.0,
             calorieRecords = records,
+        ).withSportStats(CurrentSport.sport)
+    }
+
+    /** Shows the match stats for another sport (no reload needed). */
+    fun selectSport(sport: SportType) {
+        if (sport == _uiState.value.sport) return
+        _uiState.value = _uiState.value.withSportStats(sport)
+    }
+
+    private fun ProfileUiState.withSportStats(sport: SportType): ProfileUiState {
+        val p = player ?: return copy(sport = sport)
+        val stats = PlayerSportStats(allFinished, p, sport)
+        val played = stats.matches.size
+        return copy(
+            sport = sport,
+            matchesPlayed = played,
+            wins = stats.wins,
+            winRate = if (played == 0) 0.0 else stats.wins.toDouble() / played,
+            streak = stats.streak,
         )
     }
 
     fun updateSport(sport: SportType) {
         val player = _uiState.value.player ?: return
         if (!sportUpdater.setPreferredSport(sport, player)) return
-        _uiState.value = _uiState.value.copy(player = player.copy(preferredSport = sport))
+        _uiState.value = _uiState.value.copy(player = player.copy(preferredSport = sport)).withSportStats(sport)
     }
 
     /** Mirrors iOS `saveHomeRegion`: validate, normalize, then persist. */

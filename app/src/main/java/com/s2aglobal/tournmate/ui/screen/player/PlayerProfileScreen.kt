@@ -130,6 +130,7 @@ fun PlayerProfileScreen(
             averageRating = averageRating,
             ratingCount = ratings.size,
             recentMatches = uiState.recentMatches,
+            streak = uiState.streak,
             isMyProfile = isMyProfile,
             isGuest = uiState.isGuest,
             canRate = uiState.hasCurrentPlayer,
@@ -147,6 +148,7 @@ private fun PlayerProfileContent(
     averageRating: Double,
     ratingCount: Int,
     recentMatches: List<com.s2aglobal.tournmate.domain.model.Match>,
+    streak: Int,
     isMyProfile: Boolean,
     isGuest: Boolean,
     canRate: Boolean,
@@ -214,14 +216,14 @@ private fun PlayerProfileContent(
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Badge(tier.title, tier.badgeColor)
-                        if (player.streak != 0) {
-                            val winning = player.streak > 0
+                        if (streak != 0) {
+                            val winning = streak > 0
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Icon(
                                     if (winning) Icons.Filled.LocalFireDepartment else Icons.Filled.ArrowCircleDown, null,
                                     Modifier.size(14.dp), tint = if (winning) WarningOrange else LossRed,
                                 )
-                                Text("${abs(player.streak)} ${if (winning) "win" else "loss"} streak", fontSize = 11.sp, color = Color.Gray)
+                                Text("${abs(streak)} ${if (winning) "win" else "loss"} streak", fontSize = 11.sp, color = Color.Gray)
                             }
                         }
                     }

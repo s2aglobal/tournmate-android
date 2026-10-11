@@ -9,9 +9,11 @@ import com.s2aglobal.tournmate.data.repository.RatingRepository
 import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.PlayerRating
+import com.s2aglobal.tournmate.domain.model.PlayerSportStats
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.AnalyticsService
 import com.s2aglobal.tournmate.service.auth.AuthService
+import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,8 +37,16 @@ data class PlayerProfileUiState(
     val errorMessage: String? = null,
     val showRateSheet: Boolean = false,
     val ratingSubmitted: Boolean = false,
+    /** Sport the Elo, match stats and streak are for (the viewer's current sport). */
     val viewerSport: SportType = SportType.BADMINTON,
+    /** Consecutive wins (positive) or losses (negative) in [viewerSport]; ties and no results skipped. */
+    val streak: Int = 0,
 )
+
+/**
+ * Match stats, recent matches and the streak count only matches in [PlayerProfileUiState.viewerSport]
+ * (each sport has its own rating, so its own record). Same on iOS.
+ */
 
 @HiltViewModel
 class PlayerProfileViewModel @Inject constructor(
@@ -51,7 +61,10 @@ class PlayerProfileViewModel @Inject constructor(
 
     private val playerId: String = savedStateHandle["playerId"] ?: ""
 
-    private val _uiState = MutableStateFlow(PlayerProfileUiState())
+    private val _uiState = MutableStateFlow(PlayerProfileUiState(viewerSport = CurrentSport.sport))
+
+    /** Finished matches in every sport (filtered per sport for the stats). */
+    private var allFinished: List<Match> = emptyList()
     val uiState: StateFlow<PlayerProfileUiState> = _uiState.asStateFlow()
 
     init {
@@ -59,7 +72,7 @@ class PlayerProfileViewModel @Inject constructor(
         load()
         viewModelScope.launch {
             currentUserStore.preferredSportFlow.collect { sport ->
-                _uiState.value = _uiState.value.copy(viewerSport = sport)
+                if (sport != _uiState.value.viewerSport) _uiState.value = _uiState.value.withSportStats(sport)
             }
         }
     }
@@ -83,20 +96,18 @@ class PlayerProfileViewModel @Inject constructor(
                 val matches = player?.let {
                     try { matchHistory.finishedMatches(it.id) } catch (_: Exception) { emptyList() }
                 }.orEmpty()
-                val wins = player?.let { p -> matches.count { it.didPlayerWin(p.id) } } ?: 0
+                allFinished = matches
 
                 _uiState.value = _uiState.value.copy(
                     player = player,
                     ratings = ratings,
                     averageRating = avgRating,
-                    matchStats = MatchStats(played = matches.size, wins = wins),
-                    recentMatches = matches,
                     currentPlayerId = currentPid,
                     hasCurrentPlayer = hasCurrentPlayer,
                     isGuest = isGuest,
                     hasRated = hasRated,
                     isLoading = false,
-                )
+                ).withSportStats(_uiState.value.viewerSport)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -104,6 +115,17 @@ class PlayerProfileViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun PlayerProfileUiState.withSportStats(sport: SportType): PlayerProfileUiState {
+        val p = player ?: return copy(viewerSport = sport)
+        val stats = PlayerSportStats(allFinished, p, sport)
+        return copy(
+            viewerSport = sport,
+            matchStats = MatchStats(played = stats.matches.size, wins = stats.wins),
+            recentMatches = stats.matches,
+            streak = stats.streak,
+        )
     }
 
     fun showRateSheet() {
