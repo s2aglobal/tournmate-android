@@ -149,6 +149,7 @@ fun TournamentDetailScreen(
         onEditSetScore = { scoreSheet = ScoreSheet.EditSets(it) },
         onEditSimpleScore = { scoreSheet = ScoreSheet.EditSimple(it) },
         onReview = { matchForReview = it },
+        isTeamEvent = tournament.isTeamEvent,
     )
 
     fun handleRegisterTap() {

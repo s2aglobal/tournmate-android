@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.MilitaryTech
@@ -63,6 +64,8 @@ internal class MatchActions(
     val onEditSimpleScore: (Match) -> Unit,
     /** Opens the "Review Submitted Score" confirm / dispute dialog (iOS `matchForReview`). */
     val onReview: (Match) -> Unit,
+    /** Team event (cricket): finished cards show a result line ([MatchResultLine]). */
+    val isTeamEvent: Boolean = false,
 ) {
     fun isMine(match: Match): Boolean = uid != null && match.isParticipant(uid)
 
@@ -399,9 +402,7 @@ private fun BracketMatchCard(match: Match, actions: MatchActions) {
         }
         if (match.status == MatchStatus.FINISHED) {
             Text(iosScoreLine(match), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            match.summary?.takeIf { match.hasTeamResult }?.let {
-                Text(it, fontSize = 11.sp, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            }
+            MatchResultLine(match, actions.isTeamEvent, Modifier.fillMaxWidth(), centered = true)
             PlayerOfMatchLine(match, Modifier.fillMaxWidth(), centered = true)
             MatchPerformersLine(match, Modifier.fillMaxWidth(), centered = true)
         }
@@ -469,6 +470,7 @@ private fun RoundRobinMatchCard(match: Match, actions: MatchActions) {
             )
         }
         Text(iosScoreLine(match), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (match.status == MatchStatus.FINISHED) AppAccent else Color.Black)
+        MatchResultLine(match, actions.isTeamEvent)
         PlayerOfMatchLine(match)
         MatchPerformersLine(match)
 
@@ -481,14 +483,8 @@ private fun RoundRobinMatchCard(match: Match, actions: MatchActions) {
                 ActionLink("RESOLVE DISPUTE", WarningOrange, Icons.Outlined.WarningAmber) { actions.onResolveDispute(match) }
             }
             MatchStatus.FINISHED -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val teamSummary = match.summary?.takeIf { match.hasTeamResult }
-                if (teamSummary != null) {
-                    // Cricket: "Dallas Royals won by 6 wickets", "Match tied", "No result".
-                    Row(Modifier.weight(1f, fill = false), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.CheckCircle, null, Modifier.size(12.dp), tint = AppAccent)
-                        Text(teamSummary, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
-                    }
-                } else match.winnerRegistration?.let { winner ->
+                // A cricket summary is already on the result line above (MatchResultLine).
+                match.winnerRegistration?.let { winner ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Icon(Icons.Default.CheckCircle, null, Modifier.size(12.dp), tint = AppAccent)
                         Text("Winner: ${registrationShortName(winner)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppAccent)
@@ -500,6 +496,37 @@ private fun RoundRobinMatchCard(match: Match, actions: MatchActions) {
                 }
             }
         }
+    }
+}
+
+/**
+ * "QA Hornets won the super over" under a finished team-event (cricket) result (iOS `matchResultLine`):
+ * green check when there's a winner, orange "equal" for a tie / no result.
+ */
+@Composable
+private fun MatchResultLine(match: Match, isTeamEvent: Boolean, modifier: Modifier = Modifier, centered: Boolean = false) {
+    if (!isTeamEvent || match.status != MatchStatus.FINISHED) return
+    val summary = match.summary?.takeIf { it.isNotEmpty() } ?: return
+    val won = match.winnerRegistration != null
+    val color = if (won) DrawGreen else Orange
+    Row(
+        modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp, if (centered) Alignment.CenterHorizontally else Alignment.Start),
+    ) {
+        if (won) {
+            Icon(Icons.Default.CheckCircle, null, Modifier.size(14.dp), tint = color)
+        } else {
+            // SF Symbol "equal.circle.fill" stand-in: white "=" on a filled circle.
+            Box(Modifier.size(14.dp).background(color, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.DragHandle, null, Modifier.size(11.dp), tint = Color.White)
+            }
+        }
+        Text(
+            summary, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color, maxLines = 2,
+            overflow = TextOverflow.Ellipsis, textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+            modifier = Modifier.weight(1f, fill = false),
+        )
     }
 }
 
