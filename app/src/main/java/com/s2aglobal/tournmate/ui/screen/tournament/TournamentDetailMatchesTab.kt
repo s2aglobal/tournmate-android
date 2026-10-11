@@ -225,7 +225,11 @@ private fun DrawContent(state: TournamentDetailUiState, viewModel: TournamentDet
             onGenerateNextRound = { viewModel.generateNextSwissRound() },
         )
         MatchFormat.MANUAL_DRAW -> ManualDrawView(rounds, state.formedTeams, tap)
-        MatchFormat.ROUND_ROBIN -> RoundRobinDrawView(rounds, tournament.formatConfig.pointsPerWin, tournament.formatConfig.pointsPerLoss, tap)
+        MatchFormat.ROUND_ROBIN -> RoundRobinDrawView(
+            rounds, tournament.formatConfig.pointsPerWin, tournament.formatConfig.pointsPerLoss, tap,
+            pointsPerDraw = tournament.formatConfig.pointsPerDraw,
+            drawLabel = if (tournament.isTeamEvent) "Tie / NR" else "Draw",
+        )
     }
 }
 

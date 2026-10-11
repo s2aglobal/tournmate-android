@@ -199,7 +199,7 @@ private fun TeamRow(reg: Registration, seed: Int?, score: String?, isWinner: Boo
             Text("$it", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = Color.Gray, modifier = Modifier.width(16.dp))
         }
         if (isTbd) Box(Modifier.size(24.dp).background(DrawGray4, CircleShape))
-        else InitialAvatar(reg.player.name)
+        else InitialAvatar(reg.teamName?.takeIf { it.isNotEmpty() } ?: reg.player.name)
         Text(
             if (isTbd) "TBD" else drawTeamName(reg),
             fontSize = 12.sp,

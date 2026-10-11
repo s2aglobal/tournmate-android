@@ -43,8 +43,13 @@ internal fun avatarColor(name: String): Color {
     return avatarColors[kotlin.math.abs(hash) % avatarColors.size]
 }
 
-/** First-name team label used by every draw view ("John & Mike" / "John"). */
+/**
+ * Team label used by every draw view: the team name for team sports (cricket),
+ * otherwise first names ("John & Mike" / "John").
+ */
 internal fun drawTeamName(reg: Registration, firstNameOnly: Boolean = false): String {
+    // Team sports (cricket) show the team name, never a player.
+    reg.teamName?.takeIf { it.isNotEmpty() }?.let { return it }
     val partner = reg.partner
     if (partner != null) {
         val first = reg.player.name.split(" ").first().ifEmpty { reg.player.name }
