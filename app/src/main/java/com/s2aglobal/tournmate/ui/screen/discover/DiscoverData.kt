@@ -122,7 +122,6 @@ object DiscoverData {
         SportType.CRICKET -> listOf(
             DiscoverLink("ICC YouTube", "Highlights and best moments from ICC events.", Icons.Filled.PlayCircle, "YouTube", "https://www.youtube.com/@ICC"),
             DiscoverLink("Cricbuzz Videos", "Match highlights, interviews and analysis.", Icons.Filled.AutoAwesome, "Cricbuzz", "https://www.cricbuzz.com/cricket-videos"),
-            DiscoverLink("Major League Cricket", "MLC match highlights.", Icons.Filled.Videocam, "YouTube", "https://www.youtube.com/@MajorLeagueCricket"),
         )
         SportType.PICKLEBALL -> listOf(
             DiscoverLink("PPA YouTube", "Match highlights and interviews from PPA Tour.", Icons.Filled.PlayCircle, "YouTube", "https://www.youtube.com/@PPAtour"),
