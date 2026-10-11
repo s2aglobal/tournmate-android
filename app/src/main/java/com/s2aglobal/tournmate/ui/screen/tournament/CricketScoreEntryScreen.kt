@@ -12,6 +12,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.MilitaryTech
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
@@ -45,7 +47,8 @@ private data class InningsInput(val runs: String = "", val wickets: Int = 0, val
  * Scorecard entry for a cricket match: who batted first, then runs, wickets
  * and overs for each innings. The result ("won by 6 wickets") is derived live
  * with [CricketScoring], the same rules the server checks. Also covers no
- * result (abandoned), a rain-revised target and a super over. Mirrors iOS
+ * result (abandoned), a rain-revised target, a super over and an optional
+ * Player of the Match. Mirrors iOS
  * `CricketScoreEntryView`.
  *
  * [isCreator]: the organizer's result is final; a captain's waits for confirmation.
@@ -55,8 +58,9 @@ fun CricketScoreEntryScreen(
     match: Match,
     isCreator: Boolean,
     existing: CricketResult? = match.cricketResult,
+    existingPlayerOfMatch: PlayerOfMatch? = match.playerOfMatch,
     /** Saves the result: `null` once the server accepted it, else the message to show. */
-    onSubmit: suspend (CricketResult) -> String?,
+    onSubmit: suspend (CricketResult, PlayerOfMatch?) -> String?,
     onDismiss: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -87,6 +91,8 @@ fun CricketScoreEntryScreen(
     var revisedRuns by remember { mutableStateOf(existing?.revisedTarget?.runs?.toString() ?: "") }
     var revisedOvers by remember { mutableStateOf(existing?.revisedTarget?.overs?.toString() ?: "") }
     var superOverWinnerIsA by remember { mutableStateOf(existing?.superOverWinnerRegistrationId?.let { it == idA }) }
+    var playerOfMatch by remember { mutableStateOf(existingPlayerOfMatch) }
+    var showPlayerOfMatchPicker by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
     var submitError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -189,6 +195,10 @@ fun CricketScoreEntryScreen(
                             }
                         }
                     }
+
+                    PlayerOfMatchPickerRow(playerOfMatch, if (playerOfMatch?.teamRegistrationId == idA) nameA else nameB) {
+                        showPlayerOfMatchPicker = true
+                    }
                 }
 
                 // Feedback
@@ -219,11 +229,43 @@ fun CricketScoreEntryScreen(
                 submitError = null
                 isSubmitting = true
                 scope.launch {
-                    val error = onSubmit(r)
+                    val error = onSubmit(r, if (r.isNoResult) null else playerOfMatch)
                     isSubmitting = false
                     if (error != null) submitError = error else close()
                 }
             }
+        }
+        if (showPlayerOfMatchPicker) {
+            PlayerOfMatchSheet(
+                teams = listOf(match.teamA, match.teamB),
+                selection = playerOfMatch,
+                onSelect = { playerOfMatch = it },
+                onDismiss = { showPlayerOfMatchPicker = false },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerOfMatchPickerRow(pick: PlayerOfMatch?, teamName: String, onClick: () -> Unit) {
+    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Caption("PLAYER OF THE MATCH · OPTIONAL")
+        Row(
+            // White on the grouped background (iOS: systemGray6 on white).
+            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(14.dp)).background(Color.White)
+                .clickable(onClick = onClick).padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(Icons.Default.MilitaryTech, null, Modifier.size(20.dp), tint = if (pick == null) Color.Gray else Color(0xFFFF9500))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    pick?.name ?: "Choose a player", fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    color = if (pick == null) Color.Gray else Color.Black, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+                if (pick != null) Text(teamName, fontSize = 11.sp, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(Icons.Default.UnfoldMore, null, Modifier.size(18.dp), tint = Color.Gray)
         }
     }
 }

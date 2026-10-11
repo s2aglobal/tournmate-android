@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.ArrowCircleRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Stadium
@@ -27,7 +29,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -40,6 +45,7 @@ import com.s2aglobal.tournmate.ui.theme.WarningOrange
 import com.s2aglobal.tournmate.util.TournamentPdfExporter
 
 private val Indigo = Color(0xFF5856D6)
+private val Orange = Color(0xFFFF9500)
 private val Gray6 = Color(0xFFF2F2F7)
 /** iOS systemGray5 (#E5E5EA) at 55% — the Play-tab segment track. */
 private val SegmentTrack = Color(0xFFE5E5EA).copy(alpha = 0.55f)
@@ -392,6 +398,7 @@ private fun BracketMatchCard(match: Match, actions: MatchActions) {
             match.summary?.takeIf { match.hasTeamResult }?.let {
                 Text(it, fontSize = 11.sp, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
+            PlayerOfMatchLine(match, Modifier.fillMaxWidth(), centered = true)
         }
         BracketMatchActions(match, actions)
     }
@@ -457,6 +464,7 @@ private fun RoundRobinMatchCard(match: Match, actions: MatchActions) {
             )
         }
         Text(iosScoreLine(match), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (match.status == MatchStatus.FINISHED) AppAccent else Color.Black)
+        PlayerOfMatchLine(match)
 
         when (match.status) {
             MatchStatus.SCHEDULED -> if (actions.isCreator || mine) {
@@ -489,10 +497,82 @@ private fun RoundRobinMatchCard(match: Match, actions: MatchActions) {
     }
 }
 
+/** "Player of the match · Ravi Kumar (Dallas Royals)" under a cricket result (iOS `playerOfMatchLine`). */
+@Composable
+private fun PlayerOfMatchLine(match: Match, modifier: Modifier = Modifier, centered: Boolean = false) {
+    val pom = match.playerOfMatch ?: return
+    val team = listOf(match.teamA, match.teamB).firstOrNull { it.id.toString().equals(pom.teamRegistrationId, ignoreCase = true) }
+    Row(
+        modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp, if (centered) Alignment.CenterHorizontally else Alignment.Start),
+    ) {
+        Icon(Icons.Default.MilitaryTech, null, Modifier.size(13.dp), tint = Orange)
+        Text(
+            buildAnnotatedString {
+                append("Player of the match · ${pom.name}")
+                team?.let { withStyle(SpanStyle(color = Color.Gray)) { append(" (${it.displayName()})") } }
+            },
+            fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.Black,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 // ── Standings ────────────────────────────────────────
 
 @Composable
 private fun StandingsContent(state: TournamentDetailUiState, viewModel: TournamentDetailViewModel) {
+    Column {
+        StandingsTables(state, viewModel)
+        PlayerAwardsCard(state)
+    }
+}
+
+/** Player of the tournament: Player of the Match winners, most awards first (iOS `playerAwardsCard`). */
+@Composable
+private fun PlayerAwardsCard(state: TournamentDetailUiState) {
+    val tournament = state.tournament ?: return
+    val leaders = PlayerAwardTally.tally(state.matches).take(5)
+    if (!tournament.isTeamEvent || leaders.isEmpty()) return
+    Column(Modifier.padding(top = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("PLAYER OF THE TOURNAMENT", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, color = Color.Black)
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White)
+                .border(1.dp, Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
+        ) {
+            leaders.forEachIndexed { idx, leader ->
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
+                        Icon(
+                            if (idx == 0) Icons.Default.EmojiEvents else Icons.Default.MilitaryTech, null,
+                            Modifier.size(16.dp), tint = if (idx == 0) Orange else Color.Gray,
+                        )
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(leader.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text(
+                            state.registrations.firstOrNull { it.id.toString().equals(leader.teamRegistrationId, ignoreCase = true) }?.displayName().orEmpty(),
+                            fontSize = 11.sp, color = Color.Gray,
+                        )
+                    }
+                    Text(
+                        if (leader.awards == 1) "1 award" else "${leader.awards} awards",
+                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AppAccent,
+                    )
+                }
+                if (idx < leaders.size - 1) HorizontalDivider(Modifier.padding(start = 50.dp), color = Color.Gray.copy(alpha = 0.15f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StandingsTables(state: TournamentDetailUiState, viewModel: TournamentDetailViewModel) {
     val tournament = state.tournament ?: return
     when (tournament.matchFormat) {
         MatchFormat.SINGLE_ELIMINATION, MatchFormat.DOUBLE_ELIMINATION -> BracketStandingsTable(viewModel.computeBracketProgress(state), state.totalBracketRounds)

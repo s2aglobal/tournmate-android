@@ -65,7 +65,7 @@ internal fun TeamsTabContent(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 formed.forEachIndexed { index, reg ->
-                    if (reg.isTeamEntry) TeamEntryCard(reg, index, tournament.cricketRules.playersPerSide, onPlayerClick)
+                    if (reg.isTeamEntry) TeamEntryCard(reg, index, tournament.cricketRules.playersPerSide)
                     else TeamCard(reg, index, tournament.format, onPlayerClick)
                 }
             }
@@ -155,17 +155,14 @@ private fun TeamCard(reg: Registration, index: Int, format: TournamentFormat, on
 
 /** Team-sport entry: team name, captain, and how many players are named (iOS team card). */
 @Composable
-private fun TeamEntryCard(reg: Registration, index: Int, playersPerSide: Int, onPlayerClick: (String) -> Unit) {
+private fun TeamEntryCard(reg: Registration, index: Int, playersPerSide: Int) {
     Row(Modifier.teamCardStyle(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         SeedCircle(index + 1, AppAccent)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(reg.displayName(), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Captain", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.Gray)
-                Text(
-                    reg.player.name, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.Black,
-                    modifier = Modifier.clickable { onPlayerClick(reg.playerId) },
-                )
+                Text(reg.captainName, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.Black)
             }
             Text(
                 if (reg.hasFullSide) "${reg.rosterCount} players" else "${reg.rosterCount} of $playersPerSide players named",

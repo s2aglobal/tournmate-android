@@ -198,7 +198,7 @@ class FirestoreMatchRepository @Inject constructor(
      */
     override suspend fun submitCricketResult(
         match: Match, result: CricketResult, outcome: CricketOutcome,
-        summary: String, submittedBy: String, final: Boolean,
+        summary: String, playerOfMatch: PlayerOfMatch?, submittedBy: String, final: Boolean,
     ) {
         val runsA = result.innings(match.teamAId)?.runs
         val runsB = result.innings(match.teamBId)?.runs
@@ -213,6 +213,9 @@ class FirestoreMatchRepository @Inject constructor(
             "setScores" to FieldValue.delete(),
             "submittedBy" to submittedBy,
             "statusRaw" to status.rawValue,
+            "playerOfMatchKey" to (playerOfMatch?.key ?: FieldValue.delete()),
+            "playerOfMatchName" to (playerOfMatch?.name ?: FieldValue.delete()),
+            "playerOfMatchTeamId" to (playerOfMatch?.teamRegistrationId ?: FieldValue.delete()),
         )
         if (final) updateData["confirmedBy"] = submittedBy
         collection.document(match.id.toString().uppercase())

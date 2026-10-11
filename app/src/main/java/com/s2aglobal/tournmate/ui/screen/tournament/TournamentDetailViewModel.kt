@@ -895,7 +895,9 @@ class TournamentDetailViewModel @Inject constructor(
      * side to confirm, like set scores. Returns `null` on success, or the message
      * to show. Mirrors iOS `submitCricketResult`.
      */
-    suspend fun submitCricketResult(match: Match, result: CricketResult, submittedBy: String, final: Boolean): String? {
+    suspend fun submitCricketResult(
+        match: Match, result: CricketResult, playerOfMatch: PlayerOfMatch?, submittedBy: String, final: Boolean,
+    ): String? {
         val tournament = _uiState.value.tournament ?: match.tournament
         val rules = cricketRulesFor(tournament, match)
         val teamA = match.teamAId
@@ -905,7 +907,11 @@ class TournamentDetailViewModel @Inject constructor(
         val outcome = CricketScoring.outcome(result, rules)
         val summary = outcome.summary { id -> if (id == teamA) match.teamA.displayName() else match.teamB.displayName() }
         return scoreWrite("save the result") {
-            matchRepo.submitCricketResult(match, result, outcome, summary, submittedBy, final)
+            // No award for an abandoned match.
+            matchRepo.submitCricketResult(
+                match, result, outcome, summary,
+                if (result.isNoResult) null else playerOfMatch, submittedBy, final,
+            )
             reload()
             setStatus(if (final) summary else "Result submitted! Awaiting confirmation from the other team.")
         }

@@ -4,11 +4,13 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.s2aglobal.tournmate.data.mapper.stringList
 import com.s2aglobal.tournmate.data.mapper.toPlayer
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.Registration
 import com.s2aglobal.tournmate.domain.model.Team
+import com.s2aglobal.tournmate.domain.model.TeamRoles
 import com.s2aglobal.tournmate.domain.model.Tournament
 import kotlinx.coroutines.tasks.await
 import java.util.Date
@@ -63,6 +65,7 @@ class FirestoreRegistrationRepository @Inject constructor(
                 rosterIds = rosterIds,
                 guestNames = doc.stringList("guestNames"),
                 roster = rosterIds.mapNotNull { playerMap[it] },
+                roles = TeamRoles.fromFirestore(doc.data.orEmpty()),
             )
         }.sortedBy { it.createdAt }
     }
@@ -126,25 +129,47 @@ class FirestoreRegistrationRepository @Inject constructor(
 
     override suspend fun createTeamRegistration(
         team: Team,
-        captain: Player,
+        registrant: Player,
         rosterIds: List<String>,
         guestNames: List<String>,
+        roles: TeamRoles,
         tournament: Tournament,
     ) {
-        val regId = UUID.randomUUID()
+        val regId = UUID.randomUUID().toString().uppercase()
+        val tournamentId = tournament.id.toString().uppercase()
+        val playerId = registrant.id.toString().uppercase()
         val data = buildMap<String, Any> {
-            put("tournamentId", tournament.id.toString().uppercase())
-            put("playerId", captain.id.toString().uppercase())
+            put("tournamentId", tournamentId)
+            put("playerId", playerId)
             put("createdAt", Timestamp(Date()))
             put("teamId", team.id)
             put("teamName", team.name)
             if (rosterIds.isNotEmpty()) put("rosterIds", rosterIds)
             if (guestNames.isNotEmpty()) put("guestNames", guestNames)
+            putAll(roles.firestoreFields)
         }
-        collection.document(regId.toString().uppercase())
-            .set(data)
-            .await()
+        // One team entry per person per tournament: the lock document can only
+        // be created once (Firestore rules), so a second entry fails.
+        val batch = db.batch()
+        batch.set(collection.document(regId), data)
+        batch.set(
+            teamEntryLock(tournamentId, playerId),
+            mapOf("tournamentId" to tournamentId, "playerId" to playerId, "registrationId" to regId),
+        )
+        try {
+            batch.commit().await()
+        } catch (e: FirebaseFirestoreException) {
+            if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) throw RegistrationAlreadyEnteredException()
+            throw e
+        }
     }
+
+    /**
+     * `teamEntries/{tournamentId}_{playerId}` (lower case, so iOS and Android
+     * ids written in either case share one lock). Mirrors iOS `teamEntryLock`.
+     */
+    private fun teamEntryLock(tournamentId: String, playerId: String) =
+        db.collection("teamEntries").document("${tournamentId.lowercase()}_${playerId.lowercase()}")
 
     override suspend fun updateRoster(registration: Registration, rosterIds: List<String>, guestNames: List<String>) {
         collection.document(registration.id.toString().uppercase())
@@ -153,9 +178,16 @@ class FirestoreRegistrationRepository @Inject constructor(
     }
 
     override suspend fun deleteRegistration(registration: Registration) {
-        collection.document(registration.id.toString().uppercase())
-            .delete()
-            .await()
+        val doc = collection.document(registration.id.toString().uppercase())
+        if (!registration.isTeamEntry) {
+            doc.delete().await()
+            return
+        }
+        // Free the one-entry lock with the entry, so the person can enter again.
+        val batch = db.batch()
+        batch.delete(doc)
+        batch.delete(teamEntryLock(registration.tournamentId, registration.playerId))
+        batch.commit().await()
     }
 
     override suspend fun tournamentIds(forPlayerID: UUID): Set<UUID> {

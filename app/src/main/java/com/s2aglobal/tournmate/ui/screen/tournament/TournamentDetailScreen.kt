@@ -240,13 +240,13 @@ fun TournamentDetailScreen(
     }
 
     if (showTeamRegisterSheet) {
-        val captain = state.currentPlayer
-        if (captain == null) {
+        val me = state.currentPlayer
+        if (me == null) {
             showTeamRegisterSheet = false
         } else {
             TeamRegistrationSheet(
                 tournament = tournament,
-                captain = captain,
+                registrant = me,
                 enteredPlayers = Registration.enteredPlayers(state.registrations),
                 onRegistered = { showTeamRegisterSheet = false; viewModel.onTeamRegistered() },
                 onCancel = { showTeamRegisterSheet = false },
@@ -267,7 +267,8 @@ fun TournamentDetailScreen(
             CricketScoreEntryScreen(
                 match = match,
                 isCreator = final,
-                onSubmit = { result -> viewModel.submitCricketResult(match, result, uid, final) },
+                existingPlayerOfMatch = match.playerOfMatch,
+                onSubmit = { result, playerOfMatch -> viewModel.submitCricketResult(match, result, playerOfMatch, uid, final) },
                 onDismiss = close,
             )
             return@let

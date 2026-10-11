@@ -1,5 +1,10 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,10 +51,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.s2aglobal.tournmate.data.repository.PlayerRepository
+import com.s2aglobal.tournmate.data.repository.RegistrationAlreadyEnteredException
 import com.s2aglobal.tournmate.data.repository.RegistrationRepository
 import com.s2aglobal.tournmate.data.repository.TeamRepository
 import com.s2aglobal.tournmate.domain.model.Player
+import com.s2aglobal.tournmate.domain.model.PlayingRole
+import com.s2aglobal.tournmate.domain.model.RosterMember
 import com.s2aglobal.tournmate.domain.model.Team
+import com.s2aglobal.tournmate.domain.model.TeamRoles
 import com.s2aglobal.tournmate.domain.model.Tournament
 import com.s2aglobal.tournmate.ui.component.sheetScrollLikeIos
 import com.s2aglobal.tournmate.ui.theme.theme
@@ -73,15 +83,19 @@ data class TeamRegistrationUiState(
     val lookupMessage: String? = null,
     val showNewTeam: Boolean = false,
     val registered: Boolean = false,
+    /** Captain, vice-captain, wicketkeeper and playing roles as chosen (see [TeamRegistrationViewModel.currentRoles]). */
+    val roles: TeamRoles = TeamRoles(),
 ) {
     val selectedTeam: Team? get() = teams.firstOrNull { it.id == selectedTeamId }
     val rosterCount: Int get() = rosterIds.size + guestNames.size
 }
 
 /**
- * Team registration for a team-sport tournament (cricket). The captain picks
- * one of their teams (or creates one), adds players by email or phone,
- * chooses who plays in this event, and can name guests. Layout: team summary
+ * Team registration for a team-sport tournament (cricket). Anyone on a team
+ * can register it (they needn't be captain, or play): pick one of your teams
+ * (or create one), add players by email or phone, choose who plays in this
+ * event, name guests without an account, and set roles (captain,
+ * vice-captain, wicketkeeper, batter/bowler…) from each player's sheet. Layout: team summary
  * (count + pips for the side and substitutes), team chips, the event roster,
  * then players to add. Mirrors iOS `TeamRegistrationSheet`.
  */
@@ -96,7 +110,8 @@ class TeamRegistrationViewModel @Inject constructor(
     val state: StateFlow<TeamRegistrationUiState> = _state.asStateFlow()
 
     private var tournament: Tournament = Tournament()
-    private var captain: Player = Player()
+    /** Whoever is registering; the captain is chosen separately (`roles`). */
+    private var registrant: Player = Player()
     /** Players already entered in this tournament (upper-cased id → team name). */
     private var enteredPlayers: Map<String, String> = emptyMap()
 
@@ -106,14 +121,14 @@ class TeamRegistrationViewModel @Inject constructor(
     /** Roster limit: a full side plus four substitutes. */
     val rosterLimit: Int get() = tournament.cricketRules.playersPerSide + 4
 
-    fun start(tournament: Tournament, captain: Player, enteredPlayers: Map<String, String> = emptyMap()) {
+    fun start(tournament: Tournament, registrant: Player, enteredPlayers: Map<String, String> = emptyMap()) {
         this.tournament = tournament
-        this.captain = captain
+        this.registrant = registrant
         this.enteredPlayers = enteredPlayers
         _state.value = TeamRegistrationUiState()
         viewModelScope.launch {
             try {
-                val teams = teamRepo.myTeams(captain.id.toString().uppercase(), tournament.sportType)
+                val teams = teamRepo.myTeams(registrant.id.toString().uppercase(), tournament.sportType)
                 _state.update { it.copy(teams = teams, isLoading = false) }
                 teams.firstOrNull()?.let(::select)
             } catch (e: CancellationException) {
@@ -134,11 +149,53 @@ class TeamRegistrationViewModel @Inject constructor(
                     .map { p -> p.id.toString().uppercase() }.toSet(),
                 guestNames = emptyList(),
                 lookupMessage = null,
+                roles = TeamRoles(),
             )
         }
     }
 
-    fun showNewTeam() = _state.update { it.copy(showNewTeam = true) }
+    fun toggleNewTeam() = _state.update { it.copy(showNewTeam = !it.showNewTeam) }
+
+    /** Team players named for this event, in team order. */
+    fun namedPlayers(team: Team, state: TeamRegistrationUiState = _state.value): List<Player> =
+        team.players.filter { it.id.toString().uppercase() in state.rosterIds && takenBy(it) == null }
+
+    /** Everyone playing in this event: team players, then guests. */
+    fun members(team: Team, state: TeamRegistrationUiState = _state.value): List<RosterMember> =
+        namedPlayers(team, state).map(RosterMember::of) + state.guestNames.map(RosterMember::guest)
+
+    /**
+     * Roles for the side as it stands (always a captain while anyone plays;
+     * whoever registers is captain until someone else is chosen).
+     */
+    fun currentRoles(team: Team, state: TeamRegistrationUiState = _state.value): TeamRoles =
+        state.roles.normalized(members(team, state).map { it.key }, preferredCaptain = registrant.id.toString())
+
+    fun setRoles(roles: TeamRoles) = _state.update { it.copy(roles = roles) }
+
+    /** Takes a player or guest out of this event. */
+    fun remove(member: RosterMember) {
+        val player = member.player
+        if (player != null) removeFromRoster(player) else removeGuest(member.name)
+    }
+
+    /** "You", "TournMate player" or "Guest · no rating". */
+    fun baseSubtitle(member: RosterMember): String = when {
+        member.isGuest -> "Guest · no rating"
+        member.player?.id == registrant.id -> "You"
+        else -> "TournMate player"
+    }
+
+    /** "You · All-rounder", "Guest · Bowler", "Batter"; without a role the full [baseSubtitle]. */
+    fun rowSubtitle(member: RosterMember, role: PlayingRole?): String {
+        if (role == null) return baseSubtitle(member)
+        val who = when {
+            member.isGuest -> "Guest"
+            member.player?.id == registrant.id -> "You"
+            else -> null
+        }
+        return listOfNotNull(who, role.title).joinToString(" · ")
+    }
 
     /** Puts a team player in this event (unless taken by another team or the roster is full). */
     fun addToRoster(player: Player) {
@@ -157,7 +214,7 @@ class TeamRegistrationViewModel @Inject constructor(
     fun removeGuest(name: String) = _state.update { it.copy(guestNames = it.guestNames - name) }
 
     fun createTeam(rawName: String, onCreated: () -> Unit) {
-        val uid = captain.firebaseUid ?: run {
+        val uid = registrant.firebaseUid ?: run {
             _state.update { it.copy(errorMessage = "Sign in again to create a team.") }
             return
         }
@@ -165,7 +222,7 @@ class TeamRegistrationViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             try {
-                val team = teamRepo.createTeam(name, tournament.sportType, captain, uid)
+                val team = teamRepo.createTeam(name, tournament.sportType, registrant, uid)
                 _state.update { it.copy(teams = it.teams + team, showNewTeam = false, isSaving = false) }
                 select(team)
                 onCreated()
@@ -252,10 +309,12 @@ class TeamRegistrationViewModel @Inject constructor(
             try {
                 // Keep the roster in team order for a stable team sheet.
                 val ordered = team.players.filter { takenBy(it) == null }.map { it.id.toString().uppercase() }.filter { it in s.rosterIds }
-                registrationRepo.createTeamRegistration(team, captain, ordered, s.guestNames, tournament)
+                registrationRepo.createTeamRegistration(team, registrant, ordered, s.guestNames, currentRoles(team, s), tournament)
                 _state.update { it.copy(isSaving = false, registered = true) }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: RegistrationAlreadyEnteredException) {
+                _state.update { it.copy(isSaving = false, errorMessage = e.message) }
             } catch (e: Exception) {
                 _state.update { it.copy(isSaving = false, errorMessage = "Registration failed. ${e.message.orEmpty()}") }
             }
@@ -278,7 +337,8 @@ private val FullGreen = Color(0xFF34C759)
 @Composable
 internal fun TeamRegistrationSheet(
     tournament: Tournament,
-    captain: Player,
+    /** Whoever is registering; the captain is chosen separately (roles). */
+    registrant: Player,
     onRegistered: () -> Unit,
     onCancel: () -> Unit,
     /** Players already entered in this tournament (`Registration.enteredPlayers`). */
@@ -292,7 +352,9 @@ internal fun TeamRegistrationSheet(
     var newTeamName by remember { mutableStateOf("") }
     var lookup by remember { mutableStateOf("") }
 
-    LaunchedEffect(tournament.id, captain.id) { viewModel.start(tournament, captain, enteredPlayers) }
+    var roleTarget by remember { mutableStateOf<RosterMember?>(null) }
+
+    LaunchedEffect(tournament.id, registrant.id) { viewModel.start(tournament, registrant, enteredPlayers) }
     LaunchedEffect(state.registered) { if (state.registered) onRegistered() }
 
     val shortBy = maxOf(0, rules.playersPerSide - state.rosterCount)
@@ -323,24 +385,27 @@ internal fun TeamRegistrationSheet(
                 } else {
                     val selectedTeam = state.selectedTeam
                     if (selectedTeam != null) {
-                        SummaryCard(selectedTeam, captain, state.rosterCount, rules.playersPerSide, substituteSlots, shortBy, accent)
+                        SummaryCard(selectedTeam, captainLine(viewModel, selectedTeam, state), state.rosterCount, rules.playersPerSide, substituteSlots, shortBy, accent)
                     } else {
                         IntroCard(rules.eventType.displayName, rules.playersPerSide, substituteSlots, accent)
                     }
                     TeamChips(
                         teams = state.teams,
                         selectedTeamId = state.selectedTeamId,
-                        showNewTeamField = state.showNewTeam || state.teams.isEmpty(),
+                        showNewTeam = state.showNewTeam,
                         newTeamName = newTeamName,
                         onNewTeamNameChange = { newTeamName = it.take(Team.NAME_LIMIT) },
                         createEnabled = newTeamName.trim().length >= 2 && !state.isSaving,
                         onSelect = viewModel::select,
-                        onShowNewTeam = viewModel::showNewTeam,
+                        onToggleNewTeam = viewModel::toggleNewTeam,
                         onCreate = { viewModel.createTeam(newTeamName) { newTeamName = "" } },
                         accent = accent,
                     )
                     if (selectedTeam != null) {
-                        RosterSection(selectedTeam, state, viewModel, captain, accent)
+                        RosterSection(selectedTeam, state, viewModel, accent) { member ->
+                            viewModel.setRoles(viewModel.currentRoles(selectedTeam)) // start from the side as shown
+                            roleTarget = member
+                        }
                         val addEnabled = lookup.trim().length >= 2 && !state.isSaving && state.rosterCount < rosterLimit
                         AddSection(
                             team = selectedTeam,
@@ -362,6 +427,24 @@ internal fun TeamRegistrationSheet(
             RegisterBar(state, shortBy, accent, viewModel::register)
         }
     }
+
+    roleTarget?.let { member ->
+        RosterRoleSheet(
+            member = member,
+            subtitle = viewModel.baseSubtitle(member),
+            roles = state.roles,
+            onRolesChange = viewModel::setRoles,
+            onRemove = { viewModel.remove(member) },
+            onDismiss = { roleTarget = null },
+        )
+    }
+}
+
+/** "Captain · Ravi Kumar" for the side as it stands. */
+private fun captainLine(viewModel: TeamRegistrationViewModel, team: Team, state: TeamRegistrationUiState): String {
+    val key = viewModel.currentRoles(team, state).captain
+    val captain = key?.let { k -> viewModel.members(team, state).firstOrNull { it.key == k } } ?: return "No captain yet"
+    return "Captain · ${captain.name}"
 }
 
 // MARK: - Summary
@@ -369,7 +452,7 @@ internal fun TeamRegistrationSheet(
 @Composable
 private fun SummaryCard(
     team: Team,
-    captain: Player,
+    captainLine: String,
     rosterCount: Int,
     playersPerSide: Int,
     substituteSlots: Int,
@@ -390,8 +473,7 @@ private fun SummaryCard(
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(team.name, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val captainName = team.players.firstOrNull { team.isCaptain(it) }?.name ?: captain.name
-                Text("Captain · $captainName", fontSize = 14.sp, color = Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(captainLine, fontSize = 14.sp, color = Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))
             Row(
@@ -470,12 +552,12 @@ private fun IntroCard(eventName: String, playersPerSide: Int, substituteSlots: I
 private fun TeamChips(
     teams: List<Team>,
     selectedTeamId: String?,
-    showNewTeamField: Boolean,
+    showNewTeam: Boolean,
     newTeamName: String,
     onNewTeamNameChange: (String) -> Unit,
     createEnabled: Boolean,
     onSelect: (Team) -> Unit,
-    onShowNewTeam: () -> Unit,
+    onToggleNewTeam: () -> Unit,
     onCreate: () -> Unit,
     accent: Color,
 ) {
@@ -503,22 +585,31 @@ private fun TeamChips(
             Row(
                 Modifier.height(46.dp).clip(CircleShape)
                     .dashedOutline(Gray3, 1.5.dp, dash = 5.dp, gap = 4.dp)
-                    .clickable(onClick = onShowNewTeam)
+                    .clickable(onClick = onToggleNewTeam)
                     .padding(horizontal = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Icon(Icons.Default.Add, null, Modifier.size(18.dp), tint = Secondary)
+                Icon(if (showNewTeam && teams.isNotEmpty()) Icons.Default.Close else Icons.Default.Add, null, Modifier.size(18.dp), tint = Secondary)
                 Text("New team", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Secondary)
             }
         }
-        if (showNewTeamField) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SheetField(
-                    newTeamName, onNewTeamNameChange, "Team name, e.g. Austin Strikers", Modifier.weight(1f),
-                    capitalize = true, onSubmit = { if (createEnabled) onCreate() },
-                )
-                FieldButton("Create", createEnabled, accent, onCreate)
+        AnimatedVisibility(
+            visible = showNewTeam || teams.isEmpty(),
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SheetField(
+                        newTeamName, onNewTeamNameChange, "Team name, e.g. Austin Strikers", Modifier.weight(1f),
+                        capitalize = true, onSubmit = { if (createEnabled) onCreate() },
+                    )
+                    FieldButton("Create", createEnabled, accent, onCreate)
+                }
+                if (teams.isNotEmpty()) {
+                    Text("A new team is saved to your teams. Only the selected team is entered.", fontSize = 12.sp, color = Secondary)
+                }
             }
         }
     }
@@ -531,19 +622,17 @@ private fun RosterSection(
     team: Team,
     state: TeamRegistrationUiState,
     viewModel: TeamRegistrationViewModel,
-    captain: Player,
     accent: Color,
+    onOpenRoles: (RosterMember) -> Unit,
 ) {
-    // Team players named for this event, captain first, in team order.
-    val named = team.players
-        .filter { it.id.toString().uppercase() in state.rosterIds && viewModel.takenBy(it) == null }
-        .sortedByDescending { team.isCaptain(it) }
+    val all = viewModel.members(team, state)
+    val current = viewModel.currentRoles(team, state)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionLabel("PLAYING IN THIS EVENT", Modifier.weight(1f))
             Text("${state.rosterCount} added", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Secondary)
         }
-        if (state.rosterCount == 0) {
+        if (all.isEmpty()) {
             Text(
                 "No one yet. Add players from your team, by email or phone, or as guests below.",
                 fontSize = 14.sp, color = Secondary,
@@ -551,24 +640,19 @@ private fun RosterSection(
             )
         } else {
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBackground)) {
-                named.forEachIndexed { idx, player ->
+                all.forEachIndexed { idx, member ->
                     RosterRow(
-                        index = idx + 1, name = player.name,
-                        subtitle = if (player.id == captain.id) "You" else "TournMate player",
-                        isGuest = false, isCaptain = team.isCaptain(player), accent = accent,
-                        onRemove = { viewModel.removeFromRoster(player) },
+                        index = idx + 1,
+                        member = member,
+                        subtitle = viewModel.rowSubtitle(member, current.playingRole(member.key)),
+                        badges = current.badges(member.key),
+                        accent = accent,
+                        onClick = { onOpenRoles(member) },
                     )
-                    if (idx < named.size - 1 || state.guestNames.isNotEmpty()) RowDivider(64.dp)
-                }
-                state.guestNames.forEachIndexed { idx, name ->
-                    RosterRow(
-                        index = named.size + idx + 1, name = name, subtitle = "Guest · no rating",
-                        isGuest = true, isCaptain = false, accent = accent,
-                        onRemove = { viewModel.removeGuest(name) },
-                    )
-                    if (idx < state.guestNames.size - 1) RowDivider(64.dp)
+                    if (idx < all.size - 1) RowDivider(64.dp)
                 }
             }
+            Text("Tap a player to set captain, vice-captain, wicketkeeper and role.", fontSize = 12.sp, color = Secondary)
         }
     }
 }
@@ -576,15 +660,20 @@ private fun RosterSection(
 @Composable
 private fun RosterRow(
     index: Int,
-    name: String,
+    member: RosterMember,
     subtitle: String,
-    isGuest: Boolean,
-    isCaptain: Boolean,
+    badges: List<String>,
     accent: Color,
-    onRemove: () -> Unit,
+    onClick: () -> Unit,
 ) {
+    val badgeNames = badges.map { when (it) { "C" -> "captain"; "VC" -> "vice-captain"; else -> "wicketkeeper" } }
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth()
+            .clickable(onClickLabel = "Opens roles for this player", onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${member.name}, ${(listOf(subtitle) + badgeNames).joinToString(", ")}"
+            }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -592,19 +681,28 @@ private fun RosterRow(
             "$index", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Secondary,
             textAlign = TextAlign.Center, modifier = Modifier.width(20.dp),
         )
-        Avatar(name, isGuest, accent)
+        Avatar(member.name, member.isGuest, accent)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    member.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                badges.forEach { badge ->
+                    Text(
+                        badge, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.6.sp, color = accent, maxLines = 1,
+                        modifier = Modifier.clip(CircleShape).background(accent.copy(alpha = 0.1f))
+                            .padding(horizontal = 6.dp, vertical = 3.dp),
+                    )
+                }
+            }
             Text(subtitle, fontSize = 14.sp, color = Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (isCaptain) {
-            Text(
-                "CAPTAIN", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = accent,
-                modifier = Modifier.clip(CircleShape).background(accent.copy(alpha = 0.1f))
-                    .padding(horizontal = 12.dp, vertical = 7.dp),
-            )
-        } else {
-            CircleIconButton(Icons.Default.Close, "Remove $name", Secondary, TertiaryFill, enabled = true, onClick = onRemove)
+        Box(
+            Modifier.size(36.dp).clip(CircleShape).background(TertiaryFill),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.UnfoldMore, null, Modifier.size(18.dp), tint = Secondary)
         }
     }
 }

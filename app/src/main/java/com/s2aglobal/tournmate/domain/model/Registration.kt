@@ -23,6 +23,8 @@ data class Registration(
     val guestNames: List<String> = emptyList(),
     /** Resolved [rosterIds] (players that could be loaded). Not stored. */
     val roster: List<Player> = emptyList(),
+    /** Captain, vice-captain, wicketkeeper and playing roles for this event. */
+    val roles: TeamRoles = TeamRoles(),
 ) {
     /** `true` for a team-sport entry (a named team with a roster). */
     val isTeamEntry: Boolean
@@ -35,6 +37,29 @@ data class Registration(
      */
     val isTeamFormed: Boolean
         get() = if (isTeamEntry || tournament.isTeamEvent) rosterCount >= 2 else partnerId != null
+
+    /** Everyone playing for this team entry: roster players (in roster order) then guests. */
+    val rosterMembers: List<RosterMember>
+        get() {
+            val byId = mutableMapOf<String, Player>()
+            for (p in roster) byId.putIfAbsent(TeamRoles.key(p.id.toString()), p)
+            val seen = mutableSetOf<String>()
+            val players = rosterIds.mapNotNull { byId[TeamRoles.key(it)] }
+                .filter { seen.add(TeamRoles.key(it.id.toString())) }
+                .map(RosterMember::of)
+            return players + guestNames.map(RosterMember::guest)
+        }
+
+    /**
+     * The event captain's name: the chosen captain, or whoever registered the
+     * team for entries made before captains could be chosen.
+     */
+    val captainName: String
+        get() {
+            val members = rosterMembers
+            val current = roles.normalized(members.map { it.key }, preferredCaptain = playerId)
+            return current.captain?.let { key -> members.firstOrNull { it.key == key }?.name } ?: player.name
+        }
 
     /** Players named plus guests (team sports). */
     val rosterCount: Int

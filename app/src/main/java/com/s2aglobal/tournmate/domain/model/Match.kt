@@ -36,6 +36,10 @@ data class Match(
     val resultData: String? = null,
     /** "Dallas Royals won by 6 wickets (10 balls left)". */
     val summary: String? = null,
+    /** Player of the Match (cricket, optional): [TeamRoles] key, name, and the registration id of their team. */
+    val playerOfMatchKey: String? = null,
+    val playerOfMatchName: String? = null,
+    val playerOfMatchTeamId: String? = null,
     val tournament: Tournament = Tournament(),
     val teamA: Registration = Registration(),
     val teamB: Registration = Registration(),
@@ -52,6 +56,18 @@ data class Match(
     /** Decoded scorecard, if this match has one. */
     val cricketResult: CricketResult?
         get() = CricketResult.decode(resultData)
+
+    val playerOfMatch: PlayerOfMatch?
+        get() {
+            val key = playerOfMatchKey ?: return null
+            val name = playerOfMatchName ?: return null
+            val team = playerOfMatchTeamId ?: return null
+            return PlayerOfMatch(key, name, team)
+        }
+
+    /** This match with [pom] as Player of the Match (`null` clears it). */
+    fun withPlayerOfMatch(pom: PlayerOfMatch?): Match =
+        copy(playerOfMatchKey = pom?.key, playerOfMatchName = pom?.name, playerOfMatchTeamId = pom?.teamRegistrationId)
 
     /** `true` when the result is a team-sport scorecard (rated on the server only). */
     val hasTeamResult: Boolean

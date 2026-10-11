@@ -186,6 +186,7 @@ fun DocumentSnapshot.toRegistration(): Registration? {
         teamName = getString("teamName"),
         rosterIds = stringList("rosterIds"),
         guestNames = stringList("guestNames"),
+        roles = TeamRoles.fromFirestore(data.orEmpty()),
     )
 }
 
@@ -233,6 +234,9 @@ fun DocumentSnapshot.toMatch(): Match? {
         resultType = getString("resultType"),
         resultData = getString("resultData"),
         summary = getString("summary"),
+        playerOfMatchKey = getString("playerOfMatchKey"),
+        playerOfMatchName = getString("playerOfMatchName"),
+        playerOfMatchTeamId = getString("playerOfMatchTeamId"),
     )
 }
 
