@@ -94,12 +94,19 @@ enum class MatchFormat(val rawValue: String) {
 
     companion object {
         /**
-         * Formats an organizer can pick (create and edit). Double elimination
-         * isn't built yet (it plays as single elimination), so it's only listed
-         * for a tournament that already uses it. Mirrors iOS `MatchFormat.offered`.
+         * Formats an organizer can pick (create and edit), the same on iOS
+         * (`MatchFormat.offered(for:current:)`). Double elimination isn't built
+         * yet (it plays as single elimination). Cricket (a team sport) has no
+         * Swiss: it pairs on wins only, which ignores ties, no results and net
+         * run rate. A tournament's current format is always listed.
          */
-        fun offered(current: MatchFormat? = null): List<MatchFormat> =
-            entries.filter { it != DOUBLE_ELIMINATION || it == current }
+        fun offered(sport: SportType, current: MatchFormat? = null): List<MatchFormat> {
+            val formats = if (sport == SportType.CRICKET)
+                setOf(SINGLE_ELIMINATION, ROUND_ROBIN, GROUP_KNOCKOUT, MANUAL_DRAW)
+            else
+                setOf(SINGLE_ELIMINATION, ROUND_ROBIN, GROUP_KNOCKOUT, SWISS, MANUAL_DRAW)
+            return entries.filter { it in formats || it == current }
+        }
 
         fun fromRawValue(raw: String?): MatchFormat =
             entries.firstOrNull { it.rawValue == raw } ?: SINGLE_ELIMINATION

@@ -133,6 +133,7 @@ fun TournamentDetailScreen(
             },
             onCancel = { showEditSheet = false },
             canEditMatchRules = state.matches.isEmpty(),
+            canEditMatchFormat = state.registrations.isEmpty(),
         )
     }
 

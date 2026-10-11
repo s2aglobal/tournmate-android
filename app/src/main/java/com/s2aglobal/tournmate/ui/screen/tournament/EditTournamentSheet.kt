@@ -56,6 +56,11 @@ fun EditTournamentSheet(
     onCancel: () -> Unit,
     /** Match rules (cricket) and scoring are locked once matches exist so results stay consistent. */
     canEditMatchRules: Boolean = true,
+    /**
+     * The format can change only until someone enters, so entrants never find a
+     * different format from the one they signed up for. Mirrors iOS `canEditMatchFormat`.
+     */
+    canEditMatchFormat: Boolean = true,
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -189,7 +194,7 @@ fun EditTournamentSheet(
                         }
                         Column {
                             SectionLabel("MATCH FORMAT")
-                            PickerButton(editMatchFormat.displayName) { showMatchFormatPicker = true }
+                            MatchFormatField(editMatchFormat, canEditMatchFormat) { showMatchFormatPicker = true }
                         }
                     }
                 } else {
@@ -200,7 +205,7 @@ fun EditTournamentSheet(
                         }
                         Column(Modifier.weight(1f)) {
                             SectionLabel("MATCH FORMAT")
-                            PickerButton(editMatchFormat.displayName) { showMatchFormatPicker = true }
+                            MatchFormatField(editMatchFormat, canEditMatchFormat) { showMatchFormatPicker = true }
                         }
                     }
                 }
@@ -472,7 +477,8 @@ fun EditTournamentSheet(
                             editTitle.trim(), editDate,
                             editVenueName, editVenueAddress,
                             editVenueLatitude, editVenueLongitude,
-                            if (tournament.isTeamEvent) TournamentFormat.TEAM else editFormat, editMatchFormat,
+                            if (tournament.isTeamEvent) TournamentFormat.TEAM else editFormat,
+                            if (canEditMatchFormat) editMatchFormat else tournament.matchFormat,
                             editFormatConfig.takeIf { existingConfig != null || formatConfigEdited },
                             if (editFormat.isDoubles && !tournament.isTeamEvent) editRandomPairing else false,
                             editDeadline,
@@ -619,7 +625,7 @@ fun EditTournamentSheet(
         if (showMatchFormatPicker) {
             PickerDialog(
                 title = "MATCH FORMAT",
-                items = MatchFormat.offered(current = tournament.matchFormat),
+                items = MatchFormat.offered(tournament.sportType, current = tournament.matchFormat),
                 selectedItem = editMatchFormat,
                 displayName = { it.displayName },
                 onSelect = {
@@ -752,6 +758,22 @@ private fun <T> PickerDialog(
             TextButton(onClick = onDismiss) { Text("Cancel", color = AppAccent) }
         },
     )
+}
+
+/**
+ * Match format: a picker until anyone registers, then locked with a note.
+ * Mirrors iOS `editMatchFormatButton`.
+ */
+@Composable
+private fun MatchFormatField(format: MatchFormat, editable: Boolean, onClick: () -> Unit) {
+    if (editable) {
+        PickerButton(format.displayName, onClick)
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LockedValue(format.displayName)
+            Text("Locked once teams or players have registered.", fontSize = 11.sp, color = Color.Gray)
+        }
+    }
 }
 
 /** A value that can't be changed any more (matches exist). Mirrors iOS `lockedValue`. */

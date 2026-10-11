@@ -24,10 +24,7 @@ class SeedingModesTest {
         assertEquals(SeedingMode.ELO_RANKED, SeedingMode.MANUAL.effective)
         assertEquals(SeedingMode.ELO_RANKED, SeedingMode.ELO_RANKED.effective)
         assertEquals(SeedingMode.RANDOM, SeedingMode.RANDOM.effective)
-        assertTrue(MatchFormat.DOUBLE_ELIMINATION !in MatchFormat.offered())
-        assertEquals(MatchFormat.entries.size - 1, MatchFormat.offered().size)
-        assertTrue(MatchFormat.DOUBLE_ELIMINATION in MatchFormat.offered(MatchFormat.DOUBLE_ELIMINATION))
-        assertTrue(MatchFormat.DOUBLE_ELIMINATION !in MatchFormat.offered(MatchFormat.ROUND_ROBIN))
+        // MatchFormat.offered is covered per sport in MatchFormatOfferedTest.
     }
 
     @Test fun seedingModes() {

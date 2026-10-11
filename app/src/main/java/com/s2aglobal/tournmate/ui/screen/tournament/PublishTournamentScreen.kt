@@ -385,6 +385,10 @@ fun PublishTournamentScreen(
                                 } else if (newFormat == TournamentFormat.TEAM) {
                                     newFormat = TournamentFormat.MENS_DOUBLES
                                 }
+                                if (newMatchFormat !in MatchFormat.offered(it)) {
+                                    newMatchFormat = MatchFormat.SINGLE_ELIMINATION
+                                    newFormatConfig = FormatConfig.defaults(MatchFormat.SINGLE_ELIMINATION)
+                                }
                             },
                             title = newTitle, onTitleChange = { newTitle = it }, titleError = titleError,
                             format = newFormat, onEventTypeClick = { showEventTypeSheet = true },
@@ -689,7 +693,7 @@ private fun Step2FormatRules(
 ) {
     SectionLabel("MATCH FORMAT")
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        for (row in matchFormatItems.filter { it.format in MatchFormat.offered() }.chunked(2)) {
+        for (row in matchFormatItems.filter { it.format in MatchFormat.offered(sportType) }.chunked(2)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { item ->
                     val sel = matchFormat == item.format
