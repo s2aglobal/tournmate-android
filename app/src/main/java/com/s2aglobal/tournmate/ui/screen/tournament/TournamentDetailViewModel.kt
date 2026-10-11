@@ -288,6 +288,15 @@ data class TournamentDetailUiState(
     val canLogTournamentCalories: Boolean
         get() = isRegistered && tournament?.isPast == true
 
+    /**
+     * Knockout seeding order: by rating, or the tournament's fixed random
+     * order when the organizer chose Random seeding. Mirrors iOS `bracketSeeding`.
+     */
+    fun bracketSeeding(teams: List<Registration>): List<Registration> {
+        val t = tournament ?: return PairingService.seededByRating(teams)
+        return PairingService.seeded(teams, SeedingMode.fromRawValue(t.formatConfig.seedingMode), t.id.toString())
+    }
+
     val byeTeamNames: List<String>
         get() {
             if (tournament?.matchFormat != MatchFormat.SINGLE_ELIMINATION || formedTeams.isEmpty()) return emptyList()
@@ -295,10 +304,10 @@ data class TournamentDetailUiState(
             // (ratings move after every result, so re-seeding could name others).
             val roundOne = matches.filter { it.groupLabel == null && it.round == 1 }
             val byeTeams = if (roundOne.isEmpty()) {
-                PairingService.generateBracketFirstRound(formedTeams).byeTeams
+                PairingService.generateBracketFirstRoundSeeded(bracketSeeding(formedTeams)).byeTeams
             } else {
                 PairingService.knockoutByeTeams(
-                    PairingService.seededByRating(formedTeams),
+                    bracketSeeding(formedTeams),
                     roundOne.flatMap { listOf(it.teamAId, it.teamBId) }.toSet(),
                 )
             }
@@ -640,7 +649,7 @@ class TournamentDetailViewModel @Inject constructor(
             if (state.matches.isNotEmpty()) { setStatus("Bracket already generated."); return@launch }
 
             _uiState.value = state.copy(isLoading = true)
-            val result = PairingService.generateBracketFirstRound(teams)
+            val result = PairingService.generateBracketFirstRoundSeeded(state.bracketSeeding(teams))
 
             try {
                 for ((teamA, teamB, pos) in result.matches) {
@@ -715,7 +724,7 @@ class TournamentDetailViewModel @Inject constructor(
                 val seededTeams = if (tournament.matchFormat == MatchFormat.GROUP_KNOCKOUT) {
                     advancingTeams(state)
                 } else {
-                    PairingService.seededByRating(state.formedTeams)
+                    state.bracketSeeding(state.formedTeams)
                 }
                 val roundOneIds = lastGroup.matches.flatMap { listOf(it.teamAId, it.teamBId) }.toSet()
                 winners = PairingService.knockoutByeTeams(seededTeams, roundOneIds) + winners

@@ -93,6 +93,14 @@ enum class MatchFormat(val rawValue: String) {
         }
 
     companion object {
+        /**
+         * Formats an organizer can pick (create and edit). Double elimination
+         * isn't built yet (it plays as single elimination), so it's only listed
+         * for a tournament that already uses it. Mirrors iOS `MatchFormat.offered`.
+         */
+        fun offered(current: MatchFormat? = null): List<MatchFormat> =
+            entries.filter { it != DOUBLE_ELIMINATION || it == current }
+
         fun fromRawValue(raw: String?): MatchFormat =
             entries.firstOrNull { it.rawValue == raw } ?: SINGLE_ELIMINATION
     }

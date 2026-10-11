@@ -27,6 +27,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.s2aglobal.tournmate.ui.component.CricketEventTypePicker
 import com.s2aglobal.tournmate.ui.component.CricketRulesEditor
+import com.s2aglobal.tournmate.ui.component.FormatRulesEditor
 import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
 import com.s2aglobal.tournmate.ui.component.ScoringDescription
 import com.s2aglobal.tournmate.ui.component.SkillDivisionPicker
@@ -688,7 +689,7 @@ private fun Step2FormatRules(
 ) {
     SectionLabel("MATCH FORMAT")
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        for (row in matchFormatItems.chunked(2)) {
+        for (row in matchFormatItems.filter { it.format in MatchFormat.offered() }.chunked(2)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { item ->
                     val sel = matchFormat == item.format
@@ -736,155 +737,8 @@ private fun Step2FormatRules(
         )
     }
 
-    // Format-specific config
-    FormatConfigSection(matchFormat, formatConfig, onFormatConfigChange, isCricket = cricketRules != null)
-}
-
-@Composable
-private fun FormatConfigSection(
-    matchFormat: MatchFormat, config: FormatConfig, onChange: (FormatConfig) -> Unit,
-    isCricket: Boolean = false,
-) {
-    when (matchFormat) {
-        MatchFormat.SINGLE_ELIMINATION -> {
-            SectionLabel("SEEDING")
-            SeedingModePicker(config, onChange)
-            ToggleRow(Icons.Default.SwapVert, "Allow Byes", "Top seeds get a first-round bye when bracket isn't full", config.allowByes) {
-                onChange(config.copy(allowByes = it))
-            }
-            ToggleRow(Icons.Default.MilitaryTech, "Bronze Match", "Semi-final losers play for 3rd place", config.bronzeMatch) {
-                onChange(config.copy(bronzeMatch = it))
-            }
-            ToggleRow(Icons.Default.AccountTree, "Consolation Bracket", "First-round losers play a secondary bracket", config.consolationBracket) {
-                onChange(config.copy(consolationBracket = it))
-            }
-        }
-        MatchFormat.DOUBLE_ELIMINATION -> {
-            SectionLabel("SEEDING")
-            SeedingModePicker(config, onChange)
-            ToggleRow(Icons.Default.SwapVert, "Allow Byes", "Top seeds get a first-round bye when bracket isn't full", config.allowByes) {
-                onChange(config.copy(allowByes = it))
-            }
-            InfoBanner(Icons.Default.Info, WizardAccent, "Players must lose twice to be eliminated. A losers bracket runs alongside the main bracket.")
-        }
-        MatchFormat.ROUND_ROBIN -> {
-            ToggleRow(Icons.Default.Repeat, "Double Round Robin", "Each team plays every other team twice", config.doubleRoundRobin) {
-                onChange(config.copy(doubleRoundRobin = it))
-            }
-            SectionLabel("POINTS SYSTEM")
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StepperField("Win", config.pointsPerWin, 0..5, Modifier.weight(1f)) { onChange(config.copy(pointsPerWin = it)) }
-                StepperField("Draw", config.pointsPerDraw, 0..5, Modifier.weight(1f)) { onChange(config.copy(pointsPerDraw = it)) }
-                StepperField("Loss", config.pointsPerLoss, 0..5, Modifier.weight(1f)) { onChange(config.copy(pointsPerLoss = it)) }
-            }
-            SectionLabel("TIE-BREAKER")
-            if (isCricket) CricketTieBreakNote() else TieBreakerPicker(config.tieBreaker) { onChange(config.copy(tieBreaker = it)) }
-        }
-        MatchFormat.GROUP_KNOCKOUT -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StepperField("Groups", config.groupCount, 2..8, Modifier.weight(1f)) { onChange(config.copy(groupCount = it)) }
-                StepperField("Per Group", config.teamsPerGroup, 3..8, Modifier.weight(1f)) { onChange(config.copy(teamsPerGroup = it)) }
-            }
-            StepperField("Advance Per Group", config.advancingPerGroup, 1..4, Modifier.fillMaxWidth()) { onChange(config.copy(advancingPerGroup = it)) }
-            SectionLabel("GROUP TIE-BREAKER")
-            if (isCricket) CricketTieBreakNote() else TieBreakerPicker(config.groupTieBreaker) { onChange(config.copy(groupTieBreaker = it)) }
-            InfoBanner(Icons.Default.Info, WizardAccent, "Top finishers from each group advance to a single-elimination knockout stage.")
-        }
-        MatchFormat.SWISS -> {
-            StepperField("Number of Rounds", config.swissRounds, 3..10, Modifier.fillMaxWidth()) { onChange(config.copy(swissRounds = it)) }
-            InfoBanner(Icons.Default.Info, WizardAccent, "Each round, players with similar records are paired against each other. No one is eliminated.")
-        }
-        MatchFormat.MANUAL_DRAW -> {
-            InfoBanner(Icons.Default.Draw, WizardAccent, "You will manually assign all matchups after registration closes. Full control over the draw.")
-        }
-    }
-
-    Spacer(Modifier.height(4.dp))
-    SectionLabel("MAX PARTICIPANTS (OPTIONAL)")
-    WizardTextField(
-        value = config.maxParticipants?.toString() ?: "",
-        onValueChange = { onChange(config.copy(maxParticipants = it.toIntOrNull())) },
-        placeholder = "Unlimited",
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-    )
-}
-
-@Composable
-private fun SeedingModePicker(config: FormatConfig, onChange: (FormatConfig) -> Unit) {
-    val modes = listOf(
-        SeedingMode.ELO_RANKED to "Elo Ranked",
-        SeedingMode.RANDOM to "Random",
-        SeedingMode.MANUAL to "Manual",
-    )
-    val currentMode = SeedingMode.fromRawValue(config.seedingMode)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        modes.forEach { (mode, label) ->
-            val sel = currentMode == mode
-            Surface(
-                onClick = { onChange(config.copy(seedingMode = mode.rawValue)) },
-                modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
-                color = if (sel) WizardAccent.copy(alpha = 0.15f) else Color(0xFFF2F2F7),
-                border = if (sel) ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(WizardAccent), width = 1.dp) else null,
-            ) {
-                Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-                    color = if (sel) WizardAccent else Color.Black, modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth())
-            }
-        }
-    }
-}
-
-/** Cricket always ranks level teams by net run rate, then head-to-head (iOS wizard). */
-@Composable
-private fun CricketTieBreakNote() {
-    Row(
-        Modifier.fillMaxWidth().background(WizardFieldColor, RoundedCornerShape(10.dp)).padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = WizardAccent)
-        Text("Net run rate, then head-to-head", fontSize = 13.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun TieBreakerPicker(selectedRaw: String, onSelect: (String) -> Unit) {
-    val options = listOf(
-        TieBreaker.HEAD_TO_HEAD to "Head-to-Head",
-        TieBreaker.POINT_DIFF to "Point Differential",
-        TieBreaker.GAMES_WON to "Games Won",
-    )
-    val current = TieBreaker.fromRawValue(selectedRaw)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { (tb, label) ->
-            val sel = current == tb
-            Surface(
-                onClick = { onSelect(tb.rawValue) },
-                modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
-                color = if (sel) WizardAccent.copy(alpha = 0.15f) else WizardFieldColor,
-                border = if (sel) ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(WizardAccent), width = 1.dp) else null,
-            ) {
-                Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, maxLines = 1,
-                    color = if (sel) WizardAccent else Color.Black, modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp).fillMaxWidth())
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepperField(label: String, value: Int, range: IntRange, modifier: Modifier = Modifier, onChange: (Int) -> Unit) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, color = Color.Gray)
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.background(Color(0xFFF2F2F7), RoundedCornerShape(10.dp))) {
-            IconButton(onClick = { if (value > range.first) onChange(value - 1) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Remove, null, Modifier.size(14.dp))
-            }
-            Text("$value", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.widthIn(min = 30.dp), textAlign = TextAlign.Center)
-            IconButton(onClick = { if (value < range.last) onChange(value + 1) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Add, null, Modifier.size(14.dp))
-            }
-        }
-    }
+    // Format-specific config: same editor as Edit Tournament, so both offer the same choices.
+    FormatRulesEditor(matchFormat, formatConfig, onFormatConfigChange, WizardAccent, isCricket = cricketRules != null)
 }
 
 // ── Step 3 ───────────────────────────────────────────
@@ -1005,7 +859,9 @@ private fun Step4Review(
     ReviewRow("EVENT TYPE", cricketRules?.eventType?.displayName ?: format.displayName); ReviewRow("FORMAT", matchFormat.displayName)
     if (cricketRules != null) ReviewRow("MATCH RULES", cricketRules.summary)
     else ReviewRow("SCORING", ScoringDescription.summary(scoringConfig, sportType))
-    ReviewRow("SEEDING", seedingLabel(SeedingMode.fromRawValue(formatConfig.seedingMode)))
+    if (matchFormat == MatchFormat.SINGLE_ELIMINATION) {
+        ReviewRow("SEEDING", SeedingMode.fromRawValue(formatConfig.seedingMode).effective.displayName)
+    }
     FormatRulesReviewRows(matchFormat, formatConfig, isCricket = cricketRules != null)
     ReviewRow("VENUE", venueName)
     ReviewRow("DATE", "${dateFmt.format(date)}, ${timeFmt.format(date)}")
@@ -1024,14 +880,10 @@ private fun Step4Review(
 @Composable
 private fun FormatRulesReviewRows(matchFormat: MatchFormat, config: FormatConfig, isCricket: Boolean = false) {
     when (matchFormat) {
-        MatchFormat.SINGLE_ELIMINATION -> {
-            if (config.bronzeMatch) ReviewRow("BRONZE MATCH", "Yes")
-            if (config.consolationBracket) ReviewRow("CONSOLATION", "Yes")
-        }
-        MatchFormat.DOUBLE_ELIMINATION -> ReviewRow("BRACKET", "Winners + Losers")
+        MatchFormat.SINGLE_ELIMINATION, MatchFormat.DOUBLE_ELIMINATION -> Unit
         MatchFormat.ROUND_ROBIN -> {
             ReviewRow("POINTS", "W:${config.pointsPerWin} D:${config.pointsPerDraw} L:${config.pointsPerLoss}")
-            ReviewRow("TIE-BREAKER", if (isCricket) "Net run rate, then head-to-head" else tieBreakerLabel(TieBreaker.fromRawValue(config.tieBreaker)))
+            ReviewRow("TIE-BREAKER", if (isCricket) "Net run rate" else tieBreakerLabel(TieBreaker.fromRawValue(config.tieBreaker)))
             if (config.doubleRoundRobin) ReviewRow("DOUBLE RR", "Yes")
         }
         MatchFormat.GROUP_KNOCKOUT -> {
@@ -1041,12 +893,6 @@ private fun FormatRulesReviewRows(matchFormat: MatchFormat, config: FormatConfig
         MatchFormat.SWISS -> ReviewRow("SWISS ROUNDS", "${config.swissRounds}")
         MatchFormat.MANUAL_DRAW -> ReviewRow("DRAW", "Manual by organizer")
     }
-}
-
-private fun seedingLabel(mode: SeedingMode) = when (mode) {
-    SeedingMode.ELO_RANKED -> "Elo Ranked"
-    SeedingMode.RANDOM -> "Random"
-    SeedingMode.MANUAL -> "Manual"
 }
 
 private fun tieBreakerLabel(tb: TieBreaker) = when (tb) {

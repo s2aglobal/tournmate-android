@@ -86,6 +86,39 @@ object PairingService {
         teams.sortedByDescending { avgElo(it) }
 
     /**
+     * Teams in knockout seeding order for the organizer's choice: by rating,
+     * or for RANDOM a fixed shuffle keyed on [salt] (the tournament id), so
+     * every rebuild of the bracket (and iOS) gets the same order. Mirrors iOS.
+     */
+    fun seeded(teams: List<Registration>, mode: SeedingMode, salt: String): List<Registration> {
+        if (mode.effective != SeedingMode.RANDOM) return seededByRating(teams)
+        val key = salt.uppercase()
+        val hashes: List<ULong> = teams.map { mix64(fnv1a64(key + "|" + it.id.toString().uppercase())) }
+        val order = teams.indices.sortedWith { a, b ->
+            if (hashes[a] != hashes[b]) hashes[a].compareTo(hashes[b]) else a.compareTo(b)
+        }
+        return order.map { teams[it] }
+    }
+
+    /** SplitMix64 finalizer: spreads small input differences over every bit. Mirrors iOS. */
+    fun mix64(value: ULong): ULong {
+        var z = value
+        z = (z xor (z shr 30)) * 0xbf58476d1ce4e5b9uL
+        z = (z xor (z shr 27)) * 0x94d049bb133111ebuL
+        return z xor (z shr 31)
+    }
+
+    /** FNV-1a, 64-bit, over the UTF-8 bytes (same on iOS). */
+    fun fnv1a64(text: String): ULong {
+        var hash = 0xcbf29ce484222325uL
+        for (byte in text.toByteArray(Charsets.UTF_8)) {
+            hash = hash xor byte.toUByte().toULong()
+            hash *= 0x100000001b3uL
+        }
+        return hash
+    }
+
+    /**
      * The teams that had a first-round bye: the seeded teams that aren't in any
      * round-1 match, in seeding order. Derived from the matches actually
      * created, so a rating change after the draw can't change who had a bye.

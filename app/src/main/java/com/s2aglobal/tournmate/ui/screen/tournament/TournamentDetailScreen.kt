@@ -117,7 +117,7 @@ fun TournamentDetailScreen(
             tournament = tournament,
             onSave = { title, date, location, locationAddress, locationLatitude, locationLongitude,
                        format, matchFormat, formatConfig, randomPairing, registrationDeadline,
-                       entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, scoringConfig, skillDivision ->
+                       entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, scoringConfig, skillDivision, cricketRules ->
                 viewModel.updateTournament(
                     title = title, date = date,
                     location = location, locationAddress = locationAddress,
@@ -127,11 +127,12 @@ fun TournamentDetailScreen(
                     entryFee = entryFee, currency = currency, paymentInfo = paymentInfo,
                     prizeInfo = prizeInfo, durationMinutes = durationMinutes, ageGroup = ageGroup,
                     scoringConfig = scoringConfig, skillDivision = skillDivision,
+                    cricketRules = cricketRules,
                 )
                 showEditSheet = false
             },
             onCancel = { showEditSheet = false },
-            canEditScoring = state.matches.isEmpty(),
+            canEditMatchRules = state.matches.isEmpty(),
         )
     }
 

@@ -8,6 +8,7 @@ import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.MatchFormat
 import com.s2aglobal.tournmate.domain.model.MatchStatus
 import com.s2aglobal.tournmate.domain.model.Registration
+import com.s2aglobal.tournmate.domain.model.SeedingMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,12 +16,16 @@ import org.junit.Test
 /**
  * Cross-platform parity: builds the same fixed-seed dump as iOS
  * `Tools/DrawTests/main.swift` (round robin, knockout brackets, groups and
- * tables, Swiss rounds, 400 random cricket scorecards) and compares it line by
+ * tables, Swiss rounds, 400 random cricket scorecards, random seeding orders) and compares it line by
  * line with `draw-parity-fixture.txt`, a copy of iOS
  * `Tools/DrawTests/parity-fixture.txt`. Any difference means the two apps
  * would draw or score differently.
  */
 class DrawParityTest {
+
+    private companion object {
+        const val SEED_SALT = "00000000-0000-0000-0000-000000000777"
+    }
 
     private fun dump(): List<String> {
         val out = mutableListOf<String>()
@@ -118,6 +123,11 @@ class DrawParityTest {
                 "${o.resultType.rawValue} ${side(o.winnerRegistrationId)} ${o.margin} nrrA=${CricketRunRate.format(nrr.netRunRate(r.ballsPerOver))}"
             }
             out.add(line)
+        }
+        val seedTournament = makeTournament(MatchFormat.SINGLE_ELIMINATION)
+        for (n in listOf(2, 3, 5, 8, 13, 16)) {
+            val teams = makeTeams(n, seedTournament)
+            out.add("SEED random n=$n: " + labels(PairingService.seeded(teams, SeedingMode.RANDOM, SEED_SALT)))
         }
         return out
     }
