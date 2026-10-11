@@ -1,33 +1,44 @@
 package com.s2aglobal.tournmate.ui.screen.tournament
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -69,9 +80,10 @@ data class TeamRegistrationUiState(
 
 /**
  * Team registration for a team-sport tournament (cricket). The captain picks
- * one of their teams (or creates one), adds players by exact email or phone,
- * chooses who plays in this event, and can name guests. Mirrors iOS
- * `TeamRegistrationSheet`.
+ * one of their teams (or creates one), adds players by email or phone,
+ * chooses who plays in this event, and can name guests. Layout: team summary
+ * (count + pips for the side and substitutes), team chips, the event roster,
+ * then players to add. Mirrors iOS `TeamRegistrationSheet`.
  */
 @HiltViewModel
 class TeamRegistrationViewModel @Inject constructor(
@@ -128,25 +140,18 @@ class TeamRegistrationViewModel @Inject constructor(
 
     fun showNewTeam() = _state.update { it.copy(showNewTeam = true) }
 
-    fun toggleRoster(player: Player) {
+    /** Puts a team player in this event (unless taken by another team or the roster is full). */
+    fun addToRoster(player: Player) {
         val id = player.id.toString().uppercase()
         _state.update {
-            when {
-                id in it.rosterIds -> it.copy(rosterIds = it.rosterIds - id)
-                takenBy(player) != null -> it
-                it.rosterCount < rosterLimit -> it.copy(rosterIds = it.rosterIds + id)
-                else -> it
-            }
+            if (id in it.rosterIds || takenBy(player) != null || it.rosterCount >= rosterLimit) it
+            else it.copy(rosterIds = it.rosterIds + id)
         }
     }
 
-    /** Returns true when the guest was added (so the field can be cleared). */
-    fun addGuest(raw: String): Boolean {
-        val name = raw.trim()
-        val s = _state.value
-        if (name.length < 2 || name in s.guestNames || s.rosterCount >= rosterLimit) return false
-        _state.update { it.copy(guestNames = it.guestNames + name) }
-        return true
+    fun removeFromRoster(player: Player) {
+        val id = player.id.toString().uppercase()
+        _state.update { it.copy(rosterIds = it.rosterIds - id) }
     }
 
     fun removeGuest(name: String) = _state.update { it.copy(guestNames = it.guestNames - name) }
@@ -172,38 +177,62 @@ class TeamRegistrationViewModel @Inject constructor(
         }
     }
 
-    fun addPlayer(rawQuery: String, onAdded: () -> Unit) {
+    /**
+     * The single add field: an email or phone number looks up a TournMate
+     * player (added to the team, and to this event unless they already play
+     * for another team here); anything else is added as a guest name.
+     * [onClear] runs when the field should be emptied.
+     */
+    fun addFromField(rawQuery: String, onClear: () -> Unit) {
         val team = _state.value.selectedTeam ?: return
         val query = rawQuery.trim()
-        val byEmail = query.contains("@")
+        val digits = query.count { it.isDigit() }
+        val isEmail = query.contains("@")
+        val isPhone = !isEmail && digits >= 7 && digits >= query.count { !it.isWhitespace() } - 3
+        if (!isEmail && !isPhone) {
+            // Guest
+            if (query.length < 2) return
+            if (_state.value.guestNames.any { it.equals(query, ignoreCase = true) }) {
+                _state.update { it.copy(lookupMessage = "$query is already on the list.") }
+                return
+            }
+            _state.update { it.copy(guestNames = it.guestNames + query, lookupMessage = "$query added as a guest.") }
+            onClear()
+            return
+        }
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             try {
-                val found = if (byEmail) playerRepo.findPlayerByEmail(query.lowercase()) else playerRepo.findPlayerByPhone(query)
-                when {
-                    found == null -> _state.update {
-                        it.copy(lookupMessage = "No TournMate player uses that ${if (byEmail) "email" else "phone number"}. Add them as a guest instead.")
+                val found = if (isEmail) playerRepo.findPlayerByEmail(query.lowercase()) else playerRepo.findPlayerByPhone(query)
+                if (found == null) {
+                    _state.update {
+                        it.copy(
+                            lookupMessage = "No TournMate player uses that ${if (isEmail) "email" else "phone number"}. " +
+                                "Ask them to sign up, or type their name to add them as a guest.",
+                        )
                     }
-                    team.contains(found) -> _state.update { it.copy(lookupMessage = "${found.name} is already on the team.") }
-                    else -> {
+                } else {
+                    val id = found.id.toString().uppercase()
+                    if (!team.contains(found)) {
                         teamRepo.joinTeam(team, found)
-                        val id = found.id.toString().uppercase()
-                        // Already playing for another team here: on the team, but not in this event's roster.
-                        val otherTeam = takenBy(found)
                         _state.update { s ->
-                            s.copy(
-                                teams = s.teams.map { t ->
-                                    if (t.id == team.id) t.copy(playerIds = t.playerIds + id, players = t.players + found) else t
-                                },
-                                rosterIds = if (otherTeam == null && s.rosterCount < rosterLimit) s.rosterIds + id else s.rosterIds,
-                                lookupMessage = if (otherTeam != null) {
-                                    "${found.name} is already playing for $otherTeam in this tournament."
-                                } else {
-                                    "${found.name} added."
-                                },
+                            s.copy(teams = s.teams.map { t ->
+                                if (t.id == team.id) t.copy(playerIds = t.playerIds + id, players = t.players + found) else t
+                            })
+                        }
+                    }
+                    onClear()
+                    val otherTeam = takenBy(found)
+                    _state.update { s ->
+                        when {
+                            // On the team, but not in this event's roster.
+                            otherTeam != null -> s.copy(lookupMessage = "${found.name} is already playing for $otherTeam in this tournament.")
+                            id in s.rosterIds -> s.copy(lookupMessage = "${found.name} is already playing in this event.")
+                            else -> s.copy(
+                                rosterIds = if (s.rosterCount < rosterLimit) s.rosterIds + id else s.rosterIds,
+                                lookupMessage = "${found.name} added.",
                             )
                         }
-                        onAdded()
                     }
                 }
             } catch (e: CancellationException) {
@@ -234,7 +263,16 @@ class TeamRegistrationViewModel @Inject constructor(
     }
 }
 
-private val TeamSheetGray6 = Color(0xFFF2F2F7)
+// iOS system colours (the app is light-only, like the rest of this screen family).
+private val GroupedBackground = Color(0xFFF2F2F7)
+private val CardBackground = Color.White
+private val Secondary = Color(0xFF8E8E93)
+private val Gray2 = Color(0xFFAEAEB2)
+private val Gray3 = Color(0xFFC7C7CC)
+private val TertiaryFill = Color(0x1F767680)
+private val Label = Color.Black
+private val ShortOrange = Color(0xFFFF9500)
+private val FullGreen = Color(0xFF34C759)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -252,16 +290,18 @@ internal fun TeamRegistrationSheet(
     val rules = tournament.cricketRules
     val rosterLimit = viewModel.rosterLimit
     var newTeamName by remember { mutableStateOf("") }
-    var guestDraft by remember { mutableStateOf("") }
     var lookup by remember { mutableStateOf("") }
 
     LaunchedEffect(tournament.id, captain.id) { viewModel.start(tournament, captain, enteredPlayers) }
     LaunchedEffect(state.registered) { if (state.registered) onRegistered() }
 
+    val shortBy = maxOf(0, rules.playersPerSide - state.rosterCount)
+    val substituteSlots = rosterLimit - rules.playersPerSide
+
     ModalBottomSheet(
         onDismissRequest = onCancel,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color.White,
+        containerColor = GroupedBackground,
         dragHandle = null,
     ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.95f)) {
@@ -272,177 +312,261 @@ internal fun TeamRegistrationSheet(
                 Text("Register a Team", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Center))
             }
             Column(
-                Modifier.weight(1f).sheetScrollLikeIos().verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp),
+                Modifier.weight(1f).sheetScrollLikeIos().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                // Header
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(rules.eventType.displayName.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = accent)
-                    Text(
-                        "Name at least ${rules.playersPerSide} players for a full side. You can add up to ${rosterLimit - rules.playersPerSide} substitutes.",
-                        fontSize = 14.sp, color = Color.Gray,
-                    )
-                }
-
                 if (state.isLoading) {
-                    Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().padding(top = 60.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = accent)
                     }
                 } else {
-                    // Your team
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SectionCaption("YOUR TEAM")
-                        state.teams.forEach { team ->
-                            val selected = state.selectedTeamId == team.id
-                            Row(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(TeamSheetGray6)
-                                    .clickable { viewModel.select(team) }.padding(14.dp)
-                                    .semantics { this.selected = selected },
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Icon(
-                                    if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null,
-                                    tint = if (selected) accent else Color.Gray,
-                                )
-                                Column {
-                                    Text(team.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                                    val n = team.playerIds.size
-                                    Text("$n ${if (n == 1) "player" else "players"}", fontSize = 12.sp, color = Color.Gray)
-                                }
-                            }
-                        }
-                        if (state.showNewTeam || state.teams.isEmpty()) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                SheetField(
-                                    newTeamName, { newTeamName = it.take(Team.NAME_LIMIT) }, "Team name, e.g. Austin Strikers",
-                                    Modifier.weight(1f), capitalization = KeyboardCapitalization.Words,
-                                )
-                                TextButton(
-                                    onClick = { viewModel.createTeam(newTeamName) { newTeamName = "" } },
-                                    enabled = newTeamName.trim().length >= 2 && !state.isSaving,
-                                ) { Text("Create", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = accent) }
-                            }
-                        } else {
-                            Row(
-                                Modifier.clickable { viewModel.showNewTeam() }.padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                Icon(Icons.Default.AddCircle, null, Modifier.size(18.dp), tint = accent)
-                                Text("Create a new team", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = accent)
-                            }
-                        }
+                    val selectedTeam = state.selectedTeam
+                    if (selectedTeam != null) {
+                        SummaryCard(selectedTeam, captain, state.rosterCount, rules.playersPerSide, substituteSlots, shortBy, accent)
+                    } else {
+                        IntroCard(rules.eventType.displayName, rules.playersPerSide, substituteSlots, accent)
                     }
-
-                    state.selectedTeam?.let { team ->
-                        // Playing in this event
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                SectionCaption("PLAYING IN THIS EVENT", Modifier.weight(1f))
-                                Text(
-                                    "${state.rosterCount} of ${rules.playersPerSide}", fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                                    color = if (state.rosterCount >= rules.playersPerSide) Color(0xFF34C759) else Color(0xFFFF9500),
-                                )
-                            }
-                            team.players.forEach { player ->
-                                val on = player.id.toString().uppercase() in state.rosterIds
-                                val otherTeam = viewModel.takenBy(player)
-                                Row(
-                                    Modifier.fillMaxWidth().clickable(enabled = otherTeam == null) { viewModel.toggleRoster(player) }
-                                        .alpha(if (otherTeam != null) 0.5f else 1f)
-                                        .padding(vertical = 8.dp)
-                                        .semantics { selected = on },
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    Icon(
-                                        if (on) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank, null,
-                                        tint = if (on) accent else Color.Gray,
-                                    )
-                                    Column {
-                                        Text(player.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        if (otherTeam != null) {
-                                            Text("Already playing for $otherTeam", fontSize = 11.sp, color = Color.Gray)
-                                        }
-                                    }
-                                    if (team.isCaptain(player)) {
-                                        Text(
-                                            "CAPTAIN", fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, color = accent,
-                                            modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(accent.copy(alpha = 0.15f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Guests
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            SectionCaption("GUESTS (NO ACCOUNT)")
-                            state.guestNames.forEach { name ->
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Icon(Icons.Default.PersonOutline, null, tint = Color.Gray)
-                                    Text(name, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                                    IconButton(onClick = { viewModel.removeGuest(name) }) {
-                                        Icon(Icons.Default.Cancel, "Remove $name", tint = Color.Gray)
-                                    }
-                                }
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                SheetField(guestDraft, { guestDraft = it }, "Guest name", Modifier.weight(1f), capitalization = KeyboardCapitalization.Words)
-                                TextButton(onClick = { if (viewModel.addGuest(guestDraft)) guestDraft = "" }) {
-                                    Text("Add", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = accent)
-                                }
-                            }
-                            Text("Guests appear on the team sheet but don't get a rating.", fontSize = 11.sp, color = Color.Gray)
-                        }
-
-                        // Add a player to the team
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            SectionCaption("ADD A PLAYER TO ${team.name.uppercase()}")
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                SheetField(
-                                    lookup, { lookup = it }, "Email or phone of a TournMate player", Modifier.weight(1f),
-                                    keyboardType = KeyboardType.Email,
-                                )
-                                TextButton(
-                                    onClick = { viewModel.addPlayer(lookup) { lookup = "" } },
-                                    enabled = lookup.trim().length >= 5 && !state.isSaving,
-                                ) { Text("Add", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = accent) }
-                            }
-                            state.lookupMessage?.let { Text(it, fontSize = 12.sp, color = Color.Gray) }
-                        }
+                    TeamChips(
+                        teams = state.teams,
+                        selectedTeamId = state.selectedTeamId,
+                        showNewTeamField = state.showNewTeam || state.teams.isEmpty(),
+                        newTeamName = newTeamName,
+                        onNewTeamNameChange = { newTeamName = it.take(Team.NAME_LIMIT) },
+                        createEnabled = newTeamName.trim().length >= 2 && !state.isSaving,
+                        onSelect = viewModel::select,
+                        onShowNewTeam = viewModel::showNewTeam,
+                        onCreate = { viewModel.createTeam(newTeamName) { newTeamName = "" } },
+                        accent = accent,
+                    )
+                    if (selectedTeam != null) {
+                        RosterSection(selectedTeam, state, viewModel, captain, accent)
+                        val addEnabled = lookup.trim().length >= 2 && !state.isSaving && state.rosterCount < rosterLimit
+                        AddSection(
+                            team = selectedTeam,
+                            state = state,
+                            viewModel = viewModel,
+                            lookup = lookup,
+                            onLookupChange = { lookup = it },
+                            addEnabled = addEnabled,
+                            onAdd = { if (addEnabled) viewModel.addFromField(lookup) { lookup = "" } },
+                            rosterLimit = rosterLimit,
+                            accent = accent,
+                        )
                     }
                 }
 
                 state.errorMessage?.let { Text(it, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.Red) }
             }
 
-            // Register bar
-            val team = state.selectedTeam
-            val ready = team != null && state.rosterCount >= 2 && !state.isSaving
-            Column(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().imePadding()) {
-                HorizontalDivider(color = ScoreDivider)
-                Button(
-                    onClick = viewModel::register,
-                    enabled = ready,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp).fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(26.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = accent,
-                        disabledContainerColor = if (state.isSaving) accent else Color.Gray,
-                        disabledContentColor = Color.White,
-                    ),
+            RegisterBar(state, shortBy, accent, viewModel::register)
+        }
+    }
+}
+
+// MARK: - Summary
+
+@Composable
+private fun SummaryCard(
+    team: Team,
+    captain: Player,
+    rosterCount: Int,
+    playersPerSide: Int,
+    substituteSlots: Int,
+    shortBy: Int,
+    accent: Color,
+) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CardBackground).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(60.dp).clip(RoundedCornerShape(16.dp)).background(accent),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(initials(team.name), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(team.name, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val captainName = team.players.firstOrNull { team.isCaptain(it) }?.name ?: captain.name
+                Text("Captain · $captainName", fontSize = 14.sp, color = Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.width(8.dp))
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier.semantics(mergeDescendants = true) {
+                    contentDescription = "$rosterCount of $playersPerSide players"
+                },
+            ) {
+                Text(
+                    "$rosterCount", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold,
+                    color = if (shortBy > 0) ShortOrange else FullGreen,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                Spacer(Modifier.width(1.dp))
+                Text(
+                    "/$playersPerSide", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Secondary,
+                    modifier = Modifier.alignByBaseline(),
+                )
+            }
+        }
+        RosterPips(rosterCount, playersPerSide, substituteSlots, accent)
+        Row {
+            Text(
+                if (shortBy > 0) "$shortBy more for a full side" else "Full side",
+                fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                color = if (shortBy > 0) Secondary else FullGreen,
+            )
+            Spacer(Modifier.weight(1f))
+            Text("Up to $substituteSlots substitutes", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Secondary)
+        }
+    }
+}
+
+/** One pip per place in the side, then dashed pips for substitutes. */
+@Composable
+private fun RosterPips(rosterCount: Int, playersPerSide: Int, substituteSlots: Int, accent: Color) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(playersPerSide) { i ->
+            val on = i < rosterCount
+            Box(
+                Modifier.weight(1f).height(10.dp).clip(CircleShape)
+                    .background(if (on) accent else Color.Transparent)
+                    .border(1.2.dp, if (on) accent else Gray3, CircleShape),
+            )
+        }
+        Spacer(Modifier.width(2.dp)) // 4 + 2 + 4 ≈ the iOS 6pt gap between the groups
+        repeat(substituteSlots) { i ->
+            val filled = rosterCount > playersPerSide + i
+            Box(
+                Modifier.weight(1f).height(10.dp)
+                    .clip(CircleShape)
+                    .background(if (filled) accent.copy(alpha = 0.6f) else Color.Transparent)
+                    .dashedOutline(Gray3, 1.2.dp, dashed = !filled, dash = 3.dp, gap = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun IntroCard(eventName: String, playersPerSide: Int, substituteSlots: Int, accent: Color) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CardBackground).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(eventName.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = accent)
+        Text(
+            "Create your team, then name at least $playersPerSide players for a full side. You can add up to $substituteSlots substitutes.",
+            fontSize = 15.sp, color = Secondary,
+        )
+    }
+}
+
+// MARK: - Team chips
+
+@Composable
+private fun TeamChips(
+    teams: List<Team>,
+    selectedTeamId: String?,
+    showNewTeamField: Boolean,
+    newTeamName: String,
+    onNewTeamNameChange: (String) -> Unit,
+    createEnabled: Boolean,
+    onSelect: (Team) -> Unit,
+    onShowNewTeam: () -> Unit,
+    onCreate: () -> Unit,
+    accent: Color,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            teams.forEach { team ->
+                val selected = selectedTeamId == team.id
+                Row(
+                    Modifier.height(46.dp).clip(CircleShape)
+                        .background(if (selected) Label else CardBackground)
+                        .clickable { onSelect(team) }
+                        .semantics { this.selected = selected }
+                        .padding(horizontal = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (state.isSaving) {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Text(
-                        if (team == null) "CHOOSE A TEAM" else "REGISTER ${team.name.uppercase()}",
-                        fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    val fg = if (selected) Color.White else Label
+                    if (selected) Icon(Icons.Default.Check, null, Modifier.size(16.dp), tint = fg)
+                    Text(team.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = fg, maxLines = 1)
+                }
+            }
+            Row(
+                Modifier.height(46.dp).clip(CircleShape)
+                    .dashedOutline(Gray3, 1.5.dp, dash = 5.dp, gap = 4.dp)
+                    .clickable(onClick = onShowNewTeam)
+                    .padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(Icons.Default.Add, null, Modifier.size(18.dp), tint = Secondary)
+                Text("New team", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Secondary)
+            }
+        }
+        if (showNewTeamField) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SheetField(
+                    newTeamName, onNewTeamNameChange, "Team name, e.g. Austin Strikers", Modifier.weight(1f),
+                    capitalize = true, onSubmit = { if (createEnabled) onCreate() },
+                )
+                FieldButton("Create", createEnabled, accent, onCreate)
+            }
+        }
+    }
+}
+
+// MARK: - Roster
+
+@Composable
+private fun RosterSection(
+    team: Team,
+    state: TeamRegistrationUiState,
+    viewModel: TeamRegistrationViewModel,
+    captain: Player,
+    accent: Color,
+) {
+    // Team players named for this event, captain first, in team order.
+    val named = team.players
+        .filter { it.id.toString().uppercase() in state.rosterIds && viewModel.takenBy(it) == null }
+        .sortedByDescending { team.isCaptain(it) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel("PLAYING IN THIS EVENT", Modifier.weight(1f))
+            Text("${state.rosterCount} added", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Secondary)
+        }
+        if (state.rosterCount == 0) {
+            Text(
+                "No one yet. Add players from your team, by email or phone, or as guests below.",
+                fontSize = 14.sp, color = Secondary,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBackground).padding(18.dp),
+            )
+        } else {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBackground)) {
+                named.forEachIndexed { idx, player ->
+                    RosterRow(
+                        index = idx + 1, name = player.name,
+                        subtitle = if (player.id == captain.id) "You" else "TournMate player",
+                        isGuest = false, isCaptain = team.isCaptain(player), accent = accent,
+                        onRemove = { viewModel.removeFromRoster(player) },
                     )
+                    if (idx < named.size - 1 || state.guestNames.isNotEmpty()) RowDivider(64.dp)
+                }
+                state.guestNames.forEachIndexed { idx, name ->
+                    RosterRow(
+                        index = named.size + idx + 1, name = name, subtitle = "Guest · no rating",
+                        isGuest = true, isCaptain = false, accent = accent,
+                        onRemove = { viewModel.removeGuest(name) },
+                    )
+                    if (idx < state.guestNames.size - 1) RowDivider(64.dp)
                 }
             }
         }
@@ -450,8 +574,189 @@ internal fun TeamRegistrationSheet(
 }
 
 @Composable
-private fun SectionCaption(text: String, modifier: Modifier = Modifier) {
-    Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.Gray, modifier = modifier)
+private fun RosterRow(
+    index: Int,
+    name: String,
+    subtitle: String,
+    isGuest: Boolean,
+    isCaptain: Boolean,
+    accent: Color,
+    onRemove: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "$index", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Secondary,
+            textAlign = TextAlign.Center, modifier = Modifier.width(20.dp),
+        )
+        Avatar(name, isGuest, accent)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, fontSize = 14.sp, color = Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (isCaptain) {
+            Text(
+                "CAPTAIN", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = accent,
+                modifier = Modifier.clip(CircleShape).background(accent.copy(alpha = 0.1f))
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
+            )
+        } else {
+            CircleIconButton(Icons.Default.Close, "Remove $name", Secondary, TertiaryFill, enabled = true, onClick = onRemove)
+        }
+    }
+}
+
+@Composable
+private fun Avatar(name: String, isGuest: Boolean, accent: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier.size(44.dp).clip(CircleShape)
+            .background(if (isGuest) Color.Transparent else accent)
+            .then(if (isGuest) Modifier.dashedOutline(Gray2, 1.5.dp, dash = 3.dp, gap = 3.dp) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            initials(name), fontSize = if (isGuest) 15.sp else 16.sp, fontWeight = FontWeight.Bold,
+            color = if (isGuest) Secondary else Color.White,
+        )
+    }
+}
+
+// MARK: - Adding players
+
+@Composable
+private fun AddSection(
+    team: Team,
+    state: TeamRegistrationUiState,
+    viewModel: TeamRegistrationViewModel,
+    lookup: String,
+    onLookupChange: (String) -> Unit,
+    addEnabled: Boolean,
+    onAdd: () -> Unit,
+    rosterLimit: Int,
+    accent: Color,
+) {
+    // Team players not in this event (bench), including those taken by another team.
+    val bench = team.players.filter { it.id.toString().uppercase() !in state.rosterIds || viewModel.takenBy(it) != null }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionLabel("ADD PLAYERS")
+        if (bench.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBackground)) {
+                bench.forEachIndexed { idx, player ->
+                    val otherTeam = viewModel.takenBy(player)
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Avatar(player.name, isGuest = false, accent = accent, modifier = Modifier.alpha(if (otherTeam == null) 1f else 0.4f))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(player.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                otherTeam?.let { "Already playing for $it" } ?: "On ${team.name}",
+                                fontSize = 13.sp, color = Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (otherTeam == null) {
+                            CircleIconButton(
+                                Icons.Default.Add, "Add ${player.name} to this event", accent, accent.copy(alpha = 0.1f),
+                                enabled = state.rosterCount < rosterLimit,
+                                onClick = { viewModel.addToRoster(player) },
+                            )
+                        }
+                    }
+                    if (idx < bench.size - 1) RowDivider(70.dp)
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SheetField(lookup, onLookupChange, "Email, phone, or a guest's name", Modifier.weight(1f), capitalize = false, onSubmit = onAdd)
+            FieldButton("Add", addEnabled, accent, onAdd)
+        }
+        Text(
+            state.lookupMessage
+                ?: "Players with a TournMate account are found by email or phone. Anyone else joins as a guest, without a rating.",
+            fontSize = 12.sp,
+            color = if (state.lookupMessage == null) Secondary else Label,
+        )
+    }
+}
+
+// MARK: - Register bar
+
+@Composable
+private fun RegisterBar(state: TeamRegistrationUiState, shortBy: Int, accent: Color, onRegister: () -> Unit) {
+    val team = state.selectedTeam
+    val ready = team != null && state.rosterCount >= 2 && !state.isSaving
+    Column(
+        Modifier.fillMaxWidth().background(GroupedBackground.copy(alpha = 0.96f))
+            .navigationBarsPadding().imePadding()
+            .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (team != null && state.rosterCount >= 2 && shortBy > 0) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(ShortOrange))
+                Text("$shortBy short of a full side. You can still register.", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = ShortOrange)
+            }
+        } else if (team != null && state.rosterCount < 2) {
+            Text("Add at least 2 players to register.", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Secondary)
+        }
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 58.dp)
+                .then(if (ready) Modifier.shadow(12.dp, CircleShape, ambientColor = accent, spotColor = accent) else Modifier)
+                .clip(CircleShape)
+                .background(if (ready || state.isSaving) accent else Gray3)
+                .clickable(enabled = ready, onClick = onRegister)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (state.isSaving) {
+                CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                if (team == null) "CHOOSE A TEAM" else "REGISTER ${team.name.uppercase()}",
+                fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, color = Color.White,
+                textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+// MARK: - Small views
+
+@Composable
+private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+    Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp, color = Secondary, modifier = modifier)
+}
+
+@Composable
+private fun RowDivider(inset: Dp) {
+    HorizontalDivider(Modifier.padding(start = inset), color = ScoreDivider)
+}
+
+@Composable
+private fun CircleIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    tint: Color,
+    fill: Color,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        Modifier.size(36.dp).clip(CircleShape).background(fill)
+            .clickable(enabled = enabled, onClick = onClick)
+            .alpha(if (enabled) 1f else 0.4f),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, description, Modifier.size(18.dp), tint = tint)
+    }
 }
 
 @Composable
@@ -460,26 +765,61 @@ private fun SheetField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
+    capitalize: Boolean,
+    onSubmit: () -> Unit,
 ) {
-    TextField(
+    BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, fontSize = 14.sp, color = Color.Gray) },
         singleLine = true,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        textStyle = TextStyle(fontSize = 16.sp, color = Label),
+        cursorBrush = SolidColor(Label),
         keyboardOptions = KeyboardOptions(
-            keyboardType = keyboardType,
-            capitalization = capitalization,
-            autoCorrectEnabled = keyboardType != KeyboardType.Email,
+            capitalization = if (capitalize) KeyboardCapitalization.Words else KeyboardCapitalization.None,
+            autoCorrectEnabled = capitalize,
+            imeAction = ImeAction.Done,
         ),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = TeamSheetGray6,
-            unfocusedContainerColor = TeamSheetGray6,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-        ),
+        keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+        modifier = modifier.height(50.dp),
+        decorationBox = { inner ->
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(CardBackground).padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (value.isEmpty()) Text(placeholder, fontSize = 16.sp, color = Gray2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                inner()
+            }
+        },
     )
+}
+
+/** Filled capsule next to an input, sized for an easy tap. */
+@Composable
+private fun FieldButton(title: String, enabled: Boolean, accent: Color, onClick: () -> Unit) {
+    Box(
+        Modifier.height(50.dp).clip(CircleShape).background(if (enabled) accent else Gray3)
+            .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 20.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+    }
+}
+
+/** Capsule/circle outline (fully rounded), dashed unless [dashed] is false. */
+private fun Modifier.dashedOutline(color: Color, width: Dp, dashed: Boolean = true, dash: Dp = 4.dp, gap: Dp = 3.dp): Modifier =
+    drawBehind {
+        val w = width.toPx()
+        val r = (size.minDimension - w) / 2f
+        drawRoundRect(
+            color = color,
+            topLeft = androidx.compose.ui.geometry.Offset(w / 2, w / 2),
+            size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
+            cornerRadius = CornerRadius(r, r),
+            style = Stroke(width = w, pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(dash.toPx(), gap.toPx())) else null),
+        )
+    }
+
+private fun initials(name: String): String {
+    val letters = name.split(" ").filter { it.isNotEmpty() }.take(2).joinToString("") { it.first().toString() }
+    return (letters.ifEmpty { name.take(1) }).uppercase()
 }
