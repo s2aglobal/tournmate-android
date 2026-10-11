@@ -270,7 +270,10 @@ fun TournamentDetailScreen(
                 match = match,
                 isCreator = final,
                 existingPlayerOfMatch = match.playerOfMatch,
-                onSubmit = { result, playerOfMatch -> viewModel.submitCricketResult(match, result, playerOfMatch, uid, final) },
+                existingPlayerStats = match.playerStats,
+                onSubmit = { result, playerOfMatch, playerStats ->
+                    viewModel.submitCricketResult(match, result, playerOfMatch, uid, final, playerStats)
+                },
                 onDismiss = close,
             )
             return@let

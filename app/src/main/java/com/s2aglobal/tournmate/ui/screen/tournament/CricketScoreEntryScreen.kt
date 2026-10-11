@@ -12,6 +12,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.SportsCricket
+import androidx.compose.material.icons.filled.SportsBaseball
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.RemoveCircle
@@ -47,8 +50,8 @@ private data class InningsInput(val runs: String = "", val wickets: Int = 0, val
  * Scorecard entry for a cricket match: who batted first, then runs, wickets
  * and overs for each innings. The result ("won by 6 wickets") is derived live
  * with [CricketScoring], the same rules the server checks. Also covers no
- * result (abandoned), a rain-revised target, a super over and an optional
- * Player of the Match. Mirrors iOS
+ * result (abandoned), a rain-revised target, a super over, an optional
+ * Player of the Match and optional batting/bowling figures. Mirrors iOS
  * `CricketScoreEntryView`.
  *
  * [isCreator]: the organizer's result is final; a captain's waits for confirmation.
@@ -59,8 +62,9 @@ fun CricketScoreEntryScreen(
     isCreator: Boolean,
     existing: CricketResult? = match.cricketResult,
     existingPlayerOfMatch: PlayerOfMatch? = match.playerOfMatch,
+    existingPlayerStats: CricketPlayerStats? = match.playerStats,
     /** Saves the result: `null` once the server accepted it, else the message to show. */
-    onSubmit: suspend (CricketResult, PlayerOfMatch?) -> String?,
+    onSubmit: suspend (CricketResult, PlayerOfMatch?, CricketPlayerStats?) -> String?,
     onDismiss: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -93,6 +97,8 @@ fun CricketScoreEntryScreen(
     var superOverWinnerIsA by remember { mutableStateOf(existing?.superOverWinnerRegistrationId?.let { it == idA }) }
     var playerOfMatch by remember { mutableStateOf(existingPlayerOfMatch) }
     var showPlayerOfMatchPicker by remember { mutableStateOf(false) }
+    var playerStats by remember { mutableStateOf(existingPlayerStats ?: CricketPlayerStats()) }
+    var figuresTarget by remember { mutableStateOf<FiguresTarget?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
     var submitError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -136,6 +142,15 @@ fun CricketScoreEntryScreen(
         if (found.isNotEmpty()) return@run found
         knockoutIssue(tournament, match, r, rules)?.let { listOf(CricketIssue(if (r.isNoResult) "noResult" else "superOver", it)) } ?: emptyList()
     }
+    // Problems with the player figures (only once the scorecard itself is valid).
+    val statsIssues: List<CricketPlayerStats.Issue> = run {
+        val r = result ?: return@run emptyList()
+        if (issues.isNotEmpty() || playerStats.isEmpty) return@run emptyList()
+        playerStats.validate(r, idA, idB) { if (it == idA) nameA else nameB }
+    }
+    // The innings as entered so far (0 = first, 1 = second), for the figures sheet.
+    fun enteredInnings(index: Int): CricketInnings? =
+        if (index == 0) innings(first, firstId) else if (noResult) null else innings(second, secondId)
     val previewText = result?.takeIf { issues.isEmpty() }?.let { r ->
         CricketScoring.outcome(r, rules).summary { if (it == idA) nameA else nameB }
     }
@@ -201,9 +216,23 @@ fun CricketScoreEntryScreen(
                     }
                 }
 
+                // Optional batting and bowling figures, per innings.
+                val firstTeam = if (teamABattedFirst) match.teamA else match.teamB
+                val secondTeam = if (teamABattedFirst) match.teamB else match.teamA
+                val targets = buildList {
+                    add("1st innings" to FiguresTarget(FiguresKind.BATTING, firstTeam, firstId, 0))
+                    add("1st innings" to FiguresTarget(FiguresKind.BOWLING, secondTeam, secondId, 0))
+                    if (!noResult) {
+                        add("2nd innings" to FiguresTarget(FiguresKind.BATTING, secondTeam, secondId, 1))
+                        add("2nd innings" to FiguresTarget(FiguresKind.BOWLING, firstTeam, firstId, 1))
+                    }
+                }
+                PlayerStatsSection(targets, playerStats, accent) { figuresTarget = it }
+
                 // Feedback
                 Column(Modifier.padding(horizontal = 20.dp)) {
                     val issue = issues.firstOrNull()
+                        ?: statsIssues.firstOrNull()?.let { CricketIssue(it.field, it.message) }
                     if (issue != null) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
                             Icon(Icons.Default.Warning, null, Modifier.size(16.dp), tint = Color(0xFFFF9500))
@@ -219,7 +248,7 @@ fun CricketScoreEntryScreen(
             }
             ScoreSubmitBar(
                 if (isCreator) "SAVE RESULT" else "SUBMIT FOR CONFIRMATION",
-                enabled = result != null && issues.isEmpty(),
+                enabled = result != null && issues.isEmpty() && statsIssues.isEmpty(),
                 isSubmitting = isSubmitting,
                 submitError = submitError,
             ) {
@@ -229,7 +258,7 @@ fun CricketScoreEntryScreen(
                 submitError = null
                 isSubmitting = true
                 scope.launch {
-                    val error = onSubmit(r, if (r.isNoResult) null else playerOfMatch)
+                    val error = onSubmit(r, if (r.isNoResult) null else playerOfMatch, playerStats.takeUnless { it.isEmpty })
                     isSubmitting = false
                     if (error != null) submitError = error else close()
                 }
@@ -243,6 +272,66 @@ fun CricketScoreEntryScreen(
                 onDismiss = { showPlayerOfMatchPicker = false },
             )
         }
+        figuresTarget?.let { t ->
+            PlayerFiguresSheet(
+                kind = t.kind,
+                team = t.team,
+                teamId = t.teamId,
+                innings = enteredInnings(t.inningsIndex),
+                ballsPerOver = bpo,
+                accent = accent,
+                stats = playerStats,
+                onSave = { playerStats = it; submitError = null },
+                onDismiss = { figuresTarget = null },
+            )
+        }
+    }
+}
+
+/** One batting or bowling list to fill in: which team (and its registration id), for which innings. */
+private data class FiguresTarget(val kind: FiguresKind, val team: Registration, val teamId: String, val inningsIndex: Int)
+
+@Composable
+private fun PlayerStatsSection(
+    targets: List<Pair<String, FiguresTarget>>,
+    stats: CricketPlayerStats,
+    accent: Color,
+    onOpen: (FiguresTarget) -> Unit,
+) {
+    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Caption("PLAYER STATS · OPTIONAL")
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White)) {
+            targets.forEachIndexed { idx, (inningsLabel, t) ->
+                if (idx > 0) HorizontalDivider(Modifier.padding(start = 16.dp), color = ScoreDivider)
+                val summary = when (t.kind) {
+                    FiguresKind.BATTING -> stats.batting.filter { it.teamRegistrationId == t.teamId }.let { f ->
+                        if (f.isEmpty()) "Not entered" else "${f.size} ${if (f.size == 1) "batter" else "batters"} · ${f.sumOf { it.runs }} runs"
+                    }
+                    FiguresKind.BOWLING -> stats.bowling.filter { it.teamRegistrationId == t.teamId }.let { f ->
+                        if (f.isEmpty()) "Not entered" else "${f.size} ${if (f.size == 1) "bowler" else "bowlers"} · ${f.sumOf { it.wickets }} wickets"
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth().height(56.dp).clickable { onOpen(t) }.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        if (t.kind == FiguresKind.BATTING) Icons.Default.SportsCricket else Icons.Default.SportsBaseball,
+                        null, Modifier.size(22.dp), tint = accent,
+                    )
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            "${if (t.kind == FiguresKind.BATTING) "Batting" else "Bowling"} · ${t.team.displayName()}",
+                            fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                        Text("$inningsLabel · $summary", fontSize = 11.sp, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp), tint = Color.Gray)
+                }
+            }
+        }
+        Text("Runs, balls and wickets per player build the Top performers and player profiles.", fontSize = 10.sp, color = Color.Gray)
     }
 }
 

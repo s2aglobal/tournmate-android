@@ -14,6 +14,8 @@ import com.s2aglobal.tournmate.domain.model.CalorieSource
 import com.s2aglobal.tournmate.domain.model.Match
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.PlayerSportStats
+import com.s2aglobal.tournmate.domain.model.CricketCareer
+import com.s2aglobal.tournmate.domain.model.CricketLeaderboards
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.AnalyticsService
 import com.s2aglobal.tournmate.service.auth.AuthService
@@ -47,6 +49,8 @@ data class ProfileUiState(
     val winRate: Double = 0.0,
     /** Consecutive wins (positive) or losses (negative) in [sport]; ties and no results skipped. */
     val streak: Int = 0,
+    /** Cricket batting/bowling totals from entered figures (cricket only, else null). */
+    val cricketCareer: CricketCareer? = null,
     /** Sport the match stats are for (the app-wide preferred sport). */
     val sport: SportType = SportType.BADMINTON,
     val sportsmanshipAvg: Double = 0.0,
@@ -157,6 +161,9 @@ class ProfileViewModel @Inject constructor(
             wins = stats.wins,
             winRate = if (played == 0) 0.0 else stats.wins.toDouble() / played,
             streak = stats.streak,
+            cricketCareer = if (sport == SportType.CRICKET) {
+                CricketLeaderboards.career(p.id.toString(), CricketLeaderboards.statsOf(stats.matches))
+            } else null,
         )
     }
 

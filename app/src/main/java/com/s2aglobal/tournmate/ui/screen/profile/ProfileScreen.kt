@@ -326,6 +326,10 @@ private fun SignedInProfile(
                 Spacer(Modifier.height(24.dp))
                 MatchStatsSection(uiState)
                 Spacer(Modifier.height(24.dp))
+                uiState.cricketCareer?.let {
+                    com.s2aglobal.tournmate.ui.component.CricketCareerCard(it)
+                    Spacer(Modifier.height(24.dp))
+                }
                 FitnessSection(uiState, player, onQuickPlay = { showQuickPlay = true }, onViewHistory = onViewHistory)
                 Spacer(Modifier.height(24.dp))
                 SkillRatingCard(player, CurrentSport.sport, uiState.streak, showEloInfo) { showEloInfo = !showEloInfo }

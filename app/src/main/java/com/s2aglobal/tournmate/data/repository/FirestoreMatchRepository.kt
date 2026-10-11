@@ -134,6 +134,10 @@ class FirestoreMatchRepository @Inject constructor(
                 resultType = doc.getString("resultType"),
                 resultData = doc.getString("resultData"),
                 summary = doc.getString("summary"),
+                playerOfMatchKey = doc.getString("playerOfMatchKey"),
+                playerOfMatchName = doc.getString("playerOfMatchName"),
+                playerOfMatchTeamId = doc.getString("playerOfMatchTeamId"),
+                playerStatsData = doc.getString("playerStatsData"),
                 tournament = tournament,
                 teamA = teamA,
                 teamB = teamB,
@@ -198,8 +202,10 @@ class FirestoreMatchRepository @Inject constructor(
      */
     override suspend fun submitCricketResult(
         match: Match, result: CricketResult, outcome: CricketOutcome,
-        summary: String, playerOfMatch: PlayerOfMatch?, submittedBy: String, final: Boolean,
+        summary: String, playerOfMatch: PlayerOfMatch?, playerStats: CricketPlayerStats?,
+        submittedBy: String, final: Boolean,
     ) {
+        val statsJson = playerStats?.takeUnless { it.isEmpty }?.encoded()
         val runsA = result.innings(match.teamAId)?.runs
         val runsB = result.innings(match.teamBId)?.runs
         val status = if (final) MatchStatus.FINISHED else MatchStatus.SCORE_SUBMITTED
@@ -216,6 +222,7 @@ class FirestoreMatchRepository @Inject constructor(
             "playerOfMatchKey" to (playerOfMatch?.key ?: FieldValue.delete()),
             "playerOfMatchName" to (playerOfMatch?.name ?: FieldValue.delete()),
             "playerOfMatchTeamId" to (playerOfMatch?.teamRegistrationId ?: FieldValue.delete()),
+            "playerStatsData" to (statsJson ?: FieldValue.delete()),
         )
         if (final) updateData["confirmedBy"] = submittedBy
         collection.document(match.id.toString().uppercase())

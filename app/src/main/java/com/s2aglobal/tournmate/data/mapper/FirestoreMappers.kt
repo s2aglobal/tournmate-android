@@ -237,6 +237,7 @@ fun DocumentSnapshot.toMatch(): Match? {
         playerOfMatchKey = getString("playerOfMatchKey"),
         playerOfMatchName = getString("playerOfMatchName"),
         playerOfMatchTeamId = getString("playerOfMatchTeamId"),
+        playerStatsData = getString("playerStatsData"),
     )
 }
 

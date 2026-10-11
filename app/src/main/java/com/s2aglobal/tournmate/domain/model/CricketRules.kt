@@ -449,11 +449,11 @@ data class CricketRunRate(
 
 private val CricketJson = Json { ignoreUnknownKeys = true }
 
-private fun parseObject(json: String?): JsonObject? =
+internal fun parseObject(json: String?): JsonObject? =
     runCatching { CricketJson.parseToJsonElement(json ?: return null) as? JsonObject }.getOrNull()
 
 /** Integer value (JSON number without a fraction), or null for anything else. */
-private fun JsonElement.asStrictInt(): Int? {
+internal fun JsonElement.asStrictInt(): Int? {
     val p = this as? JsonPrimitive ?: return null
     if (p.isString) return null
     val content = p.content

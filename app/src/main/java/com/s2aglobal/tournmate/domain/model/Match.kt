@@ -40,6 +40,8 @@ data class Match(
     val playerOfMatchKey: String? = null,
     val playerOfMatchName: String? = null,
     val playerOfMatchTeamId: String? = null,
+    /** Optional batting/bowling figures per player (JSON [CricketPlayerStats]). */
+    val playerStatsData: String? = null,
     val tournament: Tournament = Tournament(),
     val teamA: Registration = Registration(),
     val teamB: Registration = Registration(),
@@ -64,6 +66,10 @@ data class Match(
             val team = playerOfMatchTeamId ?: return null
             return PlayerOfMatch(key, name, team)
         }
+
+    /** Decoded player figures, if any were entered with the result. */
+    val playerStats: CricketPlayerStats?
+        get() = CricketPlayerStats.decode(playerStatsData)
 
     /** This match with [pom] as Player of the Match (`null` clears it). */
     fun withPlayerOfMatch(pom: PlayerOfMatch?): Match =

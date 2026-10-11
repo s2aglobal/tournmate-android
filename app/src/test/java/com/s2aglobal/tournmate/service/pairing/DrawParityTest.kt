@@ -1,6 +1,7 @@
 package com.s2aglobal.tournmate.service.pairing
 
 import com.s2aglobal.tournmate.domain.model.CricketEventType
+import com.s2aglobal.tournmate.domain.model.CricketPlayerStatsFixtures
 import com.s2aglobal.tournmate.domain.model.CricketRules
 import com.s2aglobal.tournmate.domain.model.CricketRunRate
 import com.s2aglobal.tournmate.domain.model.CricketScoring
@@ -16,7 +17,8 @@ import org.junit.Test
 /**
  * Cross-platform parity: builds the same fixed-seed dump as iOS
  * `Tools/DrawTests/main.swift` (round robin, knockout brackets, groups and
- * tables, Swiss rounds, 400 random cricket scorecards, random seeding orders) and compares it line by
+ * tables, Swiss rounds, 400 random cricket scorecards, random seeding orders, cricket player
+ * stat rates and leaderboards) and compares it line by
  * line with `draw-parity-fixture.txt`, a copy of iOS
  * `Tools/DrawTests/parity-fixture.txt`. Any difference means the two apps
  * would draw or score differently.
@@ -129,6 +131,7 @@ class DrawParityTest {
             val teams = makeTeams(n, seedTournament)
             out.add("SEED random n=$n: " + labels(PairingService.seeded(teams, SeedingMode.RANDOM, SEED_SALT)))
         }
+        out.addAll(CricketPlayerStatsFixtures.parityLines())
         return out
     }
 

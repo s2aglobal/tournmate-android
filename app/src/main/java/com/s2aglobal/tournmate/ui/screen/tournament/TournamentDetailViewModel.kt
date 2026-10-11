@@ -906,6 +906,7 @@ class TournamentDetailViewModel @Inject constructor(
      */
     suspend fun submitCricketResult(
         match: Match, result: CricketResult, playerOfMatch: PlayerOfMatch?, submittedBy: String, final: Boolean,
+        playerStats: CricketPlayerStats? = null,
     ): String? {
         val tournament = _uiState.value.tournament ?: match.tournament
         val rules = cricketRulesFor(tournament, match)
@@ -913,13 +914,16 @@ class TournamentDetailViewModel @Inject constructor(
         val teamB = match.teamBId
         CricketScoring.validate(result, rules, teamA, teamB).firstOrNull()?.let { return it.message }
         knockoutIssue(tournament, match, result, rules)?.let { return it }
+        playerStats?.validate(result, teamA, teamB) { id ->
+            if (id == teamA) match.teamA.displayName() else match.teamB.displayName()
+        }?.firstOrNull()?.let { return it.message }
         val outcome = CricketScoring.outcome(result, rules)
         val summary = outcome.summary { id -> if (id == teamA) match.teamA.displayName() else match.teamB.displayName() }
         return scoreWrite("save the result") {
             // No award for an abandoned match.
             matchRepo.submitCricketResult(
                 match, result, outcome, summary,
-                if (result.isNoResult) null else playerOfMatch, submittedBy, final,
+                if (result.isNoResult) null else playerOfMatch, playerStats, submittedBy, final,
             )
             reload()
             setStatus(if (final) summary else "Result submitted! Awaiting confirmation from the other team.")

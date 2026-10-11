@@ -399,6 +399,7 @@ private fun BracketMatchCard(match: Match, actions: MatchActions) {
                 Text(it, fontSize = 11.sp, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
             PlayerOfMatchLine(match, Modifier.fillMaxWidth(), centered = true)
+            MatchPerformersLine(match, Modifier.fillMaxWidth(), centered = true)
         }
         BracketMatchActions(match, actions)
     }
@@ -465,6 +466,7 @@ private fun RoundRobinMatchCard(match: Match, actions: MatchActions) {
         }
         Text(iosScoreLine(match), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (match.status == MatchStatus.FINISHED) AppAccent else Color.Black)
         PlayerOfMatchLine(match)
+        MatchPerformersLine(match)
 
         when (match.status) {
             MatchStatus.SCHEDULED -> if (actions.isCreator || mine) {
@@ -519,6 +521,23 @@ private fun PlayerOfMatchLine(match: Match, modifier: Modifier = Modifier, cente
     }
 }
 
+/** "Top score Ravi 75* (40) · Best bowling Asha 3/25" under a cricket result with figures (iOS `matchPerformersLine`). */
+@Composable
+private fun MatchPerformersLine(match: Match, modifier: Modifier = Modifier, centered: Boolean = false) {
+    val stats = match.playerStats ?: return
+    val bat = stats.batting.maxWithOrNull(compareBy<BattingFigures> { it.runs }.thenBy { -it.balls })
+    val bowl = stats.bowling.maxWithOrNull(compareBy<BowlingFigures> { it.wickets }.thenBy { -it.runs })
+    val parts = listOfNotNull(
+        bat?.let { "Top score ${it.name} ${it.runs}${if (it.out) "" else "*"} (${it.balls})" },
+        bowl?.let { "Best bowling ${it.name} ${it.wickets}/${it.runs}" },
+    )
+    if (parts.isEmpty()) return
+    Text(
+        parts.joinToString(" · "), fontSize = 11.sp, color = Color.Gray, maxLines = 2,
+        textAlign = if (centered) TextAlign.Center else TextAlign.Start, modifier = modifier,
+    )
+}
+
 // ── Standings ────────────────────────────────────────
 
 @Composable
@@ -526,6 +545,66 @@ private fun StandingsContent(state: TournamentDetailUiState, viewModel: Tourname
     Column {
         StandingsTables(state, viewModel)
         PlayerAwardsCard(state)
+        TopPerformersCard(state)
+    }
+}
+
+/** Cricket Top performers: most runs and most wickets from entered figures (iOS `topPerformersCard`). */
+@Composable
+private fun TopPerformersCard(state: TournamentDetailUiState) {
+    val tournament = state.tournament ?: return
+    val all = CricketLeaderboards.statsOf(state.matches)
+    val batting = CricketLeaderboards.batting(all).take(5)
+    val bowling = CricketLeaderboards.bowling(all).take(5)
+    if (!tournament.isTeamEvent || (batting.isEmpty() && bowling.isEmpty())) return
+    val bpo = tournament.cricketRules.ballsPerOver
+    fun teamName(id: String) =
+        state.registrations.firstOrNull { it.id.toString().equals(id, ignoreCase = true) }?.displayName().orEmpty()
+    Column(Modifier.padding(top = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("TOP PERFORMERS", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, color = Color.Black)
+        if (batting.isNotEmpty()) {
+            PerformersTable("MOST RUNS", listOf("R", "HS", "SR"), batting.map { e ->
+                PerformerRow(e.id, e.name, teamName(e.teamRegistrationId), listOf("${e.runs}", e.highestText, e.strikeRate))
+            })
+        }
+        if (bowling.isNotEmpty()) {
+            PerformersTable("MOST WICKETS", listOf("W", "BEST", "ECON"), bowling.map { e ->
+                PerformerRow(e.id, e.name, "${teamName(e.teamRegistrationId)} · ${e.oversText(bpo)} ov", listOf("${e.wickets}", e.bestText, e.economy))
+            })
+        }
+    }
+}
+
+private data class PerformerRow(val id: String, val name: String, val team: String, val values: List<String>)
+
+@Composable
+private fun PerformersTable(title: String, columns: List<String>, rows: List<PerformerRow>) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White)
+            .border(1.dp, Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
+    ) {
+        Row(Modifier.fillMaxWidth().background(Color(0xFFF2F2F7)).padding(horizontal = 14.dp, vertical = 8.dp)) {
+            Text(title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.weight(1f))
+            columns.forEach {
+                Text(it, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.width(46.dp))
+            }
+        }
+        rows.forEachIndexed { idx, row ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(row.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(row.team, fontSize = 10.sp, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                row.values.forEachIndexed { i, v ->
+                    Text(
+                        v, fontSize = 12.sp, fontWeight = if (i == 0) FontWeight.Bold else FontWeight.Normal,
+                        color = if (i == 0) AppAccent else Color.Black, textAlign = TextAlign.Center, maxLines = 1,
+                        modifier = Modifier.width(46.dp),
+                    )
+                }
+            }
+            if (idx < rows.size - 1) HorizontalDivider(Modifier.padding(start = 14.dp), color = Color.Gray.copy(alpha = 0.15f))
+        }
     }
 }
 

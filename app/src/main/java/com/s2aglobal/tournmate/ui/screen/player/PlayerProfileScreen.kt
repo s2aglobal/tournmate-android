@@ -131,6 +131,7 @@ fun PlayerProfileScreen(
             ratingCount = ratings.size,
             recentMatches = uiState.recentMatches,
             streak = uiState.streak,
+            cricketCareer = uiState.cricketCareer,
             isMyProfile = isMyProfile,
             isGuest = uiState.isGuest,
             canRate = uiState.hasCurrentPlayer,
@@ -149,6 +150,7 @@ private fun PlayerProfileContent(
     ratingCount: Int,
     recentMatches: List<com.s2aglobal.tournmate.domain.model.Match>,
     streak: Int,
+    cricketCareer: com.s2aglobal.tournmate.domain.model.CricketCareer?,
     isMyProfile: Boolean,
     isGuest: Boolean,
     canRate: Boolean,
@@ -195,6 +197,8 @@ private fun PlayerProfileContent(
                 StatTile("Win Rate", "$winRate%", InfoBlue, Modifier.weight(1f))
             }
         }
+
+        cricketCareer?.let { com.s2aglobal.tournmate.ui.component.CricketCareerCard(it) }
 
         // Skill rating
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
