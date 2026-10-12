@@ -9,7 +9,21 @@ enum class SeedingMode(val rawValue: String) {
     RANDOM("random"),
     MANUAL("manual");
 
+    val displayName: String
+        get() = when (this) {
+            ELO_RANKED -> "Elo Ranked"
+            RANDOM -> "Random"
+            MANUAL -> "Manual"
+        }
+
+    /** The offered mode this one behaves as (stored MANUAL seeds by rating, like ELO_RANKED). */
+    val effective: SeedingMode
+        get() = if (this == MANUAL) ELO_RANKED else this
+
     companion object {
+        /** Modes an organizer can pick. Manual seeding isn't built. Mirrors iOS `SeedingMode.offered`. */
+        val offered: List<SeedingMode> = listOf(ELO_RANKED, RANDOM)
+
         fun fromRawValue(raw: String?): SeedingMode =
             entries.firstOrNull { it.rawValue == raw } ?: ELO_RANKED
     }

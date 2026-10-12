@@ -9,8 +9,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -161,13 +168,31 @@ private fun BracketMatchCard(match: Match, number: Int, onTap: (Match) -> Unit) 
         // Fixed 20dp label row (the "- 20" in the team-row height) so both team rows
         // fit inside the 80dp card; font padding made it taller and clipped team B.
         Row(Modifier.fillMaxWidth().height(20.dp).padding(start = 10.dp, end = 10.dp, top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Match $number", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray.copy(alpha = 0.6f), modifier = Modifier.weight(1f))
+            // A finished cricket match says who won and how ("won the super over" when
+            // the scores are level), not just "Match 1".
+            val summary = match.summary?.takeIf { finished && it.isNotEmpty() }
+            if (summary != null) {
+                AutoShrinkText(summary, Modifier.weight(1f))
+            } else {
+                Text("Match $number", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray.copy(alpha = 0.6f), modifier = Modifier.weight(1f))
+            }
             StatusBadge(match.status)
         }
         TeamRow(match.teamA, match.bracketPosition?.let { it * 2 + 1 }, teamScore(match, true), finished && match.winnerRegistrationId == match.teamAId)
         Box(Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(1.dp).background(DrawSeparator.copy(alpha = 0.2f)))
         TeamRow(match.teamB, match.bracketPosition?.let { it * 2 + 2 }, teamScore(match, false), finished && match.winnerRegistrationId == match.teamBId)
     }
+}
+
+/** One bold accent line at 9sp that shrinks to 80% (iOS `minimumScaleFactor(0.8)`) before ellipsizing. */
+@Composable
+private fun AutoShrinkText(text: String, modifier: Modifier = Modifier) {
+    var size by remember(text) { mutableStateOf(9f) }
+    Text(
+        text, fontSize = size.sp, fontWeight = FontWeight.Bold, color = AppAccent,
+        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier,
+        onTextLayout = { if (it.hasVisualOverflow && size > 9f * 0.8f) size = (size - 0.5f).coerceAtLeast(9f * 0.8f) },
+    )
 }
 
 @Composable
@@ -199,7 +224,17 @@ private fun TeamRow(reg: Registration, seed: Int?, score: String?, isWinner: Boo
             Text("$it", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = Color.Gray, modifier = Modifier.width(16.dp))
         }
         if (isTbd) Box(Modifier.size(24.dp).background(DrawGray4, CircleShape))
-        else InitialAvatar(reg.player.name)
+        else Box {
+            InitialAvatar(reg.teamName?.takeIf { it.isNotEmpty() } ?: reg.player.name)
+            // Winner check on the avatar, not beside the name, so the name keeps its width.
+            if (isWinner) {
+                Icon(
+                    Icons.Default.CheckCircle, "Winner",
+                    Modifier.align(Alignment.BottomEnd).offset(x = 3.dp, y = 3.dp).size(11.dp).background(Color.White, CircleShape),
+                    tint = DrawGreen,
+                )
+            }
+        }
         Text(
             if (isTbd) "TBD" else drawTeamName(reg),
             fontSize = 12.sp,

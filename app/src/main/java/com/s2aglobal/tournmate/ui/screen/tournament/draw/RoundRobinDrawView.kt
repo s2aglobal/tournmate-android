@@ -31,10 +31,23 @@ import com.s2aglobal.tournmate.domain.model.Registration
 import com.s2aglobal.tournmate.ui.screen.tournament.RoundGroup
 import com.s2aglobal.tournmate.ui.theme.AppAccent
 
-/** Cross-match grid for round robin (iOS `RoundRobinDrawView`). */
+/**
+ * Cross-match grid for round robin (iOS `RoundRobinDrawView`). [drawLabel] is
+ * the legend label for "=": "Draw", or "Tie / NR" for cricket.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun RoundRobinDrawView(rounds: List<RoundGroup>, pointsPerWin: Int, pointsPerLoss: Int, onTapMatch: (Match) -> Unit) {
+fun RoundRobinDrawView(
+    rounds: List<RoundGroup>,
+    pointsPerWin: Int,
+    pointsPerLoss: Int,
+    onTapMatch: (Match) -> Unit,
+    pointsPerDraw: Int = 1,
+    drawLabel: String = "Draw",
+) {
     val allMatches = rounds.flatMap { it.matches }
+    // A finished match without a winner (a draw, cricket tie or no result).
+    val hasDrawnResult = allMatches.any { it.status == MatchStatus.FINISHED && it.winnerRegistrationId == null }
     val teams = uniqueTeams(allMatches)
     val labels = teams.indices.map { ('A' + it).toString() }
 
@@ -77,9 +90,16 @@ fun RoundRobinDrawView(rounds: List<RoundGroup>, pointsPerWin: Int, pointsPerLos
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            LegendIcon(Icons.Default.Check, DrawGreen, "Win ($pointsPerWin pts)")
-            LegendIcon(Icons.Default.Close, DrawRed, "Loss ($pointsPerLoss pts)")
+        // Wraps onto a second line when the tie / no result entry is added.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LegendIcon(Icons.Default.Check, DrawGreen, "Win (${pointsLabel(pointsPerWin)})")
+            LegendIcon(Icons.Default.Close, DrawRed, "Loss (${pointsLabel(pointsPerLoss)})")
+            if (hasDrawnResult) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("=", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DrawOrange)
+                    Text("$drawLabel (${pointsLabel(pointsPerDraw)})", fontSize = 10.sp, color = Color.Gray)
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("—", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color.Gray.copy(alpha = 0.6f))
                 Text("Not played", fontSize = 10.sp, color = Color.Gray)
@@ -116,6 +136,8 @@ private fun GridCell(rowTeam: Registration, colTeam: Registration, isSelf: Boole
         }
     }
 }
+
+private fun pointsLabel(points: Int): String = "$points pt${if (points == 1) "" else "s"}"
 
 @Composable
 private fun LegendIcon(icon: ImageVector, color: Color, label: String) {

@@ -4,9 +4,13 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.s2aglobal.tournmate.data.mapper.stringList
 import com.s2aglobal.tournmate.data.mapper.toPlayer
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.Registration
+import com.s2aglobal.tournmate.domain.model.Team
+import com.s2aglobal.tournmate.domain.model.TeamRoles
 import com.s2aglobal.tournmate.domain.model.Tournament
 import kotlinx.coroutines.tasks.await
 import java.util.Date
@@ -33,6 +37,7 @@ class FirestoreRegistrationRepository @Inject constructor(
         for (doc in snapshot.documents) {
             doc.getString("playerId")?.let { playerIds.add(it) }
             doc.getString("partnerId")?.let { playerIds.add(it) }
+            playerIds.addAll(doc.stringList("rosterIds"))
         }
 
         val playerMap = fetchPlayerMap(playerIds)
@@ -44,6 +49,7 @@ class FirestoreRegistrationRepository @Inject constructor(
             val partnerId = doc.getString("partnerId")
             val partner = partnerId?.let { playerMap[it] }
             val createdAt = doc.getTimestamp("createdAt")?.toDate() ?: Date()
+            val rosterIds = doc.stringList("rosterIds")
 
             Registration(
                 id = id,
@@ -54,6 +60,12 @@ class FirestoreRegistrationRepository @Inject constructor(
                 tournament = tournament,
                 player = player,
                 partner = partner,
+                teamId = doc.getString("teamId"),
+                teamName = doc.getString("teamName"),
+                rosterIds = rosterIds,
+                guestNames = doc.stringList("guestNames"),
+                roster = rosterIds.mapNotNull { playerMap[it] },
+                roles = TeamRoles.fromFirestore(doc.data.orEmpty()),
             )
         }.sortedBy { it.createdAt }
     }
@@ -115,10 +127,67 @@ class FirestoreRegistrationRepository @Inject constructor(
             .await()
     }
 
-    override suspend fun deleteRegistration(registration: Registration) {
+    override suspend fun createTeamRegistration(
+        team: Team,
+        registrant: Player,
+        rosterIds: List<String>,
+        guestNames: List<String>,
+        roles: TeamRoles,
+        tournament: Tournament,
+    ) {
+        val regId = UUID.randomUUID().toString().uppercase()
+        val tournamentId = tournament.id.toString().uppercase()
+        val playerId = registrant.id.toString().uppercase()
+        val data = buildMap<String, Any> {
+            put("tournamentId", tournamentId)
+            put("playerId", playerId)
+            put("createdAt", Timestamp(Date()))
+            put("teamId", team.id)
+            put("teamName", team.name)
+            if (rosterIds.isNotEmpty()) put("rosterIds", rosterIds)
+            if (guestNames.isNotEmpty()) put("guestNames", guestNames)
+            putAll(roles.firestoreFields)
+        }
+        // One team entry per person per tournament: the lock document can only
+        // be created once (Firestore rules), so a second entry fails.
+        val batch = db.batch()
+        batch.set(collection.document(regId), data)
+        batch.set(
+            teamEntryLock(tournamentId, playerId),
+            mapOf("tournamentId" to tournamentId, "playerId" to playerId, "registrationId" to regId),
+        )
+        try {
+            batch.commit().await()
+        } catch (e: FirebaseFirestoreException) {
+            if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) throw RegistrationAlreadyEnteredException()
+            throw e
+        }
+    }
+
+    /**
+     * `teamEntries/{tournamentId}_{playerId}` (lower case, so iOS and Android
+     * ids written in either case share one lock). Mirrors iOS `teamEntryLock`.
+     */
+    private fun teamEntryLock(tournamentId: String, playerId: String) =
+        db.collection("teamEntries").document("${tournamentId.lowercase()}_${playerId.lowercase()}")
+
+    override suspend fun updateRoster(registration: Registration, rosterIds: List<String>, guestNames: List<String>) {
         collection.document(registration.id.toString().uppercase())
-            .delete()
+            .update(mapOf("rosterIds" to rosterIds, "guestNames" to guestNames))
             .await()
+    }
+
+    override suspend fun deleteRegistration(registration: Registration) {
+        val doc = collection.document(registration.id.toString().uppercase())
+        if (!registration.isTeamEntry) {
+            doc.delete().await()
+            return
+        }
+        // Free the one-entry lock with the entry, so the person can enter again.
+        val batch = db.batch()
+        batch.delete(doc)
+        batch.delete(teamEntryLock(registration.tournamentId, registration.playerId))
+        batch.commit().await()
     }
 
     override suspend fun tournamentIds(forPlayerID: UUID): Set<UUID> {
@@ -134,8 +203,14 @@ class FirestoreRegistrationRepository @Inject constructor(
             .get()
             .await()
 
+        // Team entries that name the player on the roster.
+        val asRoster = collection
+            .whereArrayContains("rosterIds", pid)
+            .get()
+            .await()
+
         val ids = mutableSetOf<UUID>()
-        for (doc in asPlayer.documents + asPartner.documents) {
+        for (doc in asPlayer.documents + asPartner.documents + asRoster.documents) {
             val tid = doc.getString("tournamentId") ?: continue
             try { ids.add(UUID.fromString(tid)) } catch (_: Exception) { /* skip */ }
         }

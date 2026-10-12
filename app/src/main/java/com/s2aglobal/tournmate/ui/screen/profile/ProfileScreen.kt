@@ -137,6 +137,7 @@ import com.s2aglobal.tournmate.domain.model.HomeRegionCountry
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.PlayerAvatar
 import com.s2aglobal.tournmate.domain.model.SeedTierRules
+import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.calorie.HealthConnectCalorieResult
 import com.s2aglobal.tournmate.service.calorie.METEstimator
 import com.s2aglobal.tournmate.service.calorie.PlayIntensity
@@ -180,6 +181,9 @@ fun ProfilePlaceholder(
         viewModel.logScreenView()
         viewModel.load()
     }
+    // Stats follow the app-wide sport (Play switcher or My Sport) without refetching.
+    val preferredSport = CurrentSport.sport
+    LaunchedEffect(preferredSport) { viewModel.selectSport(preferredSport) }
 
     if (showCalorieHistory && uiState.player != null) {
         BackHandler { showCalorieHistory = false }
@@ -310,7 +314,7 @@ private fun SignedInProfile(
                         TrophySpinner(size = 28.dp)
                     }
                 }
-                ProfileHeader(player, onAvatarEdit = { showAvatarPicker = true })
+                ProfileHeader(player, CurrentSport.sport, onAvatarEdit = { showAvatarPicker = true })
                 Spacer(Modifier.height(24.dp))
                 ContactCard(player)
                 Spacer(Modifier.height(24.dp))
@@ -322,9 +326,13 @@ private fun SignedInProfile(
                 Spacer(Modifier.height(24.dp))
                 MatchStatsSection(uiState)
                 Spacer(Modifier.height(24.dp))
+                uiState.cricketCareer?.let {
+                    com.s2aglobal.tournmate.ui.component.CricketCareerCard(it)
+                    Spacer(Modifier.height(24.dp))
+                }
                 FitnessSection(uiState, player, onQuickPlay = { showQuickPlay = true }, onViewHistory = onViewHistory)
                 Spacer(Modifier.height(24.dp))
-                SkillRatingCard(player, showEloInfo) { showEloInfo = !showEloInfo }
+                SkillRatingCard(player, CurrentSport.sport, uiState.streak, showEloInfo) { showEloInfo = !showEloInfo }
                 Spacer(Modifier.height(24.dp))
                 SportsmanshipCard(uiState)
                 Spacer(Modifier.height(24.dp))
@@ -372,8 +380,8 @@ private fun SignedInProfile(
 // ── Profile Header ──────────────────────────────────
 
 @Composable
-private fun ProfileHeader(player: Player, onAvatarEdit: () -> Unit = {}) {
-    val tier = SeedTierRules.tier(player.elo)
+private fun ProfileHeader(player: Player, sport: SportType, onAvatarEdit: () -> Unit = {}) {
+    val tier = SeedTierRules.tier(player.elo(sport))
     Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.Center) {
             Box(Modifier.size(140.dp).background(Brush.radialGradient(listOf(AppAccent.copy(alpha = 0.12f), Color.Transparent), radius = 200f), CircleShape))
@@ -622,9 +630,10 @@ private fun StatTile(icon: Painter, value: String, label: String, color: Color, 
 // ── Skill Rating (ELO) ─────────────────────────────
 
 @Composable
-private fun SkillRatingCard(player: Player, showInfo: Boolean, onToggle: () -> Unit) {
-    val tier = SeedTierRules.tier(player.elo)
-    val progress = min(player.elo / 2500.0, 1.0).toFloat()
+private fun SkillRatingCard(player: Player, sport: SportType, streak: Int, showInfo: Boolean, onToggle: () -> Unit) {
+    val elo = player.elo(sport)
+    val tier = SeedTierRules.tier(elo)
+    val progress = min(elo / 2500.0, 1.0).toFloat()
 
     Column(Modifier.padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -647,7 +656,7 @@ private fun SkillRatingCard(player: Player, showInfo: Boolean, onToggle: () -> U
                         drawArc(p, -90f, 360f * progress, false, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("${player.elo.toInt()}", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("${elo.toInt()}", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Text("Elo", fontSize = 11.sp, color = Color.Gray)
                     }
                 }
@@ -657,17 +666,18 @@ private fun SkillRatingCard(player: Player, showInfo: Boolean, onToggle: () -> U
                         Icon(Icons.Filled.Shield, null, Modifier.size(15.dp), tint = tier.badgeColor)
                         Text(tier.title, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
-                    if (player.streak != 0) {
-                        val winning = player.streak > 0
+                    // Streak in this sport
+                    if (streak != 0) {
+                        val winning = streak > 0
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 if (winning) Icons.Filled.LocalFireDepartment else Icons.Filled.ArrowCircleDown, null,
                                 Modifier.size(13.dp), tint = if (winning) WarningOrange else LossRed,
                             )
-                            Text("${abs(player.streak)} ${if (winning) "win" else "loss"} streak", fontSize = 12.sp, color = Color.Gray)
+                            Text("${abs(streak)} ${if (winning) "win" else "loss"} streak", fontSize = 12.sp, color = Color.Gray)
                         }
                     }
-                    Text(rankProgressHint(player.elo), fontSize = 11.sp, color = Color.LightGray, maxLines = 2)
+                    Text(rankProgressHint(elo), fontSize = 11.sp, color = Color.LightGray, maxLines = 2)
                 }
             }
         }

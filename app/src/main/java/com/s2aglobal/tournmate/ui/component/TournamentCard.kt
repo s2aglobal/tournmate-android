@@ -84,7 +84,7 @@ fun TournamentCard(
                     ) {
                         Badge(statusText.uppercase(), statusColor)
                         Badge(
-                            tournament.format.shortName, Color.Gray,
+                            tournament.eventShortName, Color.Gray,
                             fontSize = 10, weight = FontWeight.Bold, background = Color(0xFFF2F2F7),
                         )
                         tournament.skillDivision?.let { division ->

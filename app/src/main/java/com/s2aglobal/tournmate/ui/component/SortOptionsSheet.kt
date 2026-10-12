@@ -363,14 +363,8 @@ fun SortFilterIcon(option: ListSortOption, onClick: () -> Unit, modifier: Modifi
 
 // ── Sheet ────────────────────────────────────────────────────────────────
 
-private object SortSheetColors {
-    val Background = Color(0xFFF2F2F7)
-    val Secondary = Color(0xFF8E8E93)
-    val Divider = Color(0xFFE5E5EA)
-    val Selected = Color(0xFF0F172A)
-    val UnselectedStroke = Color(0xFFC7C7CC)
-    val Grabber = Color(0x4D3C3C43)
-}
+// Shared look lives in OptionSheet.kt (iOS `OptionSheetStyle`).
+private typealias SortSheetColors = OptionSheetStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -392,23 +386,7 @@ fun SortOptionsSheet(
         }.invokeOnCompletion { onDismiss() }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = SortSheetColors.Background,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        // iOS-style grabber inside the 28dp top padding (5dp from the edge, 36x5).
-        dragHandle = {
-            Box(Modifier.fillMaxWidth().height(28.dp), contentAlignment = Alignment.TopCenter) {
-                Box(
-                    Modifier
-                        .padding(top = 5.dp)
-                        .size(width = 36.dp, height = 5.dp)
-                        .background(SortSheetColors.Grabber, CircleShape),
-                )
-            }
-        },
-    ) {
+    OptionSheetScaffold(sheetState = sheetState, onDismissRequest = onDismiss) {
         // Content fits without scrolling, so no sheetScrollLikeIos().
         // Padding: 16 sides, 28 top (the grabber slot), 16 bottom; header + label inset to 20.
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -430,87 +408,23 @@ fun SortOptionsSheet(
                 )
             }
             Spacer(Modifier.height(8.dp))
-            Text(
-                "SORT BY",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.2.sp,
-                color = SortSheetColors.Secondary,
-                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-            )
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(16.dp))
-                    .selectableGroup(),
-            ) {
+            OptionSheetSectionLabel("SORT BY", Modifier.padding(bottom = 8.dp))
+            OptionSheetCard(Modifier.selectableGroup()) {
                 ListSortOption.entries.forEachIndexed { index, option ->
                     val isSelected = option == selected
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .selectable(selected = isSelected, role = Role.RadioButton) {
-                                if (isSelected) {
-                                    close(0)
-                                } else {
-                                    onSelect(option)
-                                    close(200)
-                                }
-                            }
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            option.label,
-                            fontSize = 16.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = Color.Black,
-                            modifier = Modifier.weight(1f),
-                        )
-                        SelectionIndicator(isSelected)
+                    OptionSheetRow(option.label, isSelected) {
+                        if (isSelected) {
+                            close(0)
+                        } else {
+                            onSelect(option)
+                            close(200)
+                        }
                     }
-                    if (index < ListSortOption.entries.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(start = 16.dp),
-                            thickness = 0.5.dp,
-                            color = SortSheetColors.Divider,
-                        )
-                    }
+                    if (index < ListSortOption.entries.lastIndex) OptionSheetDivider()
                 }
             }
             // ModalBottomSheet already insets for the navigation bar; 16dp below the card.
             Spacer(Modifier.height(16.dp))
         }
-    }
-}
-
-@Composable
-private fun SelectionIndicator(selected: Boolean) {
-    if (selected) {
-        Box(
-            Modifier.size(22.dp).background(SortSheetColors.Selected, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            // Bold 11dp checkmark (iOS: checkmark, 11pt bold, white).
-            Canvas(Modifier.size(11.dp)) {
-                val w = size.width
-                val h = size.height
-                val path = Path().apply {
-                    moveTo(w * 0.08f, h * 0.55f)
-                    lineTo(w * 0.38f, h * 0.84f)
-                    lineTo(w * 0.94f, h * 0.18f)
-                }
-                drawPath(
-                    path,
-                    Color.White,
-                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
-                )
-            }
-        }
-    } else {
-        Box(
-            Modifier.size(22.dp).border(1.5.dp, SortSheetColors.UnselectedStroke, CircleShape),
-        )
     }
 }

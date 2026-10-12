@@ -131,6 +131,13 @@ class FirestoreMatchRepository @Inject constructor(
                 sportTypeRaw = unknownSportRaw(doc.getString("sportType")),
                 submittedBy = doc.getString("submittedBy"),
                 confirmedBy = doc.getString("confirmedBy"),
+                resultType = doc.getString("resultType"),
+                resultData = doc.getString("resultData"),
+                summary = doc.getString("summary"),
+                playerOfMatchKey = doc.getString("playerOfMatchKey"),
+                playerOfMatchName = doc.getString("playerOfMatchName"),
+                playerOfMatchTeamId = doc.getString("playerOfMatchTeamId"),
+                playerStatsData = doc.getString("playerStatsData"),
                 tournament = tournament,
                 teamA = teamA,
                 teamB = teamB,
@@ -184,6 +191,42 @@ class FirestoreMatchRepository @Inject constructor(
             .set(updateData, SetOptions.merge()).await()
 
         if (match.status != MatchStatus.FINISHED) applyEloIfNeeded(match, winnerId)
+    }
+
+    /**
+     * Writes a cricket scorecard. [final] = the organizer entering a result
+     * (finished at once); otherwise a participant submits it for the other side
+     * to confirm, like set scores. `scoreA`/`scoreB` hold each side's runs so
+     * older views still show numbers. Team results are rated on the server only.
+     * Mirrors iOS `submitCricketResult`.
+     */
+    override suspend fun submitCricketResult(
+        match: Match, result: CricketResult, outcome: CricketOutcome,
+        summary: String, playerOfMatch: PlayerOfMatch?, playerStats: CricketPlayerStats?,
+        submittedBy: String, final: Boolean,
+    ) {
+        val statsJson = playerStats?.takeUnless { it.isEmpty }?.encoded()
+        val runsA = result.innings(match.teamAId)?.runs
+        val runsB = result.innings(match.teamBId)?.runs
+        val status = if (final) MatchStatus.FINISHED else MatchStatus.SCORE_SUBMITTED
+        val updateData = mutableMapOf<String, Any>(
+            "resultData" to result.encoded(),
+            "resultType" to outcome.resultType.rawValue,
+            "summary" to summary,
+            "winnerRegistrationId" to (outcome.winnerRegistrationId ?: FieldValue.delete()),
+            "scoreA" to (runsA ?: FieldValue.delete()),
+            "scoreB" to (runsB ?: FieldValue.delete()),
+            "setScores" to FieldValue.delete(),
+            "submittedBy" to submittedBy,
+            "statusRaw" to status.rawValue,
+            "playerOfMatchKey" to (playerOfMatch?.key ?: FieldValue.delete()),
+            "playerOfMatchName" to (playerOfMatch?.name ?: FieldValue.delete()),
+            "playerOfMatchTeamId" to (playerOfMatch?.teamRegistrationId ?: FieldValue.delete()),
+            "playerStatsData" to (statsJson ?: FieldValue.delete()),
+        )
+        if (final) updateData["confirmedBy"] = submittedBy
+        collection.document(match.id.toString().uppercase())
+            .set(updateData, SetOptions.merge()).await()
     }
 
     override suspend fun disputeScore(match: Match, disputedBy: String) {
@@ -246,6 +289,9 @@ class FirestoreMatchRepository @Inject constructor(
      */
     private suspend fun applyEloIfNeeded(match: Match, winnerId: String?) {
         if (winnerId == null) return
+        // Team sports are rated only on the server (team-average model); the
+        // pairwise loop below is for singles and doubles.
+        if (match.hasTeamResult || match.tournament.isTeamEvent) return
         val winnerReg = if (winnerId == match.teamAId) match.teamA else match.teamB
         val loserReg = if (winnerId == match.teamAId) match.teamB else match.teamA
 

@@ -63,6 +63,7 @@ fun TournamentDetailScreen(
 
     var showDobPrompt by remember { mutableStateOf(false) }
     var showPartnerSheet by remember { mutableStateOf(false) }
+    var showTeamRegisterSheet by remember { mutableStateOf(false) }
     var selectedPartner by remember { mutableStateOf<Player?>(null) }
     var showWithdrawConfirm by remember { mutableStateOf(false) }
     var partnerToPick by remember { mutableStateOf<Player?>(null) }
@@ -116,7 +117,7 @@ fun TournamentDetailScreen(
             tournament = tournament,
             onSave = { title, date, location, locationAddress, locationLatitude, locationLongitude,
                        format, matchFormat, formatConfig, randomPairing, registrationDeadline,
-                       entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, scoringConfig, skillDivision ->
+                       entryFee, currency, paymentInfo, prizeInfo, durationMinutes, ageGroup, scoringConfig, skillDivision, cricketRules ->
                 viewModel.updateTournament(
                     title = title, date = date,
                     location = location, locationAddress = locationAddress,
@@ -126,11 +127,13 @@ fun TournamentDetailScreen(
                     entryFee = entryFee, currency = currency, paymentInfo = paymentInfo,
                     prizeInfo = prizeInfo, durationMinutes = durationMinutes, ageGroup = ageGroup,
                     scoringConfig = scoringConfig, skillDivision = skillDivision,
+                    cricketRules = cricketRules,
                 )
                 showEditSheet = false
             },
             onCancel = { showEditSheet = false },
-            canEditScoring = state.matches.isEmpty(),
+            canEditMatchRules = state.matches.isEmpty(),
+            canEditMatchFormat = state.registrations.isEmpty(),
         )
     }
 
@@ -146,9 +149,16 @@ fun TournamentDetailScreen(
         onEditSetScore = { scoreSheet = ScoreSheet.EditSets(it) },
         onEditSimpleScore = { scoreSheet = ScoreSheet.EditSimple(it) },
         onReview = { matchForReview = it },
+        isTeamEvent = tournament.isTeamEvent,
     )
 
     fun handleRegisterTap() {
+        if (tournament.isTeamEvent) {
+            // Team sports: the captain registers a team with a roster.
+            if (tournament.isRegistrationClosed) { viewModel.showStatus("Registration is closed."); return }
+            showTeamRegisterSheet = true
+            return
+        }
         val needsDob = tournament.ageGroup != AgeGroup.OPEN && state.currentPlayer?.dateOfBirth == null
         when {
             needsDob -> showDobPrompt = true
@@ -232,9 +242,43 @@ fun TournamentDetailScreen(
         )
     }
 
+    if (showTeamRegisterSheet) {
+        val me = state.currentPlayer
+        if (me == null) {
+            showTeamRegisterSheet = false
+        } else {
+            TeamRegistrationSheet(
+                tournament = tournament,
+                registrant = me,
+                enteredPlayers = Registration.enteredPlayers(state.registrations),
+                onRegistered = { showTeamRegisterSheet = false; viewModel.onTeamRegistered() },
+                onCancel = { showTeamRegisterSheet = false },
+            )
+        }
+    }
+
     scoreSheet?.let { sheet ->
         val match = sheet.match
         val close = { scoreSheet = null }
+        if (tournament.isTeamEvent) {
+            // Every score sheet of a team sport is the cricket scorecard. The organizer's
+            // entry (and any edit or dispute resolution) is final; captains submit for confirmation.
+            val final = when (sheet) {
+                is ScoreSheet.Sets, is ScoreSheet.Simple -> state.isCreator
+                else -> true
+            }
+            CricketScoreEntryScreen(
+                match = match,
+                isCreator = final,
+                existingPlayerOfMatch = match.playerOfMatch,
+                existingPlayerStats = match.playerStats,
+                onSubmit = { result, playerOfMatch, playerStats ->
+                    viewModel.submitCricketResult(match, result, playerOfMatch, uid, final, playerStats)
+                },
+                onDismiss = close,
+            )
+            return@let
+        }
         when (sheet) {
             is ScoreSheet.Sets -> SetScoreEntryScreen(
                 match = match, isCreator = state.isCreator,
@@ -273,7 +317,10 @@ fun TournamentDetailScreen(
         AlertDialog(
             onDismissRequest = { matchForReview = null },
             title = { Text("Review Submitted Score") },
-            text = { Text("${registrationShortName(match.teamA)} vs ${registrationShortName(match.teamB)}\n${iosScoreLine(match)}") },
+            text = {
+                val detail = match.summary?.takeIf { match.hasTeamResult }?.let { "\n$it" } ?: ""
+                Text("${registrationShortName(match.teamA)} vs ${registrationShortName(match.teamB)}\n${iosScoreLine(match)}$detail")
+            },
             confirmButton = {
                 Column(horizontalAlignment = Alignment.End) {
                     TextButton(onClick = { matchForReview = null; scoreScope.launch { scoreActionError = viewModel.confirmScore(match, uid) } }) {
@@ -304,7 +351,10 @@ fun TournamentDetailScreen(
             title = { Text("Withdraw from Tournament?") },
             text = {
                 Text(
-                    if (tournament.format.isDoubles) "You will be removed from this tournament. If you have a partner, your team will be dissolved."
+                    if (tournament.isTeamEvent) {
+                        if (state.currentPlayerRegistration?.player?.id == state.currentPlayer?.id) "Your team's entry will be withdrawn from this tournament."
+                        else "You will be removed from your team's roster for this tournament."
+                    } else if (tournament.format.isDoubles) "You will be removed from this tournament. If you have a partner, your team will be dissolved."
                     else "You will be removed from this tournament. This cannot be undone."
                 )
             },
@@ -472,7 +522,7 @@ private fun HeaderSection(tournament: Tournament, isCreator: Boolean, onBack: ()
 
         Row(Modifier.padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             HeaderPill(statusText, statusColor, null)
-            HeaderPill(tournament.format.displayName.uppercase(), Color.White.copy(alpha = 0.1f), Color.White.copy(alpha = 0.2f))
+            HeaderPill(tournament.eventDisplayName.uppercase(), Color.White.copy(alpha = 0.1f), Color.White.copy(alpha = 0.2f))
             if (tournament.ageGroup != AgeGroup.OPEN) {
                 HeaderPill(tournament.ageGroup.shortName.uppercase(), Color(0xFFFF9500).copy(alpha = 0.2f), Color(0xFFFF9500).copy(alpha = 0.4f))
             }

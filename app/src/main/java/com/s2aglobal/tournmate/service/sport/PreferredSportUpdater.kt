@@ -5,7 +5,7 @@ import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.domain.model.Player
 import com.s2aglobal.tournmate.domain.model.SportType
 import com.s2aglobal.tournmate.service.AnalyticsService
-import com.s2aglobal.tournmate.service.auth.AuthService
+import com.s2aglobal.tournmate.service.auth.CurrentPlayerLookup
 import com.s2aglobal.tournmate.service.notification.NotificationService
 import com.s2aglobal.tournmate.ui.theme.CurrentSport
 import kotlinx.coroutines.CoroutineScope
@@ -24,8 +24,8 @@ class PreferredSportUpdater @Inject constructor(
     private val currentUserStore: CurrentUserStore,
     private val playerRepo: PlayerRepository,
     private val notificationService: NotificationService,
-    private val authService: AuthService,
     private val analytics: AnalyticsService,
+    private val currentPlayerLookup: CurrentPlayerLookup,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -38,7 +38,7 @@ class PreferredSportUpdater @Inject constructor(
 
         scope.launch {
             currentUserStore.setPreferredSport(sport)
-            val resolved = player ?: currentPlayer() ?: return@launch // guest: local preference only
+            val resolved = player ?: currentPlayerLookup.currentPlayer() ?: return@launch // guest: local preference only
             notificationService.switchSportTopics(resolved.copy(preferredSport = sport), oldSport, sport)
             try {
                 playerRepo.updatePlayerFields(resolved.id, mapOf("preferredSport" to sport.rawValue))
@@ -46,9 +46,4 @@ class PreferredSportUpdater @Inject constructor(
         }
         return true
     }
-
-    private suspend fun currentPlayer(): Player? = runCatching {
-        currentUserStore.currentPlayerId()?.let { playerRepo.findPlayerById(it) }
-            ?: authService.currentUser?.uid?.let { playerRepo.findPlayerByFirebaseUid(it) }
-    }.getOrNull()
 }

@@ -18,13 +18,23 @@ enum class TournamentFormat(val rawValue: String) {
     WOMENS_DOUBLES("womensDoubles"),
     MIXED_DOUBLES("mixedDoubles"),
     OPEN_DOUBLES("openDoubles"),
-    FIXED_DOUBLES("fixedDoubles");
+    FIXED_DOUBLES("fixedDoubles"),
+
+    // Team sports (cricket): entrants are teams with a roster. Older app
+    // versions decode this as OPEN_DOUBLES, but they never see team sports
+    // (gated by `config/sports.liveMinAppVersion`).
+    TEAM("team");
 
     val isSingles: Boolean
         get() = this in listOf(MENS_SINGLES, WOMENS_SINGLES, OPEN_SINGLES)
 
+    /** `true` for 2-v-2 events (partner required). */
     val isDoubles: Boolean
-        get() = !isSingles
+        get() = this in listOf(MENS_DOUBLES, WOMENS_DOUBLES, MIXED_DOUBLES, OPEN_DOUBLES, FIXED_DOUBLES)
+
+    /** `true` for team-sport events (cricket): a team registers with a roster. */
+    val isTeam: Boolean
+        get() = this == TEAM
 
     val displayName: String
         get() = when (this) {
@@ -36,6 +46,7 @@ enum class TournamentFormat(val rawValue: String) {
             MIXED_DOUBLES -> "Mixed Doubles"
             OPEN_DOUBLES -> "Open Doubles"
             FIXED_DOUBLES -> "Open Doubles"
+            TEAM -> "Teams"
         }
 
     val shortName: String
@@ -48,6 +59,7 @@ enum class TournamentFormat(val rawValue: String) {
             MIXED_DOUBLES -> "XD"
             OPEN_DOUBLES -> "OD"
             FIXED_DOUBLES -> "OD"
+            TEAM -> "TM"
         }
 
     companion object {
@@ -81,6 +93,21 @@ enum class MatchFormat(val rawValue: String) {
         }
 
     companion object {
+        /**
+         * Formats an organizer can pick (create and edit), the same on iOS
+         * (`MatchFormat.offered(for:current:)`). Double elimination isn't built
+         * yet (it plays as single elimination). Cricket (a team sport) has no
+         * Swiss: it pairs on wins only, which ignores ties, no results and net
+         * run rate. A tournament's current format is always listed.
+         */
+        fun offered(sport: SportType, current: MatchFormat? = null): List<MatchFormat> {
+            val formats = if (sport == SportType.CRICKET)
+                setOf(SINGLE_ELIMINATION, ROUND_ROBIN, GROUP_KNOCKOUT, MANUAL_DRAW)
+            else
+                setOf(SINGLE_ELIMINATION, ROUND_ROBIN, GROUP_KNOCKOUT, SWISS, MANUAL_DRAW)
+            return entries.filter { it in formats || it == current }
+        }
+
         fun fromRawValue(raw: String?): MatchFormat =
             entries.firstOrNull { it.rawValue == raw } ?: SINGLE_ELIMINATION
     }

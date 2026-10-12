@@ -6,6 +6,7 @@ import com.s2aglobal.tournmate.data.repository.FirestoreMatchRepository
 import com.s2aglobal.tournmate.data.repository.FirestorePlayerRepository
 import com.s2aglobal.tournmate.data.repository.FirestorePlaySessionRepository
 import com.s2aglobal.tournmate.data.repository.FirestoreRatingRepository
+import com.s2aglobal.tournmate.data.repository.FirestoreTeamRepository
 import com.s2aglobal.tournmate.data.repository.FirestoreRegistrationRepository
 import com.s2aglobal.tournmate.data.repository.FirestoreTournamentRepository
 import com.s2aglobal.tournmate.data.repository.MatchRepository
@@ -13,6 +14,7 @@ import com.s2aglobal.tournmate.data.repository.PlayerRepository
 import com.s2aglobal.tournmate.data.repository.PlaySessionRepository
 import com.s2aglobal.tournmate.data.repository.RatingRepository
 import com.s2aglobal.tournmate.data.repository.RegistrationRepository
+import com.s2aglobal.tournmate.data.repository.TeamRepository
 import com.s2aglobal.tournmate.data.repository.TournamentRepository
 import com.s2aglobal.tournmate.service.auth.AuthService
 import com.s2aglobal.tournmate.service.auth.FirebaseAuthService
@@ -53,6 +55,10 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindRatingRepository(impl: FirestoreRatingRepository): RatingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTeamRepository(impl: FirestoreTeamRepository): TeamRepository
 
     @Binds
     @Singleton

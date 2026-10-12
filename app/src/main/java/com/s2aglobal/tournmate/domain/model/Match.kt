@@ -30,6 +30,18 @@ data class Match(
     val sportTypeRaw: String? = null,
     val submittedBy: String? = null,
     val confirmedBy: String? = null,
+    /** Team-sport result (cricket): "win" | "tie" | "noResult". Null for set-based sports. */
+    val resultType: String? = null,
+    /** Scorecard JSON ([CricketResult]). */
+    val resultData: String? = null,
+    /** "Dallas Royals won by 6 wickets (10 balls left)". */
+    val summary: String? = null,
+    /** Player of the Match (cricket, optional): [TeamRoles] key, name, and the registration id of their team. */
+    val playerOfMatchKey: String? = null,
+    val playerOfMatchName: String? = null,
+    val playerOfMatchTeamId: String? = null,
+    /** Optional batting/bowling figures per player (JSON [CricketPlayerStats]). */
+    val playerStatsData: String? = null,
     val tournament: Tournament = Tournament(),
     val teamA: Registration = Registration(),
     val teamB: Registration = Registration(),
@@ -42,6 +54,30 @@ data class Match(
 
     val setsWonByB: Int
         get() = setScores.count { it.teamBWon }
+
+    /** Decoded scorecard, if this match has one. */
+    val cricketResult: CricketResult?
+        get() = CricketResult.decode(resultData)
+
+    val playerOfMatch: PlayerOfMatch?
+        get() {
+            val key = playerOfMatchKey ?: return null
+            val name = playerOfMatchName ?: return null
+            val team = playerOfMatchTeamId ?: return null
+            return PlayerOfMatch(key, name, team)
+        }
+
+    /** Decoded player figures, if any were entered with the result. */
+    val playerStats: CricketPlayerStats?
+        get() = CricketPlayerStats.decode(playerStatsData)
+
+    /** This match with [pom] as Player of the Match (`null` clears it). */
+    fun withPlayerOfMatch(pom: PlayerOfMatch?): Match =
+        copy(playerOfMatchKey = pom?.key, playerOfMatchName = pom?.name, playerOfMatchTeamId = pom?.teamRegistrationId)
+
+    /** `true` when the result is a team-sport scorecard (rated on the server only). */
+    val hasTeamResult: Boolean
+        get() = resultData != null || resultType != null
 
     val winnerRegistration: Registration?
         get() = when (winnerRegistrationId) {
@@ -59,6 +95,7 @@ data class Match(
 
     val displayScoreLine: String
         get() {
+            cricketScoreLine?.let { return it }
             if (setScores.isNotEmpty()) {
                 return setScores.joinToString("  ") { "${it.teamAPoints}-${it.teamBPoints}" }
             }
@@ -67,13 +104,18 @@ data class Match(
             return "$a - $b"
         }
 
-    fun isOnTeamA(firebaseUid: String): Boolean =
-        teamA.player.firebaseUid == firebaseUid ||
-            teamA.partner?.firebaseUid == firebaseUid
+    /** "158/7 (20) · 159/4 (18.2)", or the summary for a no result; null without a scorecard. */
+    val cricketScoreLine: String?
+        get() {
+            val card = cricketResult ?: return null
+            val bpo = tournament.cricketRules.ballsPerOver
+            if (card.innings.isEmpty()) return summary ?: "No result"
+            return card.innings.joinToString(" · ") { "${it.runs}/${it.wickets} (${CricketOvers.format(it.balls, bpo)})" }
+        }
 
-    fun isOnTeamB(firebaseUid: String): Boolean =
-        teamB.player.firebaseUid == firebaseUid ||
-            teamB.partner?.firebaseUid == firebaseUid
+    fun isOnTeamA(firebaseUid: String): Boolean = teamA.containsFirebaseUid(firebaseUid)
+
+    fun isOnTeamB(firebaseUid: String): Boolean = teamB.containsFirebaseUid(firebaseUid)
 
     fun isParticipant(firebaseUid: String): Boolean =
         isOnTeamA(firebaseUid) || isOnTeamB(firebaseUid)

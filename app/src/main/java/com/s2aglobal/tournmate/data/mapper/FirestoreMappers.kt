@@ -109,6 +109,8 @@ fun DocumentSnapshot.toTournament(): Tournament? {
         sportType = SportType.fromRawValue(getString("sportType")),
         sportTypeRaw = unknownSportRaw(getString("sportType")),
         registrationCount = getLong("registrationCount")?.toInt(),
+        eventTypeId = getString("eventTypeId"),
+        rulesData = getString("rulesData"),
     )
 }
 
@@ -145,6 +147,8 @@ fun Tournament.toFirestoreMap(): Map<String, Any?> = buildMap {
     postalCode?.let { put("postalCode", it) }
     timeZone?.let { put("timeZone", it) }
     put("sportType", sportType.storedRawValue(sportTypeRaw))
+    eventTypeId?.let { put("eventTypeId", it) }
+    rulesData?.let { put("rulesData", it) }
 }
 
 fun Match.toFirestoreMap(): Map<String, Any?> = buildMap {
@@ -162,6 +166,9 @@ fun Match.toFirestoreMap(): Map<String, Any?> = buildMap {
     winnerRegistrationId?.let { put("winnerRegistrationId", it) }
     submittedBy?.let { put("submittedBy", it) }
     confirmedBy?.let { put("confirmedBy", it) }
+    resultType?.let { put("resultType", it) }
+    resultData?.let { put("resultData", it) }
+    summary?.let { put("summary", it) }
     if (setScores.isNotEmpty()) {
         put("setScores", setScores.map { mapOf("teamAPoints" to it.teamAPoints, "teamBPoints" to it.teamBPoints) })
     }
@@ -175,8 +182,17 @@ fun DocumentSnapshot.toRegistration(): Registration? {
         playerId = getString("playerId") ?: "",
         partnerId = getString("partnerId"),
         createdAt = getTimestamp("createdAt")?.toDate() ?: Date(),
+        teamId = getString("teamId"),
+        teamName = getString("teamName"),
+        rosterIds = stringList("rosterIds"),
+        guestNames = stringList("guestNames"),
+        roles = TeamRoles.fromFirestore(data.orEmpty()),
     )
 }
+
+/** A string array field (non-strings skipped); empty when missing. */
+fun DocumentSnapshot.stringList(field: String): List<String> =
+    (get(field) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
 
 fun DocumentSnapshot.toMatch(): Match? {
     if (!exists()) return null
@@ -215,6 +231,13 @@ fun DocumentSnapshot.toMatch(): Match? {
         sportTypeRaw = unknownSportRaw(getString("sportType")),
         submittedBy = getString("submittedBy"),
         confirmedBy = getString("confirmedBy"),
+        resultType = getString("resultType"),
+        resultData = getString("resultData"),
+        summary = getString("summary"),
+        playerOfMatchKey = getString("playerOfMatchKey"),
+        playerOfMatchName = getString("playerOfMatchName"),
+        playerOfMatchTeamId = getString("playerOfMatchTeamId"),
+        playerStatsData = getString("playerStatsData"),
     )
 }
 

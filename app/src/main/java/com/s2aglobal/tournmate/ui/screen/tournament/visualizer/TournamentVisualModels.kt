@@ -48,8 +48,7 @@ data class TournamentVisualState(
         ): TournamentVisualState {
             if (matches.isEmpty()) return TournamentVisualState(formatType = format)
 
-            fun teamName(reg: Registration): String =
-                listOfNotNull(reg.player.name, reg.partner?.name).joinToString(" & ")
+            fun teamName(reg: Registration): String = reg.displayName()
 
             val regMap = registrations.associateBy { it.id.toString().uppercase() }
 

@@ -32,7 +32,7 @@ object ShareUtil {
         val url = tournamentUrl(tournament.id.toString())
         val text = buildString {
             append("🏸 ${tournament.title}\n")
-            append("📅 ${dateFmt.format(tournament.date)} • ${tournament.format.displayName}\n")
+            append("📅 ${dateFmt.format(tournament.date)} • ${tournament.eventDisplayName}\n")
             if (tournament.location.isNotEmpty()) append("📍 ${tournament.location}\n")
             append("\n$url")
         }

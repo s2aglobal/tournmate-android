@@ -26,6 +26,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.s2aglobal.tournmate.domain.model.*
+import com.s2aglobal.tournmate.ui.component.CricketEventTypePicker
+import com.s2aglobal.tournmate.ui.component.CricketRulesEditor
+import com.s2aglobal.tournmate.ui.component.FormatRulesEditor
 import com.s2aglobal.tournmate.ui.component.ScoringConfigEditor
 import com.s2aglobal.tournmate.ui.component.SkillDivisionPicker
 import com.s2aglobal.tournmate.ui.theme.AppAccent
@@ -48,10 +51,16 @@ fun EditTournamentSheet(
         entryFee: Double?, currency: String, paymentInfo: String?,
         prizeInfo: String?, durationMinutes: Int?, ageGroup: AgeGroup,
         scoringConfig: ScoringConfig?, skillDivision: String?,
+        cricketRules: CricketRules?,
     ) -> Unit,
     onCancel: () -> Unit,
-    /** Scoring is locked once matches exist so results stay consistent. */
-    canEditScoring: Boolean = true,
+    /** Match rules (cricket) and scoring are locked once matches exist so results stay consistent. */
+    canEditMatchRules: Boolean = true,
+    /**
+     * The format can change only until someone enters, so entrants never find a
+     * different format from the one they signed up for. Mirrors iOS `canEditMatchFormat`.
+     */
+    canEditMatchFormat: Boolean = true,
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -89,6 +98,7 @@ fun EditTournamentSheet(
     // unreadable stored config is never replaced with blank defaults.
     var formatConfigEdited by remember { mutableStateOf(false) }
     var editScoringConfig by remember { mutableStateOf(tournament.scoringConfig) }
+    var editCricketRules by remember { mutableStateOf(tournament.cricketRules) }
 
     var showVenuePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -171,15 +181,32 @@ fun EditTournamentSheet(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 )
 
-                // Event Type & Match Format
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        SectionLabel("EVENT TYPE")
-                        PickerButton(editFormat.displayName) { showEventTypePicker = true }
+                // Event Type & Match Format (same choices as Create Tournament)
+                if (tournament.isTeamEvent) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel("EVENT TYPE")
+                            if (canEditMatchRules) {
+                                CricketEventTypePicker(editCricketRules, { editCricketRules = it }, AppAccent)
+                            } else {
+                                LockedValue(editCricketRules.eventType.displayName)
+                            }
+                        }
+                        Column {
+                            SectionLabel("MATCH FORMAT")
+                            MatchFormatField(editMatchFormat, canEditMatchFormat) { showMatchFormatPicker = true }
+                        }
                     }
-                    Column(Modifier.weight(1f)) {
-                        SectionLabel("MATCH FORMAT")
-                        PickerButton(editMatchFormat.displayName) { showMatchFormatPicker = true }
+                } else {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            SectionLabel("EVENT TYPE")
+                            PickerButton(editFormat.displayName) { showEventTypePicker = true }
+                        }
+                        Column(Modifier.weight(1f)) {
+                            SectionLabel("MATCH FORMAT")
+                            MatchFormatField(editMatchFormat, canEditMatchFormat) { showMatchFormatPicker = true }
+                        }
                     }
                 }
 
@@ -196,7 +223,16 @@ fun EditTournamentSheet(
                     }
                 }
 
-                if (canEditScoring) {
+                if (tournament.isTeamEvent) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SectionLabel("MATCH RULES")
+                        if (canEditMatchRules) {
+                            CricketRulesEditor(editCricketRules, { editCricketRules = it }, AppAccent)
+                        } else {
+                            LockedValue(editCricketRules.summary)
+                        }
+                    }
+                } else if (canEditMatchRules) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SectionLabel("SCORING")
                         ScoringConfigEditor(
@@ -208,14 +244,20 @@ fun EditTournamentSheet(
                     }
                 }
 
-                // Format Config
-                EditFormatConfigSection(editMatchFormat, editFormatConfig) {
-                    editFormatConfig = it
-                    formatConfigEdited = true
-                }
+                // Format rules: same editor as Create Tournament, so both offer the same choices.
+                FormatRulesEditor(
+                    format = editMatchFormat,
+                    config = editFormatConfig,
+                    onConfigChange = {
+                        editFormatConfig = it
+                        formatConfigEdited = true
+                    },
+                    accent = AppAccent,
+                    isCricket = tournament.isTeamEvent,
+                )
 
-                // Random Pairing
-                if (editFormat.isDoubles) {
+                // Random Pairing (only for doubles; never for team sports)
+                if (editFormat.isDoubles && !tournament.isTeamEvent) {
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = Color(0xFFF2F2F7),
@@ -435,9 +477,10 @@ fun EditTournamentSheet(
                             editTitle.trim(), editDate,
                             editVenueName, editVenueAddress,
                             editVenueLatitude, editVenueLongitude,
-                            editFormat, editMatchFormat,
+                            if (tournament.isTeamEvent) TournamentFormat.TEAM else editFormat,
+                            if (canEditMatchFormat) editMatchFormat else tournament.matchFormat,
                             editFormatConfig.takeIf { existingConfig != null || formatConfigEdited },
-                            if (editFormat.isDoubles) editRandomPairing else false,
+                            if (editFormat.isDoubles && !tournament.isTeamEvent) editRandomPairing else false,
                             editDeadline,
                             editEntryFee.toDoubleOrNull(), editCurrency,
                             editPaymentInfo.ifBlank { null },
@@ -449,9 +492,10 @@ fun EditTournamentSheet(
                             // organizer actually changed the scoring here.
                             editScoringConfig
                                 .let { if (editMatchFormat == MatchFormat.ROUND_ROBIN) it.copy(gamesPerMatch = 1) else it }
-                                .takeIf { canEditScoring }
+                                .takeIf { canEditMatchRules && !tournament.isTeamEvent }
                                 ?.takeIf { tournament.enforcesScoringRules || editScoringConfig != tournament.scoringConfig },
                             editSkillDivision,
+                            editCricketRules.takeIf { tournament.isTeamEvent && canEditMatchRules },
                         )
                     },
                     enabled = canSave,
@@ -565,7 +609,7 @@ fun EditTournamentSheet(
         if (showEventTypePicker) {
             PickerDialog(
                 title = "EVENT TYPE",
-                items = TournamentFormat.entries,
+                items = TournamentFormat.entries.filter { it != TournamentFormat.TEAM },
                 selectedItem = editFormat,
                 displayName = { it.displayName },
                 onSelect = {
@@ -581,7 +625,7 @@ fun EditTournamentSheet(
         if (showMatchFormatPicker) {
             PickerDialog(
                 title = "MATCH FORMAT",
-                items = MatchFormat.entries,
+                items = MatchFormat.offered(tournament.sportType, current = tournament.matchFormat),
                 selectedItem = editMatchFormat,
                 displayName = { it.displayName },
                 onSelect = {
@@ -716,150 +760,32 @@ private fun <T> PickerDialog(
     )
 }
 
+/**
+ * Match format: a picker until anyone registers, then locked with a note.
+ * Mirrors iOS `editMatchFormatButton`.
+ */
 @Composable
-private fun EditFormatConfigSection(
-    matchFormat: MatchFormat,
-    config: FormatConfig,
-    onConfigChange: (FormatConfig) -> Unit,
-) {
-    when (matchFormat) {
-        MatchFormat.SINGLE_ELIMINATION -> {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SeedingPicker(config, onConfigChange)
-                EditToggle("Bronze Match", config.bronzeMatch) { onConfigChange(config.copy(bronzeMatch = it)) }
-                EditToggle("Consolation Bracket", config.consolationBracket) { onConfigChange(config.copy(consolationBracket = it)) }
-            }
-        }
-        MatchFormat.DOUBLE_ELIMINATION -> {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SeedingPicker(config, onConfigChange)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = AppAccent, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Losers bracket runs alongside the main bracket.", fontSize = 12.sp, color = Color.Gray)
-                }
-            }
-        }
-        MatchFormat.ROUND_ROBIN -> {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                EditToggle("Double Round Robin", config.doubleRoundRobin) { onConfigChange(config.copy(doubleRoundRobin = it)) }
-                SectionLabel("POINTS (WIN / DRAW / LOSS)")
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StepperField("W", config.pointsPerWin, Modifier.weight(1f)) { onConfigChange(config.copy(pointsPerWin = it)) }
-                    StepperField("D", config.pointsPerDraw, Modifier.weight(1f)) { onConfigChange(config.copy(pointsPerDraw = it)) }
-                    StepperField("L", config.pointsPerLoss, Modifier.weight(1f)) { onConfigChange(config.copy(pointsPerLoss = it)) }
-                }
-            }
-        }
-        MatchFormat.GROUP_KNOCKOUT -> {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StepperField("Groups", config.groupCount, Modifier.weight(1f)) { onConfigChange(config.copy(groupCount = it)) }
-                StepperField("Per Grp", config.teamsPerGroup, Modifier.weight(1f)) { onConfigChange(config.copy(teamsPerGroup = it)) }
-                StepperField("Advance", config.advancingPerGroup, Modifier.weight(1f)) { onConfigChange(config.copy(advancingPerGroup = it)) }
-            }
-        }
-        MatchFormat.SWISS -> {
-            StepperField("Swiss Rounds", config.swissRounds, Modifier.fillMaxWidth()) { onConfigChange(config.copy(swissRounds = it)) }
-        }
-        MatchFormat.MANUAL_DRAW -> {
-            Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF2F2F7)) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Draw, null, tint = AppAccent, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Matchups assigned manually by organizer.", fontSize = 12.sp, color = Color.Gray)
-                }
-            }
+private fun MatchFormatField(format: MatchFormat, editable: Boolean, onClick: () -> Unit) {
+    if (editable) {
+        PickerButton(format.displayName, onClick)
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LockedValue(format.displayName)
+            Text("Locked once teams or players have registered.", fontSize = 11.sp, color = Color.Gray)
         }
     }
 }
 
-private val SeedingMode.displayName: String
-    get() = when (this) {
-        SeedingMode.ELO_RANKED -> "Elo Ranked"
-        SeedingMode.RANDOM -> "Random"
-        SeedingMode.MANUAL -> "Manual"
-    }
-
+/** A value that can't be changed any more (matches exist). Mirrors iOS `lockedValue`. */
 @Composable
-private fun SeedingPicker(config: FormatConfig, onConfigChange: (FormatConfig) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionLabel("SEEDING")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SeedingMode.entries.forEach { mode ->
-                val selected = config.seedingMode == mode.rawValue
-                Surface(
-                    onClick = { onConfigChange(config.copy(seedingMode = mode.rawValue)) },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (selected) AppAccent.copy(alpha = 0.15f) else Color(0xFFF2F2F7),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        mode.displayName,
-                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                        color = if (selected) AppAccent else Color.Black,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 10.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EditToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF2F2F7)) {
+private fun LockedValue(text: String) {
+    Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFF2F2F7)) {
         Row(
-            Modifier.fillMaxWidth().padding(12.dp),
+            Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.weight(1f))
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(checkedTrackColor = AppAccent),
-            )
-        }
-    }
-}
-
-@Composable
-private fun StepperField(label: String, value: Int, modifier: Modifier = Modifier, onValueChange: (Int) -> Unit) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            label.uppercase(),
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Gray,
-            letterSpacing = 0.5.sp,
-        )
-        Spacer(Modifier.height(4.dp))
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = Color(0xFFF2F2F7),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                IconButton(
-                    onClick = { if (value > 0) onValueChange(value - 1) },
-                    modifier = Modifier.size(32.dp),
-                ) {
-                    Icon(Icons.Default.Remove, null, Modifier.size(14.dp))
-                }
-                Text("$value", fontSize = 14.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 24.dp))
-                IconButton(
-                    onClick = { onValueChange(value + 1) },
-                    modifier = Modifier.size(32.dp),
-                ) {
-                    Icon(Icons.Default.Add, null, Modifier.size(14.dp))
-                }
-            }
+            Text(text, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color.Gray, modifier = Modifier.weight(1f))
+            Icon(Icons.Default.Lock, "Locked", tint = Color.Gray, modifier = Modifier.size(14.dp))
         }
     }
 }

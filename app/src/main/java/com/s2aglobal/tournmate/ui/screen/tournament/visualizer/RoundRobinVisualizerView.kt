@@ -186,6 +186,8 @@ private fun findMatch(matches: List<Match>, teamA: Registration, teamB: Registra
 }
 
 private fun shortName(reg: Registration): String {
+    // Team sports (cricket) show the team name, never a player.
+    reg.teamName?.takeIf { it.isNotEmpty() }?.let { return it }
     val firstName = reg.player.name.split(" ").firstOrNull() ?: reg.player.name
     val partner = reg.partner
     return if (partner != null) {
