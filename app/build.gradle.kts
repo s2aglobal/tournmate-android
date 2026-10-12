@@ -40,7 +40,8 @@ android {
         applicationId = "com.s2aglobal.tournmate"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
+        // 1 = 1.0.0 (live on Play). Raise for every Play upload.
+        versionCode = 2
         versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -80,6 +81,9 @@ android {
             if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
+            // Native symbol tables in the bundle, so Play symbolicates native crashes
+            // (clears the Play Console "no debug symbols" warning).
+            ndk { debugSymbolLevel = "SYMBOL_TABLE" }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
