@@ -1,5 +1,6 @@
 package com.s2aglobal.tournmate.ui.screen
 
+import androidx.compose.ui.graphics.Brush
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -109,6 +110,22 @@ fun MainScreen(
                 3 -> ProfilePlaceholder(modifier = contentModifier, onSignOut = onSignOut)
             }
             }
+
+            // iOS-style scroll edge: content fades out as it slides under the floating bar
+            // instead of showing through around it and in the gesture area below it.
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(clearance + 24.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color(0x00F2F2F7),
+                            0.35f to Color(0xE6F2F2F7),
+                            1f to Color(0xFFF2F2F7),
+                        ),
+                    ),
+            )
 
             FloatingTabBar(
                 tabs = tabs,
